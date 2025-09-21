@@ -1,20 +1,17 @@
-name: basic checks
+name: run tests
 
 on:
-  push:
   pull_request:
 
 env:
   STACK_ROOT: /tmp/stack-root
 
 jobs:
-  check_compilation:
+  run_tests:
     runs-on: ubuntu-latest
     container:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - name: build
-        run: make
-      - name: check binary name
-        run: test -f glados
+      - name: run tests
+        run: make tests_run

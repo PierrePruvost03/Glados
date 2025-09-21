@@ -48,7 +48,7 @@ executables:
       - glados
 
 tests:
-  glados-test:
+  project-test:
     main: Spec.hs
     source-dirs: test
     ghc-options:
@@ -57,3 +57,4 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - glados
+      - HUnit
