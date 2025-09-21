@@ -3,6 +3,9 @@ name: basic checks
 on:
   push:
 
+env:
+  STACK_ROOT: /tmp/stack-root
+
 jobs:
   check_compilation:
     runs-on: ubuntu-latest
@@ -10,10 +13,6 @@ jobs:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell/actions/setup@v2
-        with:
-          ghc-version: "latest"
-          enable-stack: true
       - name: build
         run: make
       - name: check binary name
