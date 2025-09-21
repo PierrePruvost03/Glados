@@ -26,7 +26,7 @@ fclean:	clean
 re:	fclean all
 
 tests_run:
-	stack test --coverage
+	stack test --coverage --allow-different-user
 	stack hpc report --all --destdir ./test/coverage
 
 .PHONY: all clear fclean re tests_run
