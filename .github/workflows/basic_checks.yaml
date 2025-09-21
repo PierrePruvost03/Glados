@@ -10,6 +10,10 @@ jobs:
       image: haskell:latest
     steps:
       - uses: actions/checkout@v4
+      - uses: haskell/actions/setup@v2
+        with:
+          ghc-version: "latest"
+          enable-stack: true
       - name: build
         run: make
       - name: check binary name
