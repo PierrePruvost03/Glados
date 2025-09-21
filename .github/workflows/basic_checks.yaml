@@ -7,7 +7,7 @@ jobs:
   check_compilation:
     runs-on: ubuntu-latest
     container:
-      image: epitechcontent/epitest-docker
+      image: haskell:latest
     steps:
       - uses: actions/checkout@v4
       - name: build
