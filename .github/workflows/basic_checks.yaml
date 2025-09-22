@@ -2,7 +2,6 @@ name: basic checks
 
 on:
   push:
-  pull_request:
 
 env:
   STACK_ROOT: /tmp/stack-root

@@ -1,0 +1,32 @@
+name: Mirroring To Epitech
+run-name: Mirroring Glados
+
+on:
+  workflow_run:
+    workflows:
+      - basic checks
+      - run tests
+    types:
+      - completed
+
+jobs:
+  is_mirror_repo:
+    name: Check if mirror repo
+    runs-on: ubuntu-latest
+    if: ${{ github.repository != vars.MIRROR_URL }}
+    steps:
+      - run: echo "mhhh, tu t'es pas trompé... le repo il aaaaaaaaaa"
+
+  push_to_mirror:
+    needs: [is_mirror_repo]
+    name: Push to Epitech repo
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.merged == 'true' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pixta-dev/repository-mirroring-action@v1
+        with:
+          target_repo_url: "git@github.com:${{ vars.MIRROR_URL }}.git"
+          ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
