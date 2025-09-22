@@ -2,6 +2,9 @@ name: run tests
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 env:
   STACK_ROOT: /tmp/stack-root
