@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository != vars.MIRROR_URL }}
     steps:
-      - run: echo ${{ ((github.event_name == 'pull_request' && github.event.pull_request.merged == 'true') || (github.event_name == 'push')) && github.ref == 'refs/heads/main' }} && echo "mhhh, tu t'es pas trompé... le repo il aaaaaaaaaa"
+      - run: echo ${{(github.event_name == 'push')}} && echo "mhhh, tu t'es pas trompé... le repo il aaaaaaaaaa"
 
   push_to_mirror:
     needs: [is_mirror_repo]
