@@ -1,4 +1,4 @@
-module Ast where
+module SExpr where
 
 data SExpr = SInt Int
             | SSymbol String
