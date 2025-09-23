@@ -1,6 +1,10 @@
-module DataStruct.SExpr where
+module DataStruct.SExpr (
+    SExpr (SInt, SSymbol, SList),
+    ) where
 
-data SExpr = SInt Int
-            | SSymbol String
-            | SList [SExpr]
-            deriving (Eq, Ord, Show)
+import Parser
+
+data SExpr = SInt (LineCount, Int)
+            | SSymbol (LineCount, String)
+            | SList (LineCount, [SExpr])
+        deriving (Eq, Ord, Show)
