@@ -1,44 +1,48 @@
 module Parser (
     Parser,
+    LineCount,
+    Rest,
+    ParsingError,
+    getLineCount,
+    generateError,
     runParser,
     parseChar,
-    -- parseString,
-    -- parseInt,
-    -- parseFloat,
-    -- parseCharAny,
-    -- parseAnyChar,
-    -- parseNotChar,
-    -- checkEmptyString,
-    -- skipChars,
-    -- parseUntilChar,
-    -- parseManyWithSeparator,
-    -- parseNotCharAny,
-    -- parseUntilAnyChar,
-    -- fmap,
-    -- pure,
-    -- (<*>),
-    -- empty,
-    -- (<|>),
-    -- (>>=),
-    -- parseSomeUntilAnyChar,
-    -- skipEmptyLine,
+    parseString,
+    parseInt,
+    parseFloat,
+    parseCharAny,
+    parseAnyChar,
+    parseNotChar,
+    skipChars,
+    parseUntilChar,
+    parseManyWithSeparator,
+    parseAnyNotChar,
+    parseUntilAnyChar,
+    fmap,
+    pure,
+    many,
+    some,
+    (<*>),
+    empty,
+    (<|>),
+    (>>=),
+    parseSomeUntilAnyChar,
 ) where
 
 import Control.Applicative
 
-data LineCount = Wrapper (Int, Int) -- line + column
-
-instance Show LineCount where
-    show (Wrapper (l, c)) = " at l:" <> show l <> ", c:" <> show c <> ", "
+type LineCount = (Int, Int) -- line + column
 
 type Rest = (String, LineCount)
 
+type ParsingError = (String, String, LineCount) -- context, error, LineCount
+
 data Parser a = Parser
-    { runParser :: Rest -> Either String (a, Rest) }
+    { runParser :: Rest -> Either ParsingError (a, Rest) }
 
 updateLineCount :: Char -> LineCount -> LineCount
-updateLineCount '\n' (Wrapper (l, _)) = Wrapper (l + 1, 0)
-updateLineCount _ (Wrapper (l, c)) = Wrapper (l, c + 1)
+updateLineCount '\n' (l, _) = (l + 1, 0)
+updateLineCount _ (l, c) = (l, c + 1)
 
 getRest :: Char -> String -> LineCount -> Rest
 getRest c str lc = (str, updateLineCount c lc)
@@ -46,7 +50,7 @@ getRest c str lc = (str, updateLineCount c lc)
 instance Functor Parser where
     fmap fct parser = Parser f
       where
-        f r = runParser parser r >>= \(x, r) -> Right (fct x, r)
+        f r = runParser parser r >>= \(x, rest) -> Right (fct x, rest)
 
 instance Applicative Parser where
     pure a = Parser f
@@ -59,7 +63,7 @@ instance Applicative Parser where
 instance Alternative Parser where
     empty = Parser f
       where
-        f _ = Left ""
+        f _ = Left ("Empty", "Empty", (0, 0))
     first <|> second = Parser f
       where
         f rest = case runParser first rest of
@@ -73,35 +77,40 @@ instance Monad Parser where
 
 parserCustomError :: a -> (a -> Parser b) -> String -> String -> Parser b
 parserCustomError a p scope detail = Parser $ \rest@(_, lc) -> case runParser (p a) rest of
-    Left _ -> Left $ scope <> show lc <> detail
+    Left _ -> Left (scope, detail, lc)
     x -> x
+
+getLineCount :: Parser LineCount
+getLineCount = Parser $ \rest@(_, lc) -> Right (lc, rest)
+
+generateError :: String -> String -> Parser a
+generateError c d = Parser $ \(_, lc) -> Left (c, d, lc)
 
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \(s, lc) -> case s of
-    [] -> Left $ "Error parsing char \"" <> [c] <> "\"" <> show lc <> "String empty"
+    [] -> Left $ ("Error parsing char \"" <> [c] <> "\"", "String empty", lc)
     (x : xs)
         | c == x -> Right (x, getRest x xs lc)
-        | otherwise -> Left $ "Error parsing char \"" <> [c] <> "\"" <> show lc <> "Char not found"
+        | otherwise -> Left ("Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
 
 parseNotChar :: Char -> Parser Char
 parseNotChar c = Parser $ \(s, lc) -> case s of
-    [] -> Left $ "Error parsing not char \"" <> [c] <> "\"" <> show lc <> "String empty"
+    [] -> Left ("Error parsing not char \"" <> [c] <> "\"", "String empty", lc)
     (x : xs)
-        | c == x -> Left $ "Error parsing not char \"" <> [c] <> "\"" <> show lc <> "Char found"
+        | c == x -> Left ("Error parsing not char \"" <> [c] <> "\"", "Char found", lc)
         | otherwise -> Right (x, getRest x xs lc)
 
 parseCharAny :: Parser Char
 parseCharAny = Parser $ \(s, lc) -> case s of
     (x : xs) -> Right (x, getRest x xs lc)
-    [] -> Left $ "Error parsing any char" <> show lc <> "String empty"
+    [] -> Left ("Error parsing any char", "String empty", lc)
 
-parseNotCharAny :: String -> Parser Char
-parseNotCharAny s = parserCustomError s f ("Error parsing not char in \"" <> s <> "\"") "Char match element in string"
-    where
-        f :: String -> Parser Char
-        f [] = parseCharAny
-        f (x:xs) = parseNotChar x *> f xs
-
+parseAnyNotChar :: String -> Parser Char
+parseAnyNotChar str = Parser $ \(s, lc) -> case s of
+    [] -> Left ("Error parsing any not char \"" <> str <> "\"", "String empty", lc)
+    (x : xs)
+        | x `elem` str -> Left ("Error parsing any not char \"" <> str <> "\"", "Character found in string", lc)
+        | otherwise -> Right (x, getRest x xs lc)
 
 parseString :: String -> Parser String
 parseString s = parserCustomError s f ("Error parsing string \"" <> s <> "\"") "String not found"
@@ -112,18 +121,15 @@ parseString s = parserCustomError s f ("Error parsing string \"" <> s <> "\"") "
 
 
 parseAnyChar :: String -> Parser Char
-parseAnyChar s = parserCustomError s f ("Error parsing char in \"" <> s <> "\"") "Char is not matching any of the string"
+parseAnyChar str = parserCustomError str f ("Error parsing char in \"" <> str <> "\"") "Char is not matching any of the string"
     where
         f :: String -> Parser Char
-        f [] = Parser $ \s -> Left $ "Not found"
+        f [] = Parser $ \(_, lc) -> Left ("Error parsing any char", "char not found", lc)
         f (x : xs) = parseChar x <|> f xs
 
 
 skipChars :: String -> Parser String
 skipChars s = many (parseAnyChar s)
-
-skipEmptyLine :: Parser String
-skipEmptyLine = (parseUntilAnyChar "\n " <* parseAnyChar "\n ")
 
 parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c
@@ -144,7 +150,7 @@ parseManyWithSeparator :: Parser a -> Char -> Parser [a]
 parseManyWithSeparator p c = (:) <$> p <*> many (parseChar c *> p) <|> pure []
 
 parseUntilAnyChar :: String -> Parser String
-parseUntilAnyChar str = many $ parseNotCharAny str
+parseUntilAnyChar str = many $ parseAnyNotChar str
 
 parseSomeUntilAnyChar :: String -> Parser String
-parseSomeUntilAnyChar str = some $ parseNotCharAny str
+parseSomeUntilAnyChar str = some $ parseAnyNotChar str
