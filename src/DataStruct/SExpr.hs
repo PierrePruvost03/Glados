@@ -1,4 +1,4 @@
-module SExpr where
+module DataStruct.SExpr where
 
 data SExpr = SInt Int
             | SSymbol String

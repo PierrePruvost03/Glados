@@ -1,4 +1,6 @@
-module Ast where
+module DataStruct.Ast where
+
+import DataStruct.SExpr
 
 type AstInt = Integer
 
