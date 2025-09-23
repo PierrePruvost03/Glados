@@ -1,13 +1,12 @@
 module Main (main) where
 
 import Test.HUnit
+import ParserTests
+import SExprTests
 import qualified System.Exit as Exit
 
-testHello :: Test
-testHello = TestCase $ assertEqual "should success" "hello" "hello"
-
 tests :: Test
-tests = TestList [TestLabel "hello" testHello]
+tests = TestList (parserTests <> sExprTests)
 
 main :: IO ()
 main = do
