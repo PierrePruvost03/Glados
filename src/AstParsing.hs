@@ -1,8 +1,8 @@
 module AstParsing (
+    parseAstFromSExpr
     ) where
 
 import Control.Applicative ((<|>))
-import Data.Traversable (traverse)
 import DataStruct.Ast
 import DataStruct.SExpr
 
