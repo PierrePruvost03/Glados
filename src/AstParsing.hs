@@ -35,7 +35,7 @@ parseLambda (SList (_, [SSymbol (_,"lambda"), s, q])) =
 parseLambda _ = Nothing
 
 parseCall :: SExpr -> Maybe Ast
-parseCall (SList (_, [SSymbol (_, call), SList (_, arg)])) =
+parseCall (SList (_, SSymbol (_, call):arg)) =
   ACall call <$> parseList (SList (undefined, arg))
 parseCall _ = Nothing
 
