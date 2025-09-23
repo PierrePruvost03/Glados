@@ -1,6 +1,14 @@
-module DataStruct.Ast where
-
-import DataStruct.SExpr
+module DataStruct.Ast
+  ( AstInt
+  , AstSymbol
+  , AstList
+  , AstBool
+  , AstLambdaArgs
+  , AstLambda(..)
+  , AstBoolLambda(..)
+  , AstValue(..)
+  , Ast(..)
+  ) where
 
 type AstInt = Integer
 
@@ -36,7 +44,7 @@ data AstValue
 data Ast
   = AValue AstValue
   | ASymbol AstSymbol
-  | AList AstList 
+  | AList AstList
   | ADefine { name :: AstSymbol, value :: Ast }
   | ALambdas AstLambda
   | ACall { name :: String, args :: Ast }
