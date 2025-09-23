@@ -10,7 +10,7 @@ module DataStruct.Ast
   , Ast(..)
   ) where
 
-type AstInt = Integer
+type AstInt = Int
 
 type AstSymbol = String
 
