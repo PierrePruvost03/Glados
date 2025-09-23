@@ -3,7 +3,6 @@ module DataStruct.Ast
   , AstSymbol
   , AstList
   , AstBool
-  , AstLambdaArgs
   , AstLambda(..)
   , AstBoolLambda(..)
   , AstValue(..)
@@ -18,9 +17,7 @@ type AstList = [Ast]
 
 type AstBool = Bool
 
-type AstLambdaArgs = AstList
-
-data AstLambda = AstLambda AstLambdaArgs Ast deriving (Eq, Ord, Show)
+data AstLambda = AstLambda AstList Ast deriving (Eq, Ord, Show)
 
 data AstBoolLambda
     = AstBLBool AstBool
