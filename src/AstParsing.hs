@@ -24,25 +24,28 @@ parseDefine _ = Nothing
 
 parseArgs :: SExpr -> Maybe Ast
 parseArgs (SList (_, s)) =
-    Just . AList <$> traverse parseSymbol s
+  AList <$> traverse parseSymbol s
 parseArgs _ = Nothing
 
 parseLambda :: SExpr -> Maybe Ast
 parseLambda (SList (_, [SSymbol (_,"lambda"), s, q])) =
-    ((Just . ALambdas . AstLambda) . AList <$> parseArgs s) <*> parseAstFromSExpr q
+  case (parseArgs s, parseAstFromSExpr q) of
+    (Just (AList arg), Just body) -> Just $ ALambdas (AstLambda arg body)
+    _                              -> Nothing
 parseLambda _ = Nothing
 
 parseCall :: SExpr -> Maybe Ast
-parseCall (SList (_, [SSymbol (_, call), SList (_, arg)])) = Just . ACall call <$> parseArgs args
+parseCall (SList (_, [SSymbol (_, call), SList (_, arg)])) =
+  ACall call <$> parseList (SList (undefined, arg))
 parseCall _ = Nothing
 
 parseIf :: SExpr -> Maybe Ast
-parseIf (SList (_, [SSymbol (_, "if"), cond, true, false])) =
-    AIf <$> parseAstFromSExpr cond <*> parseAstFromSExpr true <*> parseAstFromSExpr false
+parseIf (SList (_, [SSymbol (_, "if"), cond, tExp, fExp])) =
+  AIf <$> parseAstFromSExpr cond <*> parseAstFromSExpr tExp <*> parseAstFromSExpr fExp
 parseIf _ = Nothing
 
 parseList :: SExpr -> Maybe Ast
-parseList (SList (_, xs)) = Just . AList <$> traverse parseAstFromSExpr xs
+parseList (SList (_, xs)) = AList <$> traverse parseAstFromSExpr xs
 parseList _ = Nothing
 
 parseAstFromSExpr :: SExpr -> Maybe Ast
