@@ -9,7 +9,7 @@ module DataStruct.Ast
   , Ast(..)
   ) where
 
-import Parser.LineCount
+import Parser (LineCount)
 
 type AstInt = Int
 
@@ -44,8 +44,8 @@ data Ast
   = AValue (LineCount, AstValue)
   | ASymbol (LineCount, AstSymbol)
   | AList (LineCount, AstList)
-  | ADefine { name :: AstSymbol, value :: Ast } (LineCount, LineCount)
-  | ALambdas AstLambda (LineCount, LineCount)
-  | ACall { name :: String, args :: Ast } (LineCount, LineCount)
-  | AIf { ifCond :: Ast, ifThen :: Ast, ifElse :: Ast } (LineCount, LineCount)
+  | ADefine { name :: (LineCount, AstSymbol), value :: (LineCount, Ast) }
+  | ALambdas (LineCount, AstLambda)
+  | ACall { name :: (LineCount, String), args :: (LineCount, Ast) }
+  | AIf  { ifCond :: (LineCount, Ast), ifThen :: (LineCount, Ast), ifElse :: (LineCount, Ast) }
    deriving (Eq, Ord, Show)
