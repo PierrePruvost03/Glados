@@ -3,6 +3,7 @@ module Main (main) where
 import Test.HUnit
 import ParserTests
 import SExprTests
+import DataStruct.SExpr
 import qualified System.Exit as Exit
 
 tests :: Test

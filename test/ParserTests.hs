@@ -1,6 +1,7 @@
 module ParserTests (parserTests) where
 
 import Parser
+import DataStruct.SExpr
 import Test.HUnit
 
 testParseCharSuccess :: Test
