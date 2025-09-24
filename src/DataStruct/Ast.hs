@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 module DataStruct.Ast
   ( AstInt
   , AstSymbol
