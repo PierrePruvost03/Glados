@@ -3,11 +3,11 @@ module Main (main) where
 import Test.HUnit
 import ParserTests
 import SExprTests
-import DataStruct.SExpr
+import AstParsingTest
 import qualified System.Exit as Exit
 
 tests :: Test
-tests = TestList (parserTests <> sExprTests)
+tests = TestList (parserTests <> sExprTests <> astParsingTests)
 
 main :: IO ()
 main = do
