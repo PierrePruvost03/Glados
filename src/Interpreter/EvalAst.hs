@@ -6,8 +6,8 @@ module Interpreter.EvalAst
   , evalAst
   ) where
 
-import DataStruct.Ast (AstValue(..), Ast(..))
-import Interpreter.BaseEnv (Value(..), Env, lookupEnv)
+import DataStruct.Ast (AstValue(..), Ast(..), AstLambda(..))
+import Interpreter.BaseEnv (Value(..), Env, lookupEnv, extendEnv)
 import Parser (LineCount)
 
 astValueToValue :: (LineCount, AstValue) -> Value
@@ -22,6 +22,11 @@ evalAst env (ASymbol (_, s)) =
       Just val -> Right val
       Nothing -> Left $ "Unbound variable: " ++ s
 evalAst env (AList (_, xs)) = VList <$> traverse (evalAst env) xs
+evalAst env (ALambdas (_, AstLambda params body)) =
+  VLambda <$> traverse getParam params <*> pure body <*> pure env
+  where
+    getParam (ASymbol (_, s)) = Right s
+    getParam x = Left $ "Invalid parameter: " ++ show x
 evalAst env (AIf (_, cond) (_, t) (_, e)) =
   evalAst env cond >>= \v ->
     case v of
