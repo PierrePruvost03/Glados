@@ -1,3 +1,6 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
+
 module Interpreter.EvalAst
   ( astValueToValue
   , evalAst
@@ -19,4 +22,10 @@ evalAst env (ASymbol (_, s)) =
       Just val -> Right val
       Nothing -> Left $ "Unbound variable: " ++ s
 evalAst env (AList (_, xs)) = VList <$> traverse (evalAst env) xs
+evalAst env (AIf (_, cond) (_, t) (_, e)) =
+  evalAst env cond >>= \v ->
+    case v of
+      VBool True -> evalAst env t
+      VBool False -> evalAst env e
+      _ -> Left "Condition is not a boolean"
 evalAst _ _ = Left "Not implemented yet"
