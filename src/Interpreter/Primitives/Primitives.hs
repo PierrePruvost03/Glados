@@ -1,7 +1,14 @@
-module Interpreter.Primitives.Primitives(
-    primitiveList
+module Interpreter.Primitives.Primitives (
+    primitiveList,
+    primAdd,
+    primSub,
+    primMul,
+    primDiv,
+    primEq,
+    primLt,
+    primGt,
+    primMod
 ) where
-
 
 import Interpreter.BaseEnv (Value (..))
 
