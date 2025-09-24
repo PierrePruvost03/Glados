@@ -2,14 +2,12 @@ module AstParsing (
     parseAstFromSExpr
     ) where
 
-import Control.Applicative ((<|>))
 import DataStruct.Ast
 import DataStruct.SExpr
 import Parser (LineCount)
 
 type AstResult a = Either (String, String, LineCount) a
 
--- Helpers
 ok :: a -> AstResult a
 ok = Right
 
