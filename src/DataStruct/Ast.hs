@@ -1,6 +1,15 @@
-module Ast where
+module DataStruct.Ast
+  ( AstInt
+  , AstSymbol
+  , AstList
+  , AstBool
+  , AstLambda(..)
+  , AstBoolLambda(..)
+  , AstValue(..)
+  , Ast(..)
+  ) where
 
-type AstInt = Integer
+type AstInt = Int
 
 type AstSymbol = String
 
@@ -8,9 +17,7 @@ type AstList = [Ast]
 
 type AstBool = Bool
 
-type AstLambdaArgs = AstList
-
-data AstLambda = AstLambda AstLambdaArgs Ast deriving (Eq, Ord, Show)
+data AstLambda = AstLambda AstList Ast deriving (Eq, Ord, Show)
 
 data AstBoolLambda
     = AstBLBool AstBool
@@ -34,7 +41,7 @@ data AstValue
 data Ast
   = AValue AstValue
   | ASymbol AstSymbol
-  | AList AstList 
+  | AList AstList
   | ADefine { name :: AstSymbol, value :: Ast }
   | ALambdas AstLambda
   | ACall { name :: String, args :: Ast }

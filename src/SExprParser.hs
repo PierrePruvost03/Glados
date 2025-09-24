@@ -1,5 +1,4 @@
 module SExprParser (
-    SExpr (SInt, SSymbol, SList),
     parseLisp,
     parseLispInt,
     parseLispSymbol,
@@ -7,11 +6,7 @@ module SExprParser (
 ) where
 
 import Parser
-
-data SExpr = SInt (LineCount, Int)
-            | SSymbol (LineCount, String)
-            | SList (LineCount, [SExpr])
-        deriving (Eq, Ord, Show)
+import DataStruct.SExpr
 
 parseLispList :: Parser SExpr
 parseLispList = SList <$> ((,) <$> getLineCount <*> (parseChar '(' *> many parseLisp <* parseChar ')'))
@@ -20,7 +15,7 @@ parseLispInt :: Parser SExpr
 parseLispInt = SInt <$> ((,) <$> getLineCount <*> parseInt)
 
 parseLispSymbol :: Parser SExpr
-parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> (some $ parseAnyNotChar " \n()"))
+parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar " \n()"))
 
 parseLisp :: Parser SExpr
 parseLisp = skipChars " \n\t" *>

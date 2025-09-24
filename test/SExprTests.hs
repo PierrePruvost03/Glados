@@ -2,6 +2,7 @@ module SExprTests (sExprTests) where
 
 import SExprParser
 import Parser
+import DataStruct.SExpr
 import Test.HUnit
 
 testParseIntSuccess :: Test

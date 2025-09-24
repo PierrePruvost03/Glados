@@ -37,7 +37,7 @@ type Rest = (String, LineCount)
 
 type ParsingError = (String, String, LineCount) -- context, error, LineCount
 
-data Parser a = Parser
+newtype Parser a = Parser
     { runParser :: Rest -> Either ParsingError (a, Rest) }
 
 updateLineCount :: Char -> LineCount -> LineCount
