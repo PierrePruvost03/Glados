@@ -52,12 +52,12 @@ evalAst env (ACall (_, funcName) (_, arg)) =
     Just func -> callFunction funcName env func arg
 
 callFunction :: String -> Env -> Value -> Ast -> Either String (Value, Env)
-callFunction _ callEnv (VLambda params body lambdaEnv) argAst =
+callFunction funcName callEnv (VLambda params body lambdaEnv) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, _) ->
     case length params == length argValues of
       False -> Left $ "Wrong number of arguments: expected " ++ show (length params) 
                       ++ ", got " ++ show (length argValues)
-      True -> evalAst (extendEnv lambdaEnv (zip params argValues)) body >>= \(result, _) ->
+      True -> evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body >>= \(result, _) ->
         Right (result, callEnv)
 callFunction _ callEnv (VPrim _ primFunc) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, newEnv) ->
