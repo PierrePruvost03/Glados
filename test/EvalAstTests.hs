@@ -3,7 +3,7 @@ module EvalAstTests (evalAstTests) where
 import Test.HUnit
 import Data.List (isInfixOf)
 import Interpreter.EvalAst (evalAst)
-import Interpreter.BaseEnv (emptyEnv, extendEnv)
+import Interpreter.BaseEnv (emptyEnv, extendEnv, defaultEnv)
 import DataStruct.Value (Value (..))
 import DataStruct.Ast (Ast(..), AstValue(..), AstLambda(..))
 
@@ -92,6 +92,30 @@ testEvalAstCallWrongArgCount =
         Left msg -> "Wrong number of arguments:" `isInfixOf` msg
         _ -> False))
 
+testFactorial :: Test
+testFactorial =
+  TestCase $ do
+    let fact = ADefine ((0,0), "fact")
+                 ((0,0), ALambdas ((0,0), AstLambda [ASymbol ((0,0), "x")]
+                   (AIf ((0,0), ACall ((0,0), "zero?") ((0,0), AList ((0,0), [ASymbol ((0,0), "x")])))
+                        ((0,0), AValue ((0,0), AstInteger 1))
+                        ((0,0), ACall ((0,0), "*") ((0,0), AList ((0,0), [ASymbol ((0,0), "x"), 
+                                ACall ((0,0), "fact") ((0,0), AList ((0,0), [ACall ((0,0), "-") ((0,0), AList ((0,0), [ASymbol ((0,0), "x"), AValue ((0,0), AstInteger 1)]))]))]))))))
+    case evalAst defaultEnv fact of
+      Left err -> assertFailure $ "Failed to define factorial: " ++ err
+      Right (_, envWithFact) -> do
+        --test 0 (should be 1)
+        case evalAst envWithFact (ACall ((0,0), "fact") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 0)]))) of
+          Left err -> assertFailure $ "Failed to compute fact(0): " ++ err
+          Right (VInt result, _) -> assertEqual "factorial of 0 should be 1" 1 result
+          Right (other, _) -> assertFailure $ "Expected integer result, got: " ++ show other
+        
+        --test 3 (should be 6)
+        case evalAst envWithFact (ACall ((0,0), "fact") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 3)]))) of
+          Left err -> assertFailure $ "Failed to compute fact(3): " ++ err
+          Right (VInt result, _) -> assertEqual "factorial of 3 should be 6" 6 result
+          Right (other, _) -> assertFailure $ "Expected integer result, got: " ++ show other
+
 evalAstTests :: [Test]
 evalAstTests = [
         TestLabel "evalAst AValue" testEvalAstValue,
@@ -105,5 +129,6 @@ evalAstTests = [
         TestLabel "evalAst ACall lambda" testEvalAstCallLambda,
         TestLabel "evalAst ACall primitive" testEvalAstCallPrimitive,
         TestLabel "evalAst ACall undefined" testEvalAstCallUndefined,
-        TestLabel "evalAst ACall wrong args" testEvalAstCallWrongArgCount
+        TestLabel "evalAst ACall wrong args" testEvalAstCallWrongArgCount,
+        TestLabel "factorial test" testFactorial
     ]
