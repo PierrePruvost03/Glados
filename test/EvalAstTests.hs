@@ -2,7 +2,8 @@ module EvalAstTests (evalAstTests) where
 
 import Test.HUnit
 import Interpreter.EvalAst (evalAst)
-import Interpreter.BaseEnv (Value(..), emptyEnv, extendEnv)
+import Interpreter.BaseEnv (emptyEnv, extendEnv)
+import DataStruct.Value (Value (..))
 import DataStruct.Ast (Ast(..), AstValue(..))
 
 testEvalAstValue :: Test

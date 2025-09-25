@@ -7,7 +7,8 @@ module Interpreter.EvalAst
   ) where
 
 import DataStruct.Ast (AstValue(..), Ast(..), AstLambda(..))
-import Interpreter.BaseEnv (Value(..), Env, lookupEnv, extendEnv)
+import Interpreter.BaseEnv (lookupEnv, extendEnv)
+import DataStruct.Value (Value(..), Env)
 import Parser (LineCount)
 import Control.Monad (foldM)
 

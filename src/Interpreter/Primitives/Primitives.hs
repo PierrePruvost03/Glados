@@ -10,7 +10,7 @@ module Interpreter.Primitives.Primitives (
     primMod
 ) where
 
-import Interpreter.BaseEnv (Value (..))
+import DataStruct.Value (Value (..))
 
 
 primAdd :: [Value] -> Either String Value

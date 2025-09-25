@@ -1,6 +1,6 @@
 module PrimitivesTests (primitivesTests) where
 
-import Interpreter.BaseEnv
+import DataStruct.Value (Value (..))
 import Interpreter.Primitives.Primitives (primAdd, primSub, primMul, primDiv, primEq, primLt, primGt, primMod)
 import Test.HUnit
 
