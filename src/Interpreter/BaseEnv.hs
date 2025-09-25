@@ -3,11 +3,13 @@ module Interpreter.BaseEnv
   , extendEnv
   , lookupEnv
   , err
+  , defaultEnv
   ) where
 
 import qualified Data.Map.Strict as Map
 import Parser (LineCount)
 import DataStruct.Value (Value(..), Env)
+import Interpreter.Primitives.Primitives (primitiveList)
 
 emptyEnv :: Env
 emptyEnv = Map.empty
