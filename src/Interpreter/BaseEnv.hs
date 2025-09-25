@@ -18,5 +18,8 @@ extendEnv = foldr (uncurry Map.insert)
 lookupEnv :: String -> Env -> Maybe Value
 lookupEnv = Map.lookup
 
+defaultEnv :: Env
+defaultEnv = extendEnv emptyEnv primitiveList
+
 err :: LineCount -> String -> Either String a
 err (l,c) msg = Left $ "Error at " ++ show (l,c) ++ ": " ++ msg
