@@ -7,7 +7,8 @@ module Interpreter.Primitives.Primitives (
     primEq,
     primLt,
     primGt,
-    primMod
+    primMod,
+    primZero
 ) where
 
 import DataStruct.Value (Value (..))
@@ -47,14 +48,20 @@ primMod [_, VInt 0] = Left "primMod: modulo by zero"
 primMod [VInt a, VInt b] = Right $ VInt (a `mod` b)
 primMod args = Left $ "primMod: expected two integers, got " ++ show args
 
+primZero :: [Value] -> Either String Value
+primZero [VInt 0] = Right $ VBool True
+primZero [VInt _] = Right $ VBool False
+primZero args = Left $ "primZero: expected one integer, got " ++ show args
+
 primitiveList :: [(String, Value)]
 primitiveList =
   [ ("+", VPrim "+" primAdd)
   , ("-", VPrim "-" primSub)
   , ("*", VPrim "*" primMul)
   , ("/", VPrim "/" primDiv)
-  , ("==", VPrim "==" primEq)
+  , ("=", VPrim "=" primEq)
   , ("<", VPrim "<" primLt)
   , (">", VPrim ">" primGt)
   , ("mod", VPrim "mod" primMod)
+  , ("zero?", VPrim "zero?" primZero)
   ]
