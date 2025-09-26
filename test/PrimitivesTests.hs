@@ -1,7 +1,7 @@
 module PrimitivesTests (primitivesTests) where
 
 import Interpreter.BaseEnv
-import Interpreter.Primitives.Primitives (primAdd, primSub, primMul, primDiv, primEq, primLt, primGt, primMod)
+import Interpreter.Primitives.Primitives (primAdd, primSub, primMul, primDiv, primEq, primLt, primGt, primMod, primConcat, primStrCmp)
 import Test.HUnit
 
 
@@ -95,6 +95,26 @@ testPrimModByZero = TestCase (assertEqual "primMod by zero should fail with corr
     (Left "primMod: modulo by zero")
     (primMod [VInt 10, VInt 0]))
 
+testPrimConcatSuccess :: Test
+testPrimConcatSuccess = TestCase (assertEqual "primConcat \"Hello, \" ++ \"world!\" = \"Hello, world!\""
+    (Right (VString "Hello, world!"))
+    (primConcat [VString "Hello, ", VString "world!"]))
+
+testPrimConcatFail :: Test
+testPrimConcatFail = TestCase (assertEqual "primConcat with wrong args should fail with correct message"
+    (Left "primConcat: expected two strings, got [VString \"Hello, \",VInt 5]")
+    (primConcat [VString "Hello, ", VInt 5]))
+
+testPrimStrCmpSuccess :: Test
+testPrimStrCmpSuccess = TestCase (assertEqual "primStrCmp \"test\" == \"test\" = True"
+    (Right (VBool True))
+    (primStrCmp [VString "test", VString "test"]))
+
+testPrimStrCmpFail :: Test
+testPrimStrCmpFail = TestCase (assertEqual "primStrCmp with wrong args should fail with correct message"
+    (Left "primStrCmp: expected two strings, got [VString \"test\",VInt 5]")
+    (primStrCmp [VString "test", VInt 5]))
+
 primitivesTests :: [Test]
 primitivesTests = [
     TestLabel "primAdd" testPrimAddSuccess,
@@ -114,5 +134,9 @@ primitivesTests = [
     TestLabel "primGtFail" testPrimGtFail,
     TestLabel "primMod" testPrimModSuccess,
     TestLabel "primModFail" testPrimModFail,
-    TestLabel "primModByZero" testPrimModByZero
+    TestLabel "primModByZero" testPrimModByZero,
+    TestLabel "primConcat" testPrimConcatSuccess,
+    TestLabel "primConcatFail" testPrimConcatFail,
+    TestLabel "primStrCmp" testPrimStrCmpSuccess,
+    TestLabel "primStrCmpFail" testPrimStrCmpFail
     ]
