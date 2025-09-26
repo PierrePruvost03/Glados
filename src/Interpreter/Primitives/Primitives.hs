@@ -7,7 +7,9 @@ module Interpreter.Primitives.Primitives (
     primEq,
     primLt,
     primGt,
-    primMod
+    primMod,
+    primConcat,
+    primStrCmp
 ) where
 
 import Interpreter.BaseEnv (Value (..))
@@ -16,6 +18,10 @@ import Interpreter.BaseEnv (Value (..))
 primAdd :: [Value] -> Either String Value
 primAdd [VInt a, VInt b] = Right $ VInt (a + b)
 primAdd args = Left $ "primAdd: expected two integers, got " ++ show args
+
+primConcat :: [Value] -> Either String Value
+primConcat [VString a, VString b] = Right $ VString (a ++ b)
+primConcat args = Left $ "primConcat: expected two strings, got " ++ show args
 
 primSub :: [Value] -> Either String Value
 primSub [VInt a, VInt b] = Right $ VInt (a - b)
@@ -33,6 +39,10 @@ primDiv args = Left $ "primDiv: expected two integers, got " ++ show args
 primEq :: [Value] -> Either String Value
 primEq [a, b] = Right $ VBool (a == b)
 primEq args = Left $ "primEq: expected two values, got " ++ show args
+
+primStrCmp :: [Value] -> Either String Value
+primStrCmp [VString a, VString b] = Right $ VBool (a == b)
+primStrCmp args = Left $ "primStrCmp: expected two strings, got " ++ show args
 
 primLt :: [Value] -> Either String Value
 primLt [VInt a, VInt b] = Right $ VBool (a < b)
@@ -57,4 +67,6 @@ primitiveList =
   , ("<", VPrim "<" primLt)
   , (">", VPrim ">" primGt)
   , ("mod", VPrim "mod" primMod)
+  , ("concat", VPrim "concat" primConcat)
+  , ("strcmp", VPrim "strcmp" primStrCmp)
   ]
