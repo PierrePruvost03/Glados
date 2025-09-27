@@ -23,7 +23,7 @@ testEvalAstSymbolNotFound :: Test
 testEvalAstSymbolNotFound =
   TestCase (assertBool "should fail when symbol not in environment"
     (case evalAst emptyEnv (ASymbol ((0,0), "undefined")) of
-        Left msg -> "Unbound variable: undefined" == msg
+        Left msg -> "Unbound variable: undefined at (0,0)" == msg
         _ -> False))
 
 testEvalAstIfCondition :: Test
@@ -81,7 +81,7 @@ testEvalAstCallUndefined :: Test
 testEvalAstCallUndefined =
   TestCase (assertBool "should fail when calling undefined function"
     (case evalAst emptyEnv (ACall ((0,0), "undefined") ((0,0), AList ((0,0), []))) of
-        Left msg -> "Unbound function: undefined" == msg
+        Left msg -> "Unbound function: undefined at (0,0)" == msg
         _ -> False))
 
 testEvalAstCallWrongArgCount :: Test
