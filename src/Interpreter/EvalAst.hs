@@ -4,6 +4,7 @@
 module Interpreter.EvalAst
   ( astValueToValue
   , evalAst
+  , throwError
   ) where
 
 import DataStruct.Ast (AstValue(..), Ast(..), AstLambda(..))
@@ -11,6 +12,9 @@ import Interpreter.BaseEnv (lookupEnv, extendEnv)
 import DataStruct.Value (Value(..), Env)
 import Parser (LineCount)
 import Control.Monad (foldM)
+
+throwError :: LineCount -> String -> Either String a
+throwError lc msg = Left $ "Error at " ++ show lc ++ ": " ++ msg
 
 astValueToValue :: (LineCount, AstValue) -> Value
 astValueToValue (_, AstInteger i) = VInt i
@@ -22,7 +26,7 @@ evalAst env (AValue v) = Right (astValueToValue v, env)
 evalAst env (ASymbol (lineCount, s)) =
     case lookupEnv s env of
       Just val -> Right (val, env)
-      Nothing -> Left $ "Unbound variable: " ++ s ++ " at " ++ show lineCount
+      Nothing -> throwError lineCount $ "Unbound variable: " ++ s
 evalAst env (AList (_, xs)) = 
   foldM evalListItem ([], env) xs >>= \(vals, newEnv) -> 
     Right (VList (reverse vals), newEnv)
@@ -36,33 +40,33 @@ evalAst env (ALambdas (lineCount, AstLambda params body)) =
     Left err -> Left err
   where
     getParam (ASymbol (_, s)) = Right s
-    getParam x = Left $ "Invalid parameter: " ++ show x ++ " at " ++ show lineCount
+    getParam x = throwError lineCount $ "Invalid parameter: " ++ show x
 evalAst env (AIf (lineCount, cond) (_, t) (_, e)) =
   evalAst env cond >>= \(condVal, _) ->
     case condVal of
       VBool True -> evalAst env t
       VBool False -> evalAst env e
-      _ -> Left $ "Condition is not a boolean at " ++ show lineCount
+      _ -> throwError lineCount "Condition is not a boolean"
 evalAst env (ADefine (_, varName) (_, v)) =
   evalAst env v >>= \(val, _) ->
     Right (val, extendEnv env [(varName, val)])
 evalAst env (ACall (lineCount, funcName) (_, arg)) =
   case lookupEnv funcName env of
-    Nothing -> Left $ "Unbound function: " ++ funcName ++ " at " ++ show lineCount
+    Nothing -> throwError lineCount $ "Unbound function: " ++ funcName
     Just func -> callFunction funcName lineCount env func arg
 
 callFunction :: String -> LineCount -> Env -> Value -> Ast -> Either String (Value, Env)
 callFunction funcName lineCount callEnv (VLambda params body lambdaEnv) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, _) ->
     case length params == length argValues of
-      False -> Left $ "Wrong number of arguments: expected " ++ show (length params) 
-                      ++ ", got " ++ show (length argValues) ++ " at " ++ show lineCount
+      False -> throwError lineCount $ "Wrong number of arguments: expected " ++ show (length params) 
+                      ++ ", got " ++ show (length argValues)
       True -> evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body >>= \(result, _) ->
         Right (result, callEnv)
 callFunction _ _ callEnv (VPrim _ primFunc) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, newEnv) ->
     primFunc argValues >>= \result -> Right (result, newEnv)
-callFunction funcName lineCount _ _ _ = Left $ funcName ++ " is not a function at " ++ show lineCount
+callFunction funcName lineCount _ _ _ = throwError lineCount $ funcName ++ " is not a function"
 
 evaluateArgs :: Env -> Ast -> Either String ([Value], Env)
 evaluateArgs argEnv (AList (_, argList)) = 

@@ -23,7 +23,7 @@ testEvalAstSymbolNotFound :: Test
 testEvalAstSymbolNotFound =
   TestCase (assertBool "should fail when symbol not in environment"
     (case evalAst emptyEnv (ASymbol ((0,0), "undefined")) of
-        Left msg -> "Unbound variable: undefined at (0,0)" == msg
+        Left msg -> "Error at (0,0): Unbound variable: undefined" == msg
         _ -> False))
 
 testEvalAstIfCondition :: Test
@@ -60,7 +60,7 @@ testEvalAstLambdaInvalidParam :: Test
 testEvalAstLambdaInvalidParam =
   TestCase (assertBool "should fail on invalid lambda parameter"
     (case evalAst emptyEnv (ALambdas ((0,0), AstLambda [AValue ((0,0), AstInteger 1)] (AValue ((0,0), AstInteger 42)))) of
-        Left msg -> "Invalid parameter:" `isInfixOf` msg
+        Left msg -> "Error at (0,0):" `isInfixOf` msg && "Invalid parameter:" `isInfixOf` msg
         _ -> False))
 
 testEvalAstCallLambda :: Test
@@ -81,7 +81,7 @@ testEvalAstCallUndefined :: Test
 testEvalAstCallUndefined =
   TestCase (assertBool "should fail when calling undefined function"
     (case evalAst emptyEnv (ACall ((0,0), "undefined") ((0,0), AList ((0,0), []))) of
-        Left msg -> "Unbound function: undefined at (0,0)" == msg
+        Left msg -> "Error at (0,0): Unbound function: undefined" == msg
         _ -> False))
 
 testEvalAstCallWrongArgCount :: Test
@@ -89,7 +89,7 @@ testEvalAstCallWrongArgCount =
   TestCase (assertBool "should fail with wrong argument count"
     (case evalAst (extendEnv emptyEnv [("f", VLambda ["x", "y"] (AValue ((0,0), AstInteger 1)) emptyEnv)])
                   (ACall ((0,0), "f") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 42)]))) of
-        Left msg -> "Wrong number of arguments:" `isInfixOf` msg
+        Left msg -> "Error at (0,0):" `isInfixOf` msg && "Wrong number of arguments:" `isInfixOf` msg
         _ -> False))
 
 testFactorial :: Test
