@@ -34,7 +34,6 @@ parseSymbol (SList (lc, _))   = notFoundAt lc
 parseDefine :: SExpr -> AstResult Ast
 parseDefine (SList (lc, [SSymbol (_,"define"), SSymbol (lcName, s), q])) =
   case parseAstFromSExpr q of
-    Right (AList _) -> malformed "define" "value cannot be a list" lc
     Right a         -> ok $ ADefine { name = (lcName, s), value = (lc, a) }
     Left e@(ctx,_,_) | ctx /= "parse" -> Left e
     Left _ -> malformed "define" "malformed value expression" lc
