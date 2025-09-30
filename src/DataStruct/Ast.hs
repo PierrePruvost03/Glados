@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-partial-fields #-}
+
 module DataStruct.Ast
   ( AstInt
   , AstSymbol
@@ -8,6 +10,8 @@ module DataStruct.Ast
   , AstValue(..)
   , Ast(..)
   ) where
+
+import Parser (LineCount)
 
 type AstInt = Int
 
@@ -39,11 +43,11 @@ data AstValue
     deriving (Eq, Ord, Show)
 
 data Ast
-  = AValue AstValue
-  | ASymbol AstSymbol
-  | AList AstList
-  | ADefine { name :: AstSymbol, value :: Ast }
-  | ALambdas AstLambda
-  | ACall { name :: String, args :: Ast }
-  | AIf { ifCond :: Ast, ifThen :: Ast, ifElse :: Ast }
+  = AValue (LineCount, AstValue)
+  | ASymbol (LineCount, AstSymbol)
+  | AList (LineCount, AstList)
+  | ADefine { name :: (LineCount, AstSymbol), value :: (LineCount, Ast) }
+  | ALambdas (LineCount, AstLambda)
+  | ACall { name :: (LineCount, String), args :: (LineCount, Ast) }
+  | AIf  { ifCond :: (LineCount, Ast), ifThen :: (LineCount, Ast), ifElse :: (LineCount, Ast) }
    deriving (Eq, Ord, Show)
