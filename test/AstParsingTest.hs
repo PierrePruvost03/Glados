@@ -23,6 +23,12 @@ testParseValueInt =
     (Right (AValue (lc0, AstInteger 42)))
     (parseAstFromSExpr (SInt (lc0, 42))))
 
+testParseValueString :: Test
+testParseValueString =
+    TestCase (assertEqual "should parse string value"
+                 (Right (AValue (lc0, AstString "42")))
+                 (parseAstFromSExpr (SSymbol (lc0, "\"42\""))))
+
 testParseSymbol :: Test
 testParseSymbol =
   TestCase (assertEqual "should parse symbol"
@@ -149,6 +155,7 @@ testParseEmptyList =
 astParsingTests :: [Test]
 astParsingTests =
   [ TestLabel "value int"                testParseValueInt
+  , TestLabel "value string"             testParseValueString
   , TestLabel "symbol"                   testParseSymbol
   , TestLabel "list"                     testParseList
   , TestLabel "define"                   testParseDefine

@@ -21,9 +21,23 @@ malformed ctx msg lc = Left (ctx, msg, lc)
 (<?|>) (Left ("parse","no such element found", _)) r = r
 (<?|>) l _ = l
 
+isQuotedString :: String -> Bool
+isQuotedString ('"':xs@(_:_)) = case reverse xs of
+  '"':_ -> True
+  _     -> False
+isQuotedString _ = False
+
+stripQuotes :: String -> String
+stripQuotes ('"':xs@(_:_)) = case reverse xs of
+  '"':rest -> reverse rest
+  _        -> '"':xs
+stripQuotes s = s
+
 parseValue :: SExpr -> AstResult Ast
 parseValue (SInt (lc, i)) = ok $ AValue (lc, AstInteger i)
-parseValue (SSymbol (lc, _)) = notFoundAt lc
+parseValue (SSymbol (lc, s))
+  | isQuotedString s = ok $ AValue (lc, AstString (stripQuotes s))
+  | otherwise        = notFoundAt lc
 parseValue (SList (lc, _))   = notFoundAt lc
 
 parseSymbol :: SExpr -> AstResult Ast
