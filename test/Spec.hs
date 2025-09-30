@@ -3,13 +3,15 @@ module Main (main) where
 import Test.HUnit
 import ParserTests
 import SExprTests
+<<<<<<< HEAD
 import EvalAstTests
 import PrimitivesTests
 import DataStruct.SExpr
 import qualified System.Exit as Exit
+import AstParsingTest
 
 tests :: Test
-tests = TestList (parserTests <> sExprTests <> evalAstTests <> primitivesTests)
+tests = TestList (parserTests <> sExprTests <> stParsingTests <> evalAstTests <> primitivesTests)
 
 main :: IO ()
 main = do
