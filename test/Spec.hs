@@ -3,7 +3,6 @@ module Main (main) where
 import Test.HUnit
 import ParserTests
 import SExprTests
-<<<<<<< HEAD
 import EvalAstTests
 import PrimitivesTests
 import DataStruct.SExpr
