@@ -1,6 +1,9 @@
 module Main (main) where
 
 -- import Lib
+import Control.Monad (when, forever)
+import System.IO (isEOF)
+import System.Exit (exitSuccess)
 
 isOpenPar :: Char -> Int
 isOpenPar '(' = 1
@@ -21,18 +24,24 @@ compareEnoughPar txt = countOpenPar txt <= countClosedPar txt
 
 getUserInput :: Maybe String -> IO ()
 getUserInput Nothing = do
+    done <- isEOF
+    when done $ putStrLn "exit" >> exitSuccess
     content <- getLine
     let result = content
-    if null content && compareEnoughPar result
-        then putStrLn result
+    if compareEnoughPar result
+        then putStrLn $ "[" ++ result ++ "]"
         else getUserInput $ Just result
 getUserInput (Just txt) = do
+    done <- isEOF
+    when done $ putStrLn "exit" >> exitSuccess
     content <- getLine
     let result = txt ++ "\n" ++ content
-    if null content && compareEnoughPar result
+    if compareEnoughPar result
         then putStrLn $ "[" ++ result ++ "]"
         else getUserInput $ Just result
 
 main :: IO ()
-main = do
+main = forever $ do
+    done <- isEOF
+    when done $ putStrLn "exit" >> exitSuccess
     getUserInput Nothing
