@@ -10,7 +10,7 @@ import qualified System.Exit as Exit
 import AstParsingTest
 
 tests :: Test
-tests = TestList (parserTests <> sExprTests <> stParsingTests <> evalAstTests <> primitivesTests)
+tests = TestList (parserTests <> sExprTests <> astParsingTests <> evalAstTests <> primitivesTests)
 
 main :: IO ()
 main = do
