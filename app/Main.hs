@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use if" #-}
 module Main (main) where
 
 -- import Lib
@@ -27,18 +29,16 @@ getUserInput Nothing = do
     done <- isEOF
     when done $ putStrLn "exit" >> exitSuccess
     content <- getLine
-    let result = content
-    if compareEnoughPar result
-        then putStrLn $ "[" ++ result ++ "]"
-        else getUserInput $ Just result
+    case compareEnoughPar content of
+        True -> putStrLn $ "[" ++ content ++ "]"
+        False -> getUserInput $ Just content
 getUserInput (Just txt) = do
     done <- isEOF
     when done $ putStrLn "exit" >> exitSuccess
     content <- getLine
-    let result = txt ++ "\n" ++ content
-    if compareEnoughPar result
-        then putStrLn $ "[" ++ result ++ "]"
-        else getUserInput $ Just result
+    case compareEnoughPar $ txt ++ "\n" ++ content of
+        True -> putStrLn $ "[" ++ txt ++ "\n" ++ content ++ "]"
+        False -> getUserInput $ Just $ txt ++ "\n" ++ content
 
 main :: IO ()
 main = forever $ do
