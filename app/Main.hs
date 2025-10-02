@@ -1,47 +1,37 @@
 module Main (main) where
 
 -- import Lib
-import Control.Monad (when, forever)
 import System.IO (isEOF)
 import System.Exit (exitSuccess)
 
-isOpenPar :: Char -> Int
-isOpenPar '(' = 1
-isOpenPar _ = 0
+checkParEnd :: String -> Int -> Bool
+checkParEnd [] i = i > 0
+checkParEnd ('(':xs) i = checkParEnd xs (i + 1)
+checkParEnd (')':_) 0 = False
+checkParEnd (')':xs) i = checkParEnd xs (i - 1)
+checkParEnd (_:xs) i = checkParEnd xs i
 
-isClosedPar :: Char -> Int
-isClosedPar ')' = 1
-isClosedPar _ = 0
+isSkip :: Char -> Bool
+isSkip ' ' = True
+isSkip '\n' = True
+isSkip '\t' = True
+isSkip _ = False
 
-countOpenPar :: String -> Int
-countOpenPar txt = sum (map isOpenPar txt)
+useCompare :: String -> Either String String
+useCompare str
+    | all isSkip str || checkParEnd str 0 = Right str
+    | otherwise = Left $ "[" <> str <> "]" -- les brackets à enlever, c'est pour debug hehe
 
-countClosedPar :: String -> Int
-countClosedPar txt = sum (map isClosedPar txt)
+checkCompare :: Either String String -> IO ()
+checkCompare (Right str) = getUserInput str
+checkCompare (Left str) = putStrLn str >> getUserInput "" -- ici on passe la string au parsing à la place de putStrLn
 
-compareEnoughPar :: String -> Bool
-compareEnoughPar txt = countOpenPar txt <= countClosedPar txt
-
-getUserInput :: Maybe String -> IO ()
-getUserInput Nothing = do
-    done <- isEOF
-    when done $ putStrLn "exit" >> exitSuccess
-    content <- getLine
-    let result = content
-    if compareEnoughPar result
-        then putStrLn $ "[" ++ result ++ "]"
-        else getUserInput $ Just result
-getUserInput (Just txt) = do
-    done <- isEOF
-    when done $ putStrLn "exit" >> exitSuccess
-    content <- getLine
-    let result = txt ++ "\n" ++ content
-    if compareEnoughPar result
-        then putStrLn $ "[" ++ result ++ "]"
-        else getUserInput $ Just result
+getUserInput :: String -> IO ()
+getUserInput txt = isEOF >>= \x -> checkEof x
+    where
+        checkEof :: Bool -> IO ()
+        checkEof True = putStrLn "exit" >> exitSuccess
+        checkEof _ = getLine >>= \content -> checkCompare $ useCompare $ txt <> content
 
 main :: IO ()
-main = forever $ do
-    done <- isEOF
-    when done $ putStrLn "exit" >> exitSuccess
-    getUserInput Nothing
+main = getUserInput ""
