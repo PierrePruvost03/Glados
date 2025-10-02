@@ -20,11 +20,13 @@ parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar ";
 parseComment :: Parser String
 parseComment = (:[]) <$> parseChar ';' <* parseUntilChar '\n'
 
+
 parseLisp :: Parser SExpr
-parseLisp = many (skipSomeChars " \n\t" <|> parseComment) *>
+parseLisp = many (skipSomeChars " \n\t" <|> parseComment) *> skipChars " \n\t" *>
     (
         parseLispList <|>
         parseLispInt <|>
         parseLispSymbol <|>
+        (parseCharAny <|> generateError "nothing" "") *>
         generateError "SExpr parsing" "unknow syntax"
-    ) <* many (skipSomeChars " \n\t" <|> parseComment)
+    ) <* many (skipSomeChars " \n\t" <|> parseComment) <* skipChars " \n\t"

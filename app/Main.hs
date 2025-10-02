@@ -33,16 +33,20 @@ useCompare str
   | all isSkip str || checkParEnd str 0 = Right str
   | otherwise = Left str
 
+handleSExpr :: SExpr -> Env -> IO Env
+handleSExpr sexpr env = case parseAstFromSExpr sexpr of
+  Right ast ->
+    case evalAst env ast of
+      Right (val, updatedEnv) -> print val >> pure updatedEnv
+      Left err -> putStrLn err >> pure env
+  Left err -> print err >> pure env
+
+
 checkCompare :: Either String String -> Env -> IO ()
 checkCompare (Right str) env = getUserInput str env
 checkCompare (Left str) env = case parseToSExpr str of
-  Right (sexpr, _) ->
-    case parseAstFromSExpr sexpr of
-      Right ast ->
-        case evalAst env ast of
-          Right (val, updatedEnv) -> print val >> getUserInput "" updatedEnv
-          Left err -> putStrLn err >> getUserInput "" env
-      Left err -> print err >> getUserInput "" env
+  Right (sexpr, _) -> handleSExpr sexpr env >>= \newEnv -> getUserInput "" newEnv
+  Left ("nothing", _, _) -> getUserInput "" env
   Left err -> print err >> getUserInput "" env
 
 getUserInput :: String -> Env -> IO ()
