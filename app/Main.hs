@@ -6,28 +6,23 @@ module Main (main) where
 import System.IO (isEOF)
 import System.Exit (exitSuccess)
 
-isOpenPar :: Char -> Int
-isOpenPar '(' = 1
-isOpenPar _ = 0
+checkParEnd :: String -> Int -> Bool
+checkParEnd [] i = i > 0
+checkParEnd ('(':xs) i = checkParEnd xs (i + 1)
+checkParEnd (')':_) 0 = False
+checkParEnd (')':xs) i = checkParEnd xs (i - 1)
+checkParEnd (_:xs) i = checkParEnd xs i
 
-isClosedPar :: Char -> Int
-isClosedPar ')' = 1
-isClosedPar _ = 0
-
-countOpenPar :: String -> Int
-countOpenPar txt = sum (map isOpenPar txt)
-
-countClosedPar :: String -> Int
-countClosedPar txt = sum (map isClosedPar txt)
-
-compareEnoughPar :: String -> Bool
-compareEnoughPar "" = False
-compareEnoughPar txt = countOpenPar txt <= countClosedPar txt
+isSkip :: Char -> Bool
+isSkip ' ' = True
+isSkip '\n' = True
+isSkip '\t' = True
+isSkip _ = False
 
 useCompare :: String -> Either String String
 useCompare str
-    | compareEnoughPar str = Left $ "[" <> str <> "]"
-    | otherwise = Right str
+    | all isSkip str || checkParEnd str 0 = Right str
+    | otherwise = Left $ "[" <> str <> "]" -- les brackets à enlever, c'est pour debug hehe
 
 checkCompare :: Either String String -> IO ()
 checkCompare (Right str) = getUserInput str
