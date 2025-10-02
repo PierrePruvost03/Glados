@@ -14,6 +14,7 @@ module Parser (
     parseAnyChar,
     parseNotChar,
     skipChars,
+    skipSomeChars,
     parseUntilChar,
     parseManyWithSeparator,
     parseAnyNotChar,
@@ -130,6 +131,9 @@ parseAnyChar str = parserCustomError str f ("Error parsing char in \"" <> str <>
 
 skipChars :: String -> Parser String
 skipChars s = many (parseAnyChar s)
+
+skipSomeChars :: String -> Parser String
+skipSomeChars s = some (parseAnyChar s)
 
 parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c
