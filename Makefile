@@ -25,8 +25,15 @@ fclean:	clean
 
 re:	fclean all
 
+FUNC_TEST_OUTPUT_DIR	=	functionnal_tests/tmp
+
+FUNC_TEST_OUTPUT_LOG	=	$(FUNC_TEST_OUTPUT_DIR)/result.log
+
 tests_run:
 	stack test --coverage --allow-different-user
 	stack hpc report --all --destdir ./test/coverage
+	./functionnal_tests/install_requirements.sh
+	python3 functionnal_tests/run.py > $(FUNC_TEST_OUTPUT_LOG)
+	@echo "\033[0;32mFull results in $(FUNC_TEST_OUTPUT_LOG)\033[0m"
 
 .PHONY: all clear fclean re tests_run
