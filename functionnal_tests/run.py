@@ -30,10 +30,10 @@ def read_tests(test_data: dict[str, str]):
 
 def print_summary():
     print("\n" + "="*40)
-    print(Fore.GREEN + f"Successful tests: {len(success_tests)}" + Style.RESET_ALL)
+    print(Fore.GREEN + f"Successful tests: {len(success_tests)} ({len(success_tests) * 100 / (len(failed_tests) + len(success_tests))}%)" + Style.RESET_ALL)
     for test in success_tests:
         print(Fore.GREEN + f"- {test}" + Style.RESET_ALL)
-    print(Fore.RED + f"Failed tests: {len(failed_tests)}" + Style.RESET_ALL)
+    print(Fore.RED + f"Failed tests: {len(failed_tests)} ({len(failed_tests) * 100 / (len(failed_tests) + len(success_tests))}%)" + Style.RESET_ALL)
     for test in failed_tests:
         print(Fore.RED + f"- {test}" + Style.RESET_ALL)
     print("="*40 + "\n")
