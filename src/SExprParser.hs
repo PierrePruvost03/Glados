@@ -15,7 +15,7 @@ parseLispInt :: Parser SExpr
 parseLispInt = SInt <$> ((,) <$> getLineCount <*> parseInt)
 
 parseLispSymbol :: Parser SExpr
-parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar "; \n()"))
+parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar "; \t\n()"))
 
 parseComment :: Parser String
 parseComment = (:[]) <$> parseChar ';' <* parseUntilChar '\n'
@@ -27,6 +27,6 @@ parseLisp = many (skipSomeChars " \n\t" <|> parseComment) *> skipChars " \n\t" *
         parseLispList <|>
         parseLispInt <|>
         parseLispSymbol <|>
-        (parseCharAny <|> generateError "nothing" "") *>
+        (parseNotEmpty <|> generateError "nothing" "") *>
         generateError "SExpr parsing" "unknow syntax"
     ) <* many (skipSomeChars " \n\t" <|> parseComment) <* skipChars " \n\t"

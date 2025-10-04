@@ -1,9 +1,9 @@
 (define fact
   (lambda (x)
     (if (zero? x)
-      1 ; prout pipi
-      (* x (fact (- x 1)) ; alexendre et cs
+      1
+      (* x (fact (- x 1))
         )
       )
-    ) ;j'aime la bite
+    )
   )

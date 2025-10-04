@@ -7,7 +7,7 @@ module Parser (
     generateError,
     runParser,
     parseChar,
-    parseEmpty,
+    parseNotEmpty,
     parseString,
     parseInt,
     parseFloat,
@@ -95,10 +95,10 @@ parseChar c = Parser $ \(s, lc) -> case s of
         | c == x -> Right (x, getRest x xs lc)
         | otherwise -> Left ("Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
 
-parseEmpty :: Parser String
-parseEmpty = Parser $ \(s, lc) -> case s of
-    [] -> Right ("", ("", lc))
-    _ -> Left ("Error parsing empty", "string not empty", lc)
+parseNotEmpty :: Parser String
+parseNotEmpty = Parser $ \(s, lc) -> case s of
+    [] -> Left ("Error parsing not empty", "string empty", lc)
+    _ -> Right ("", (s, lc))
 
 parseNotChar :: Char -> Parser Char
 parseNotChar c = Parser $ \(s, lc) -> case s of
