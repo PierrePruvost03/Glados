@@ -7,6 +7,7 @@ module Parser (
     generateError,
     runParser,
     parseChar,
+    parseEmpty,
     parseString,
     parseInt,
     parseFloat,
@@ -14,6 +15,7 @@ module Parser (
     parseAnyChar,
     parseNotChar,
     skipChars,
+    skipSomeChars,
     parseUntilChar,
     parseManyWithSeparator,
     parseAnyNotChar,
@@ -93,6 +95,11 @@ parseChar c = Parser $ \(s, lc) -> case s of
         | c == x -> Right (x, getRest x xs lc)
         | otherwise -> Left ("Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
 
+parseEmpty :: Parser String
+parseEmpty = Parser $ \(s, lc) -> case s of
+    [] -> Right ("", ("", lc))
+    _ -> Left ("Error parsing empty", "string not empty", lc)
+
 parseNotChar :: Char -> Parser Char
 parseNotChar c = Parser $ \(s, lc) -> case s of
     [] -> Left ("Error parsing not char \"" <> [c] <> "\"", "String empty", lc)
@@ -130,6 +137,9 @@ parseAnyChar str = parserCustomError str f ("Error parsing char in \"" <> str <>
 
 skipChars :: String -> Parser String
 skipChars s = many (parseAnyChar s)
+
+skipSomeChars :: String -> Parser String
+skipSomeChars s = some (parseAnyChar s)
 
 parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c

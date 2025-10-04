@@ -3,3 +3,5 @@
 glados*
 test/coverage
 .idea
+**/*.venv
+functionnal_tests/tmp/*
