@@ -14,6 +14,7 @@ import GHC.IO.Handle.FD (openFile)
 import Control.Exception
 import System.IO (IOMode(ReadMode))
 import System.IO (hPutStrLn, stderr)
+import Command
 
 checkParEnd :: String -> Int -> Bool
 checkParEnd [] i = i > 0
@@ -86,6 +87,7 @@ loadFiles env (x:xs) = catch (openFile x ReadMode >>=
 
 execCommand :: Env -> Command -> IO Env
 execCommand env ("load", files) = loadFiles env files
+execCommand env ("help", _) = printHelp >> pure env
 execCommand env (s, _) = print
     (s <> ": Command not found. use :help to get all the commands")
     >> pure env
