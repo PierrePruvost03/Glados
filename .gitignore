@@ -6,3 +6,4 @@ test/coverage
 hie.yaml
 **/*.venv
 functionnal_tests/tmp/*
+dist*

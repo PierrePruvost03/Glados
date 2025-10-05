@@ -39,12 +39,14 @@ parseValue (SInt (lc, i)) = ok $ AValue (lc, AstInteger i)
 parseValue (SSymbol (lc, s))
   | isQuotedString s = ok $ AValue (lc, AstString (stripQuotes s))
   | otherwise = notFoundAt lc
+parseValue (SBool (lc, b)) = ok $ AValue (lc, AstBool b)
 parseValue (SList (lc, _)) = notFoundAt lc
 
 parseSymbol :: SExpr -> AstResult Ast
 parseSymbol (SSymbol (lc, i)) = ok $ ASymbol (lc, i)
 parseSymbol (SInt (lc, _)) = notFoundAt lc
 parseSymbol (SList (lc, _)) = notFoundAt lc
+parseSymbol (SBool (lc, _)) = notFoundAt lc
 
 parseDefine :: SExpr -> AstResult Ast
 parseDefine (SList (lc, [SSymbol (_, "define"), SSymbol (lcName, s), q])) =
@@ -57,6 +59,7 @@ parseDefine (SList (lc, SSymbol (_, "define") : _)) =
 parseDefine (SList (lc, _)) = notFoundAt lc
 parseDefine (SInt (lc, _)) = notFoundAt lc
 parseDefine (SSymbol (lc, _)) = notFoundAt lc
+parseDefine (SBool (lc, _)) = notFoundAt lc
 
 parseArgs :: SExpr -> AstResult Ast
 parseArgs (SList (lc, s)) = foldl step (ok (AList (lc, []))) s
@@ -69,6 +72,7 @@ parseArgs (SList (lc, s)) = foldl step (ok (AList (lc, []))) s
       _ -> malformed "lambda-args" "arguments must be symbols" lc
 parseArgs (SSymbol (lc, _)) = malformed "lambda-args" "expected list of symbols, got symbol" lc
 parseArgs (SInt (lc, _)) = malformed "lambda-args" "expected list of symbols, got integer" lc
+parseArgs (SBool (lc, _)) = malformed "lambda-args" "expected list of symbols, got boolean" lc
 
 parseLambda :: SExpr -> AstResult Ast
 parseLambda (SList (lc, [SSymbol (_, "lambda"), s, q])) =
@@ -82,6 +86,7 @@ parseLambda (SList (lc, SSymbol (_, "lambda") : _)) =
 parseLambda (SList (lc, _)) = notFoundAt lc
 parseLambda (SInt (lc, _)) = notFoundAt lc
 parseLambda (SSymbol (lc, _)) = notFoundAt lc
+parseLambda (SBool (lc, _)) = notFoundAt lc
 
 parseCall :: SExpr -> AstResult Ast
 parseCall (SList (lc, SSymbol (lcName, call) : arg)) =
@@ -96,6 +101,7 @@ parseCall (SList (lc, [])) =
 parseCall (SList (lc, _)) = notFoundAt lc
 parseCall (SInt (lc, _)) = notFoundAt lc
 parseCall (SSymbol (lc, _)) = notFoundAt lc
+parseCall (SBool (lc, _)) = notFoundAt lc
 
 parseIf :: SExpr -> AstResult Ast
 parseIf (SList (lc, [SSymbol (_, "if"), cond, tExp, fExp])) =
@@ -110,6 +116,7 @@ parseIf (SList (lc, SSymbol (_, "if") : _)) =
 parseIf (SList (lc, _)) = notFoundAt lc
 parseIf (SInt (lc, _)) = notFoundAt lc
 parseIf (SSymbol (lc, _)) = notFoundAt lc
+parseIf (SBool (lc, _)) = notFoundAt lc
 
 parseList :: SExpr -> AstResult Ast
 parseList (SList (lc, xs)) = foldl cons (ok (AList (lc, []))) xs
@@ -121,6 +128,7 @@ parseList (SList (lc, xs)) = foldl cons (ok (AList (lc, []))) xs
       _ -> malformed "list" "malformed element" lc
 parseList (SInt (lc, _)) = notFoundAt lc
 parseList (SSymbol (lc, _)) = notFoundAt lc
+parseList (SBool (lc, _)) = notFoundAt lc
 
 parseAstFromSExpr :: SExpr -> AstResult Ast
 parseAstFromSExpr sexpr =
