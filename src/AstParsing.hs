@@ -75,12 +75,11 @@ parseArgs (SInt (lc, _)) = malformed "lambda-args" "expected list of symbols, go
 parseArgs (SBool (lc, _)) = malformed "lambda-args" "expected list of symbols, got boolean" lc
 
 parseLambda :: SExpr -> AstResult Ast
-parseLambda (SList (lc, [SSymbol (_, "lambda"), s, q])) =
-  case (parseArgs s, parseAstFromSExpr q) of
-    (Right (AList (_, arg)), Right body) -> ok $ ALambdas (lc, AstLambda arg body)
-    (Left e@(ctx, _, _), _) | ctx /= "parse" -> Left e
-    (_, Left e@(ctx, _, _)) | ctx /= "parse" -> Left e
-    _ -> malformed "lambda" "malformed lambda body or arguments" lc
+parseLambda (SList (lc, [SSymbol (_, "lambda"), s, q])) = case (parseArgs s, parseAstFromSExpr q) of
+  (Right (AList (_, arg)), Right body) -> ok $ ALambdas (lc, AstLambda arg body)
+  (Left e@(ctx, _, _), _) | ctx /= "parse" -> Left e
+  (_, Left e@(ctx, _, _)) | ctx /= "parse" -> Left e
+  _ -> malformed "lambda" "malformed lambda body or arguments" lc
 parseLambda (SList (lc, SSymbol (_, "lambda") : _)) =
   malformed "lambda" "expected (lambda (<args>) <body>)" lc
 parseLambda (SList (lc, _)) = notFoundAt lc
@@ -89,9 +88,16 @@ parseLambda (SSymbol (lc, _)) = notFoundAt lc
 parseLambda (SBool (lc, _)) = notFoundAt lc
 
 parseCall :: SExpr -> AstResult Ast
+parseCall (SList (lc, lambda@(SList (_, SSymbol (lcLam, "lambda") : _)) : arg)) = case parseLambda lambda of
+  Right (ALambdas (_, result)) -> case parseList (SList (lc, arg)) of
+    Right lst -> ok $ ACall {callRef = (lcLam, Right result), args = (lc, lst)}
+    Left e@(ctx, _, _) | ctx /= "parse" -> Left e
+    Left _ -> malformed "call" "malformed argument list" lc
+  Right _ -> notFoundAt lc
+  err@(Left _) -> err
 parseCall (SList (lc, SSymbol (lcName, call) : arg)) =
   case parseList (SList (lc, arg)) of
-    Right lst -> ok $ ACall {name = (lcName, call), args = (lc, lst)}
+    Right lst -> ok $ ACall {callRef = (lcName, Left call), args = (lc, lst)}
     Left e@(ctx, _, _) | ctx /= "parse" -> Left e
     Left _ -> malformed "call" "malformed argument list" lc
 parseCall (SList (lc, SInt _ : _)) =

@@ -1,17 +1,19 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use lambda-case" #-}
 
 module Interpreter.EvalAst
-  ( astValueToValue
-  , evalAst
-  , throwError
-  ) where
+  ( astValueToValue,
+    evalAst,
+    throwError,
+  )
+where
 
-import DataStruct.Ast (AstValue(..), Ast(..), AstLambda(..))
-import Interpreter.BaseEnv (lookupEnv, extendEnv)
-import DataStruct.Value (Value(..), Env)
-import Parser (LineCount)
 import Control.Monad (foldM)
+import DataStruct.Ast (Ast (..), AstLambda (..), AstValue (..))
+import DataStruct.Value (Env, Value (..))
+import Interpreter.BaseEnv (extendEnv, lookupEnv)
+import Parser (LineCount)
 
 throwError :: LineCount -> String -> Either String a
 throwError lc msg = Left $ "Error at " ++ show lc ++ ": " ++ msg
@@ -24,14 +26,14 @@ astValueToValue (_, AstString s) = VString s
 evalAst :: Env -> Ast -> Either String (Value, Env)
 evalAst env (AValue v) = Right (astValueToValue v, env)
 evalAst env (ASymbol (lineCount, s)) =
-    case lookupEnv s env of
-      Just val -> Right (val, env)
-      Nothing -> throwError lineCount $ "Unbound variable: " ++ s
-evalAst env (AList (_, xs)) = 
-  foldM evalListItem ([], env) xs >>= \(vals, newEnv) -> 
+  case lookupEnv s env of
+    Just val -> Right (val, env)
+    Nothing -> throwError lineCount $ "Unbound variable: " ++ s
+evalAst env (AList (_, xs)) =
+  foldM evalListItem ([], env) xs >>= \(vals, newEnv) ->
     Right (VList (reverse vals), newEnv)
   where
-    evalListItem (acc, currentEnv) ast = 
+    evalListItem (acc, currentEnv) ast =
       evalAst currentEnv ast >>= \(val, updatedEnv) ->
         Right (val : acc, updatedEnv)
 evalAst env (ALambdas (lineCount, AstLambda params body)) =
@@ -50,32 +52,40 @@ evalAst env (AIf (lineCount, cond) (_, t) (_, e)) =
 evalAst env (ADefine (_, varName) (_, v)) =
   evalAst env v >>= \(val, _) ->
     Right (val, extendEnv env [(varName, val)])
-evalAst env (ACall (lineCount, funcName) (_, arg)) =
+evalAst env (ACall (lineCount, Left funcName) (_, arg)) =
   case lookupEnv funcName env of
     Nothing -> throwError lineCount $ "Unbound function: " ++ funcName
     Just func -> callFunction funcName lineCount env func arg
+evalAst env (ACall (lineCount, Right func) (_, arg)) = case evalAst env (ALambdas (lineCount, func)) of
+  Right (v, newEnv) -> callFunction "lambda" lineCount newEnv v arg
+  Left err -> throwError lineCount err
 
 callFunction :: String -> LineCount -> Env -> Value -> Ast -> Either String (Value, Env)
 callFunction funcName lineCount callEnv (VLambda params body lambdaEnv) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, _) ->
     case length params == length argValues of
-      False -> throwError lineCount $ "Wrong number of arguments: expected " ++ show (length params) 
-                      ++ ", got " ++ show (length argValues)
-      True -> evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body >>= \(result, _) ->
-        Right (result, callEnv)
+      False ->
+        throwError lineCount $
+          "Wrong number of arguments: expected "
+            ++ show (length params)
+            ++ ", got "
+            ++ show (length argValues)
+      True ->
+        evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body >>= \(result, _) ->
+          Right (result, callEnv)
 callFunction _ _ callEnv (VPrim _ primFunc) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, newEnv) ->
     primFunc argValues >>= \result -> Right (result, newEnv)
 callFunction funcName lineCount _ _ _ = throwError lineCount $ funcName ++ " is not a function"
 
 evaluateArgs :: Env -> Ast -> Either String ([Value], Env)
-evaluateArgs argEnv (AList (_, argList)) = 
+evaluateArgs argEnv (AList (_, argList)) =
   foldM evalArgItem ([], argEnv) argList >>= \(vals, finalEnv) ->
     Right (reverse vals, finalEnv)
   where
-    evalArgItem (acc, currentEnv) ast = 
+    evalArgItem (acc, currentEnv) ast =
       evalAst currentEnv ast >>= \(val, updatedEnv) ->
         Right (val : acc, updatedEnv)
-evaluateArgs argEnv singleArg = 
+evaluateArgs argEnv singleArg =
   evalAst argEnv singleArg >>= \(val, newEnv) ->
     Right ([val], newEnv)

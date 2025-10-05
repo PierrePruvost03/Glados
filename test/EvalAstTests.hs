@@ -1,134 +1,210 @@
 module EvalAstTests (evalAstTests) where
 
-import Test.HUnit
 import Data.List (isInfixOf)
-import Interpreter.EvalAst (evalAst)
-import Interpreter.BaseEnv (emptyEnv, extendEnv, defaultEnv)
+import DataStruct.Ast (Ast (..), AstLambda (..), AstValue (..))
 import DataStruct.Value (Value (..))
-import DataStruct.Ast (Ast(..), AstValue(..), AstLambda(..))
+import Interpreter.BaseEnv (defaultEnv, emptyEnv, extendEnv)
+import Interpreter.EvalAst (evalAst)
+import Test.HUnit
 
 testEvalAstValue :: Test
 testEvalAstValue =
-  TestCase (assertEqual "should evaluate AstValue to Value"
-    (Right (VInt 42, emptyEnv))
-    (evalAst emptyEnv (AValue ((0,0), AstInteger 42))))
+  TestCase
+    ( assertEqual
+        "should evaluate AstValue to Value"
+        (Right (VInt 42, emptyEnv))
+        (evalAst emptyEnv (AValue ((0, 0), AstInteger 42)))
+    )
 
 testEvalAstSymbolFound :: Test
 testEvalAstSymbolFound =
-  TestCase (assertEqual "should lookup symbol in environment"
-    (Right (VBool True, extendEnv emptyEnv [("x", VBool True)]))
-    (evalAst (extendEnv emptyEnv [("x", VBool True)]) (ASymbol ((0,0), "x"))))
+  TestCase
+    ( assertEqual
+        "should lookup symbol in environment"
+        (Right (VBool True, extendEnv emptyEnv [("x", VBool True)]))
+        (evalAst (extendEnv emptyEnv [("x", VBool True)]) (ASymbol ((0, 0), "x")))
+    )
 
 testEvalAstSymbolNotFound :: Test
 testEvalAstSymbolNotFound =
-  TestCase (assertBool "should fail when symbol not in environment"
-    (case evalAst emptyEnv (ASymbol ((0,0), "undefined")) of
-        Left msg -> "Error at (0,0): Unbound variable: undefined" == msg
-        _ -> False))
+  TestCase
+    ( assertBool
+        "should fail when symbol not in environment"
+        ( case evalAst emptyEnv (ASymbol ((0, 0), "undefined")) of
+            Left msg -> "Error at (0,0): Unbound variable: undefined" == msg
+            _ -> False
+        )
+    )
 
 testEvalAstIfCondition :: Test
 testEvalAstIfCondition =
-  TestCase (assertEqual "should evaluate if condition correctly"
-    (Right (VInt 10, emptyEnv))
-    (evalAst emptyEnv (AIf ((0,0), AValue ((0,0), AstBool True)) 
-                          ((0,0), AValue ((0,0), AstInteger 10))
-                          ((0,0), AValue ((0,0), AstInteger 20)))))
+  TestCase
+    ( assertEqual
+        "should evaluate if condition correctly"
+        (Right (VInt 10, emptyEnv))
+        ( evalAst
+            emptyEnv
+            ( AIf
+                ((0, 0), AValue ((0, 0), AstBool True))
+                ((0, 0), AValue ((0, 0), AstInteger 10))
+                ((0, 0), AValue ((0, 0), AstInteger 20))
+            )
+        )
+    )
 
 testEvalAstList :: Test
 testEvalAstList =
-  TestCase (assertEqual "should evaluate list of values"
-    (Right (VList [VInt 1, VBool True, VString "hello"], emptyEnv))
-    (evalAst emptyEnv (AList ((0,0), [
-        AValue ((0,0), AstInteger 1),
-        AValue ((0,0), AstBool True),
-        AValue ((0,0), AstString "hello")
-      ]))))
+  TestCase
+    ( assertEqual
+        "should evaluate list of values"
+        (Right (VList [VInt 1, VBool True, VString "hello"], emptyEnv))
+        ( evalAst
+            emptyEnv
+            ( AList
+                ( (0, 0),
+                  [ AValue ((0, 0), AstInteger 1),
+                    AValue ((0, 0), AstBool True),
+                    AValue ((0, 0), AstString "hello")
+                  ]
+                )
+            )
+        )
+    )
 
 testEvalAstDefine :: Test
 testEvalAstDefine =
-  TestCase (assertEqual "should define variable and update environment"
-    (Right (VInt 42, extendEnv emptyEnv [("x", VInt 42)]))
-    (evalAst emptyEnv (ADefine ((0,0), "x") ((0,0), AValue ((0,0), AstInteger 42)))))
+  TestCase
+    ( assertEqual
+        "should define variable and update environment"
+        (Right (VInt 42, extendEnv emptyEnv [("x", VInt 42)]))
+        (evalAst emptyEnv (ADefine ((0, 0), "x") ((0, 0), AValue ((0, 0), AstInteger 42))))
+    )
 
 testEvalAstLambda :: Test
 testEvalAstLambda =
-  TestCase (assertEqual "should create lambda value"
-    (Right (VLambda ["x"] (AValue ((0,0), AstInteger 42)) emptyEnv, emptyEnv))
-    (evalAst emptyEnv (ALambdas ((0,0), AstLambda [ASymbol ((0,0), "x")] (AValue ((0,0), AstInteger 42))))))
+  TestCase
+    ( assertEqual
+        "should create lambda value"
+        (Right (VLambda ["x"] (AValue ((0, 0), AstInteger 42)) emptyEnv, emptyEnv))
+        (evalAst emptyEnv (ALambdas ((0, 0), AstLambda [ASymbol ((0, 0), "x")] (AValue ((0, 0), AstInteger 42)))))
+    )
 
 testEvalAstLambdaInvalidParam :: Test
 testEvalAstLambdaInvalidParam =
-  TestCase (assertBool "should fail on invalid lambda parameter"
-    (case evalAst emptyEnv (ALambdas ((0,0), AstLambda [AValue ((0,0), AstInteger 1)] (AValue ((0,0), AstInteger 42)))) of
-        Left msg -> "Error at (0,0):" `isInfixOf` msg && "Invalid parameter:" `isInfixOf` msg
-        _ -> False))
+  TestCase
+    ( assertBool
+        "should fail on invalid lambda parameter"
+        ( case evalAst emptyEnv (ALambdas ((0, 0), AstLambda [AValue ((0, 0), AstInteger 1)] (AValue ((0, 0), AstInteger 42)))) of
+            Left msg -> "Error at (0,0):" `isInfixOf` msg && "Invalid parameter:" `isInfixOf` msg
+            _ -> False
+        )
+    )
 
 testEvalAstCallLambda :: Test
 testEvalAstCallLambda =
-  TestCase (assertEqual "should call lambda function"
-    (Right (VInt 42, extendEnv emptyEnv [("f", VLambda ["x"] (ASymbol ((0,0), "x")) emptyEnv)]))
-    (evalAst (extendEnv emptyEnv [("f", VLambda ["x"] (ASymbol ((0,0), "x")) emptyEnv)]) 
-             (ACall ((0,0), "f") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 42)])))))
+  TestCase
+    ( assertEqual
+        "should call lambda function"
+        (Right (VInt 42, extendEnv emptyEnv [("f", VLambda ["x"] (ASymbol ((0, 0), "x")) emptyEnv)]))
+        ( evalAst
+            (extendEnv emptyEnv [("f", VLambda ["x"] (ASymbol ((0, 0), "x")) emptyEnv)])
+            (ACall ((0, 0), Left "f") ((0, 0), AList ((0, 0), [AValue ((0, 0), AstInteger 42)])))
+        )
+    )
 
 testEvalAstCallPrimitive :: Test
 testEvalAstCallPrimitive =
-  TestCase (assertEqual "should call primitive function"
-    (Right (VInt 7, extendEnv emptyEnv [("+", VPrim "+" (\arg -> case arg of [VInt a, VInt b] -> Right (VInt (a + b)); _ -> Left "Invalid args"))]))
-    (evalAst (extendEnv emptyEnv [("+", VPrim "+" (\arg -> case arg of [VInt a, VInt b] -> Right (VInt (a + b)); _ -> Left "Invalid args"))])
-             (ACall ((0,0), "+") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 3), AValue ((0,0), AstInteger 4)])))))
+  TestCase
+    ( assertEqual
+        "should call primitive function"
+        (Right (VInt 7, extendEnv emptyEnv [("+", VPrim "+" (\arg -> case arg of [VInt a, VInt b] -> Right (VInt (a + b)); _ -> Left "Invalid args"))]))
+        ( evalAst
+            (extendEnv emptyEnv [("+", VPrim "+" (\arg -> case arg of [VInt a, VInt b] -> Right (VInt (a + b)); _ -> Left "Invalid args"))])
+            (ACall ((0, 0), Left "+") ((0, 0), AList ((0, 0), [AValue ((0, 0), AstInteger 3), AValue ((0, 0), AstInteger 4)])))
+        )
+    )
 
 testEvalAstCallUndefined :: Test
 testEvalAstCallUndefined =
-  TestCase (assertBool "should fail when calling undefined function"
-    (case evalAst emptyEnv (ACall ((0,0), "undefined") ((0,0), AList ((0,0), []))) of
-        Left msg -> "Error at (0,0): Unbound function: undefined" == msg
-        _ -> False))
+  TestCase
+    ( assertBool
+        "should fail when calling undefined function"
+        ( case evalAst emptyEnv (ACall ((0, 0), Left "undefined") ((0, 0), AList ((0, 0), []))) of
+            Left msg -> "Error at (0,0): Unbound function: undefined" == msg
+            _ -> False
+        )
+    )
 
 testEvalAstCallWrongArgCount :: Test
 testEvalAstCallWrongArgCount =
-  TestCase (assertBool "should fail with wrong argument count"
-    (case evalAst (extendEnv emptyEnv [("f", VLambda ["x", "y"] (AValue ((0,0), AstInteger 1)) emptyEnv)])
-                  (ACall ((0,0), "f") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 42)]))) of
-        Left msg -> "Error at (0,0):" `isInfixOf` msg && "Wrong number of arguments:" `isInfixOf` msg
-        _ -> False))
+  TestCase
+    ( assertBool
+        "should fail with wrong argument count"
+        ( case evalAst
+            (extendEnv emptyEnv [("f", VLambda ["x", "y"] (AValue ((0, 0), AstInteger 1)) emptyEnv)])
+            (ACall ((0, 0), Left "f") ((0, 0), AList ((0, 0), [AValue ((0, 0), AstInteger 42)]))) of
+            Left msg -> "Error at (0,0):" `isInfixOf` msg && "Wrong number of arguments:" `isInfixOf` msg
+            _ -> False
+        )
+    )
 
 testFactorial :: Test
 testFactorial =
   TestCase $ do
-    let fact = ADefine ((0,0), "fact")
-                 ((0,0), ALambdas ((0,0), AstLambda [ASymbol ((0,0), "x")]
-                   (AIf ((0,0), ACall ((0,0), "zero?") ((0,0), AList ((0,0), [ASymbol ((0,0), "x")])))
-                        ((0,0), AValue ((0,0), AstInteger 1))
-                        ((0,0), ACall ((0,0), "*") ((0,0), AList ((0,0), [ASymbol ((0,0), "x"), 
-                                ACall ((0,0), "fact") ((0,0), AList ((0,0), [ACall ((0,0), "-") ((0,0), AList ((0,0), [ASymbol ((0,0), "x"), AValue ((0,0), AstInteger 1)]))]))]))))))
+    let fact =
+          ADefine
+            ((0, 0), "fact")
+            ( (0, 0),
+              ALambdas
+                ( (0, 0),
+                  AstLambda
+                    [ASymbol ((0, 0), "x")]
+                    ( AIf
+                        ((0, 0), ACall ((0, 0), Left "zero?") ((0, 0), AList ((0, 0), [ASymbol ((0, 0), "x")])))
+                        ((0, 0), AValue ((0, 0), AstInteger 1))
+                        ( (0, 0),
+                          ACall
+                            ((0, 0), Left "*")
+                            ( (0, 0),
+                              AList
+                                ( (0, 0),
+                                  [ ASymbol ((0, 0), "x"),
+                                    ACall ((0, 0), Left "fact") ((0, 0), AList ((0, 0), [ACall ((0, 0), Left "-") ((0, 0), AList ((0, 0), [ASymbol ((0, 0), "x"), AValue ((0, 0), AstInteger 1)]))]))
+                                  ]
+                                )
+                            )
+                        )
+                    )
+                )
+            )
     case evalAst defaultEnv fact of
       Left err -> assertFailure $ "Failed to define factorial: " ++ err
       Right (_, envWithFact) -> do
-        --test 0 (should be 1)
-        case evalAst envWithFact (ACall ((0,0), "fact") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 0)]))) of
+        -- test 0 (should be 1)
+        case evalAst envWithFact (ACall ((0, 0), Left "fact") ((0, 0), AList ((0, 0), [AValue ((0, 0), AstInteger 0)]))) of
           Left err -> assertFailure $ "Failed to compute fact(0): " ++ err
           Right (VInt result, _) -> assertEqual "factorial of 0 should be 1" 1 result
           Right (other, _) -> assertFailure $ "Expected integer result, got: " ++ show other
-        
-        --test 3 (should be 6)
-        case evalAst envWithFact (ACall ((0,0), "fact") ((0,0), AList ((0,0), [AValue ((0,0), AstInteger 3)]))) of
+
+        -- test 3 (should be 6)
+        case evalAst envWithFact (ACall ((0, 0), Left "fact") ((0, 0), AList ((0, 0), [AValue ((0, 0), AstInteger 3)]))) of
           Left err -> assertFailure $ "Failed to compute fact(3): " ++ err
           Right (VInt result, _) -> assertEqual "factorial of 3 should be 6" 6 result
           Right (other, _) -> assertFailure $ "Expected integer result, got: " ++ show other
 
 evalAstTests :: [Test]
-evalAstTests = [
-        TestLabel "evalAst AValue" testEvalAstValue,
-        TestLabel "evalAst ASymbol found" testEvalAstSymbolFound,
-        TestLabel "evalAst ASymbol not found" testEvalAstSymbolNotFound,
-        TestLabel "evalAst AIf condition" testEvalAstIfCondition,
-        TestLabel "evalAst AList" testEvalAstList,
-        TestLabel "evalAst ADefine" testEvalAstDefine,
-        TestLabel "evalAst ALambda" testEvalAstLambda,
-        TestLabel "evalAst ALambda invalid param" testEvalAstLambdaInvalidParam,
-        TestLabel "evalAst ACall lambda" testEvalAstCallLambda,
-        TestLabel "evalAst ACall primitive" testEvalAstCallPrimitive,
-        TestLabel "evalAst ACall undefined" testEvalAstCallUndefined,
-        TestLabel "evalAst ACall wrong args" testEvalAstCallWrongArgCount,
-        TestLabel "factorial test" testFactorial
-    ]
+evalAstTests =
+  [ TestLabel "evalAst AValue" testEvalAstValue,
+    TestLabel "evalAst ASymbol found" testEvalAstSymbolFound,
+    TestLabel "evalAst ASymbol not found" testEvalAstSymbolNotFound,
+    TestLabel "evalAst AIf condition" testEvalAstIfCondition,
+    TestLabel "evalAst AList" testEvalAstList,
+    TestLabel "evalAst ADefine" testEvalAstDefine,
+    TestLabel "evalAst ALambda" testEvalAstLambda,
+    TestLabel "evalAst ALambda invalid param" testEvalAstLambdaInvalidParam,
+    TestLabel "evalAst ACall lambda" testEvalAstCallLambda,
+    TestLabel "evalAst ACall primitive" testEvalAstCallPrimitive,
+    TestLabel "evalAst ACall undefined" testEvalAstCallUndefined,
+    TestLabel "evalAst ACall wrong args" testEvalAstCallWrongArgCount,
+    TestLabel "factorial test" testFactorial
+  ]

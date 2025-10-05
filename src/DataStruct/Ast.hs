@@ -49,6 +49,6 @@ data Ast
   | AList (LineCount, AstList)
   | ADefine {name :: (LineCount, AstSymbol), value :: (LineCount, Ast)}
   | ALambdas (LineCount, AstLambda)
-  | ACall {name :: (LineCount, String), args :: (LineCount, Ast)}
+  | ACall {callRef :: (LineCount, Either String AstLambda), args :: (LineCount, Ast)}
   | AIf {ifCond :: (LineCount, Ast), ifThen :: (LineCount, Ast), ifElse :: (LineCount, Ast)}
   deriving (Eq, Ord, Show)
