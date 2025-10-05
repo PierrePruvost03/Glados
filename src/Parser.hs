@@ -144,7 +144,7 @@ parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c
 
 parseInt :: Parser Int
-parseInt = read <$> some (parseAnyChar ['0' .. '9'])
+parseInt = read <$> ((parseChar '-' >> ('-' :) <$> some (parseAnyChar ['0' .. '9'])) <|> some (parseAnyChar ['0' .. '9']))
 
 parseFloatString :: Parser String
 parseFloatString =
