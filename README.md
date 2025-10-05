@@ -56,9 +56,9 @@ To see [official lisp documentation](https://lisp-docs.github.io/cl-language-ref
 
 while using the interpretter in **standard input** mode, you can type some commands:
 
-- ':help' -> show the list of the available commands
-- ':load <file>...' -> execute a file in the interpreter, loading his symbols
-- ':type [<symbol>...]' -> get the type of a symbol (or all of them if no specified)
+- `:help` -> show the list of the available commands
+- `:load <file>...` -> execute a file in the interpreter, loading his symbols
+- `:type [<symbol>...]` -> get the type of a symbol (or all of them if no specified)
 
 ## Contributors
 | Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |
