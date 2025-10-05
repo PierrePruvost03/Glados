@@ -55,4 +55,4 @@ To see [official lisp documentation](https://lisp-docs.github.io/cl-language-ref
 ## Contributors
 | Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |
 |--|--|--|--|--|
-| <img src="https://github.com/PierrePruvost03.png" width="100em"/> | <img src="https://github.com/abeldaverio.png" width="100em"/> | <img src="https://github.com/LixiosDelios.png" width="100em"/> | <img src="https://github.com/PouletHalal.png" width="100em"/> | <img src="https://github.com/PoloTheAspicot.png" width="100em"/> |
+| <img src="https://github.com/PierrePruvost03.png" width="150em"/> | <img src="https://github.com/abeldaverio.png" width="150em"/> | <img src="https://github.com/LixiosDelios.png" width="150em"/> | <img src="https://github.com/PouletHalal.png" width="150em"/> | <img src="https://github.com/PoloTheAspicot.png" width="150em"/> |
