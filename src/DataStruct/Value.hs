@@ -20,17 +20,17 @@ data Value
   | VLambda {vLParams :: [String], vLBody :: Ast, vLEnv :: Env}
   | VPrim {primName :: String, primImpl :: [Value] -> Either String Value}
 
--- For LISP-style output (used when displaying results to user)
+-- For LISP-style output
 showValue :: Value -> String
 showValue (VInt i) = show i
 showValue (VBool True) = "#t"
 showValue (VBool False) = "#f"
 showValue (VString s) = s
 showValue (VList xs) = "(" ++ unwords (map showValue xs) ++ ")"
-showValue (VLambda _ _ _) = "#<procedure>"
-showValue (VPrim _ _) = "#<procedure>"
+showValue (VLambda _ _ _) = "#<lambda>"
+showValue (VPrim _ _) = "#<primitive>"
 
--- For debugging (original Show instance)
+-- For debugging
 instance Show Value where
   show (VInt i) = "VInt " ++ show i
   show (VBool b) = "VBool " ++ show b
