@@ -1,9 +1,10 @@
 {-# OPTIONS_GHC -Wno-partial-fields #-}
 
-module DataStruct.Value (
-    Value(..),
-    Env
-) where
+module DataStruct.Value
+  ( Value (..),
+    Env,
+  )
+where
 
 import Data.Map.Strict (Map)
 import DataStruct.Ast (Ast)
@@ -15,8 +16,8 @@ data Value
   | VBool Bool
   | VString String
   | VList [Value]
-  | VLambda { vLParams :: [String], vLBody :: Ast, vLEnv :: Env }
-  | VPrim { primName :: String, primImpl :: [Value] -> Either String Value }
+  | VLambda {vLParams :: [String], vLBody :: Ast, vLEnv :: Env}
+  | VPrim {primName :: String, primImpl :: [Value] -> Either String Value}
 
 instance Show Value where
   show (VInt i) = "VInt " ++ show i
