@@ -15,6 +15,12 @@ parseLispList = SList <$> ((,) <$> getLineCount <*> (parseChar '(' *> many parse
 parseLispInt :: Parser SExpr
 parseLispInt = SInt <$> ((,) <$> getLineCount <*> parseInt)
 
+parseLispBool :: Parser SExpr
+parseLispBool = SBool <$> ((,) <$> getLineCount <*> (f <$> (parseChar '#' *> parseAnyChar "tf")))
+  where
+    f 't' = True
+    f _ = False
+
 parseLispSymbol :: Parser SExpr
 parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar "; \t\n()"))
 
@@ -27,6 +33,7 @@ parseLisp =
     *> skipChars " \n\t"
     *> ( parseLispList
            <|> parseLispInt
+           <|> parseLispBool
            <|> parseLispSymbol
            <|> (parseNotEmpty <|> generateError "nothing" "")
            *> generateError "SExpr parsing" "unknow syntax"
