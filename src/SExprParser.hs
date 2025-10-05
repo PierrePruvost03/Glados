@@ -21,6 +21,14 @@ parseLispBool = SBool <$> ((,) <$> getLineCount <*> (f <$> (parseChar '#' *> par
     f 't' = True
     f _ = False
 
+parseLispString :: Parser SExpr
+parseLispString =
+  SSymbol
+    <$> ( (,)
+            <$> getLineCount
+            <*> ((<>) <$> ((:) <$> parseChar '"' <*> parseUntilChar '"') <*> parseString "\"")
+        )
+
 parseLispSymbol :: Parser SExpr
 parseLispSymbol = SSymbol <$> ((,) <$> getLineCount <*> some (parseAnyNotChar "; \t\n()"))
 
@@ -34,6 +42,7 @@ parseLisp =
     *> ( parseLispList
            <|> parseLispInt
            <|> parseLispBool
+           <|> parseLispString
            <|> parseLispSymbol
            <|> (parseNotEmpty <|> generateError "nothing" "")
            *> generateError "SExpr parsing" "unknow syntax"
