@@ -26,21 +26,21 @@ To see [official lisp documentation](https://lisp-docs.github.io/cl-language-ref
 
 ### Keywords
 
-- 'define' -> `(define var "value")`
-- 'lambda' -> `(define function (lambda (x) x))`
-- 'if' -> `(if (zero? 1) "1 is zero" "1 is not zero")`
+- `define` -> `(define var "value")`
+- `lambda` -> `(define function (lambda (x) x))`
+- `if` -> `(if (zero? 1) "1 is zero" "1 is not zero")`
 
 ### Primitives
 
-- '+' -> `(+ 2 3) ; 5`
-- '-' -> `(- 3 2) ; 1`
-- '*' -> `(* 2 3) ; 6`
-- 'div' -> `(div 6 2) ; 3`
-- 'eq?' -> `(eq? 6 2) ; #f`
-- '<' -> `(< 3 6) ; #t`
-- '>' -> `(> 3 6) ; #f`
-- 'mod' -> `(mod 19 6) ; 1`
-- 'zero?' -> `(zero? 1) ; #f`
+- `+` -> `(+ 2 3) ; 5`
+- `-` -> `(- 3 2) ; 1`
+- `*` -> `(* 2 3) ; 6`
+- `div` -> `(div 6 2) ; 3`
+- `eq?` -> `(eq? 6 2) ; #f`
+- `<` -> `(< 3 6) ; #t`
+- `>` -> `(> 3 6) ; #f`
+- `mod` -> `(mod 19 6) ; 1`
+- `zero?` -> `(zero? 1) ; #f`
 
 ## Run tests
 
