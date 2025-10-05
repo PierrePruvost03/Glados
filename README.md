@@ -13,6 +13,7 @@ To see [official lisp documentation](https://lisp-docs.github.io/cl-language-ref
 ## How to build
 
 `make`
+
 `./glados`
 
 ## Supported features
