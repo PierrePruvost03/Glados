@@ -2,7 +2,7 @@ module GetInput (getUserInput) where
 
 import AstParsing (parseAstFromSExpr)
 import DataStruct.SExpr (SExpr)
-import DataStruct.Value (Env)
+import DataStruct.Value (Env, showValue)
 import GHC.IO.StdHandles (stdin)
 import DataStruct.Command
 import Interpreter.EvalAst (evalAst)
@@ -44,7 +44,7 @@ handleSExpr :: SExpr -> Env -> IO Env
 handleSExpr sexpr env = case parseAstFromSExpr sexpr of
   Right ast ->
     case evalAst env ast of
-      Right (val, updatedEnv) -> print val >> pure updatedEnv
+      Right (val, updatedEnv) -> putStrLn (showValue val) >> pure updatedEnv
       Left err -> putStrLn err >> pure env
   Left err -> print err >> pure env
 
