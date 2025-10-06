@@ -23,10 +23,10 @@ parseLispBool = SBool <$> ((,) <$> getLineCount <*> (f <$> (parseChar '#' *> par
 
 parseLispString :: Parser SExpr
 parseLispString =
-  SSymbol
+  SString
     <$> ( (,)
             <$> getLineCount
-            <*> ((<>) <$> ((:) <$> parseChar '"' <*> parseUntilChar '"') <*> parseString "\"")
+            <*> (parseChar '"' *> parseUntilChar '"' <* parseChar '"')
         )
 
 parseLispSymbol :: Parser SExpr

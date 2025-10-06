@@ -81,14 +81,8 @@ isList :: Value -> Bool
 isList (VList _) = True
 isList _ = False
 
-haveSameLen :: [Value] -> Bool
-haveSameLen [] = True
-haveSameLen [_] = True
-haveSameLen ((VList x) : v@(VList y) : xs) = (length x == length y) && haveSameLen (v : xs)
-haveSameLen _ = False
-
 areCompLists :: [Value] -> Bool
-areCompLists l = all isList l && haveSameLen l && all areComparable (transpose (unwrap l))
+areCompLists l = all isList l && all areComparable (transpose (unwrap l))
   where
     unwrap [] = []
     unwrap (VList li : xs) = li : unwrap xs

@@ -13,7 +13,7 @@
       },
       "mod3": {
         "description": "modulo of a string by 3",
-        "expected": "primMod: expected integers, got VString \"string\"",
+        "expected": "expected two integers, got [VInt 1,VString \"string\"]",
         "input": "(mod 1 \"string\")"
       },
       "mod4": {
