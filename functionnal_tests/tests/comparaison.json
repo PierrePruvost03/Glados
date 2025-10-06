@@ -1,74 +1,74 @@
 [
-    {
-        "tests": {
-            "eq1": {
-                "description": "equality of 10 and 10",
-                "expected": "#t",
-                "input": "(eq? 10 10)"
-            },
-            "eq2": {
-                "description": "equality of 10 and 3",
-                "expected": "#f",
-                "input": "(eq? 10 3)"
-            },
-            "eq3": {
-                "description": "equality of a string and 3",
-                "expected": "primEq: expected two integers, got [VString \"string\",VInt 3]",
-                "input": "(eq? \"string\" 3)"
-            },
-            "eq4": {
-                "description": "equality of -10 and -10",
-                "expected": "#t",
-                "input": "(eq? -10 -10)"
-            }
-        }
-    },
-    {
-        "tests": {
-            "lt1": {
-                "description": "less than 3 and 10",
-                "expected": "#t",
-                "input": "(< 3 10)"
-            },
-            "lt2": {
-                "description": "less than 10 and 3",
-                "expected": "#f",
-                "input": "(< 10 3)"
-            },
-            "lt3": {
-                "description": "less than a string and 3",
-                "expected": "primLt: expected two integers, got [VString \"string\",VInt 3]",
-                "input": "(< \"string\" 3)"
-            },
-            "lt4": {
-                "description": "less than -10 and -3",
-                "expected": "#t",
-                "input": "(< -10 -3)"
-            }
-        }
-    },
-    {
-        "tests": {
-            "gt1": {
-                "description": "greater than 10 and 3",
-                "expected": "#t",
-                "input": "(> 10 3)"
-            },
-            "gt2": {
-                "description": "greater than 3 and 10",
-                "expected": "#f",
-                "input": "(> 3 10)"
-            },
-            "gt3": {
-                "description": "greater than a string and 3",
-                "expected": "primGt: expected two integers, got [VString \"string\",VInt 3]",
-                "input": "(> \"string\" 3)"
-            },
-            "gt4": {
-                "description": "greater than -3 and -10",
-                "expected": "#t",
-                "input": "(> -3 -10)"
-            }
-        }
+  {
+    "tests": {
+      "eq1": {
+        "description": "equality of 10 and 10",
+        "expected": "#t",
+        "input": "(eq? 10 10)"
+      },
+      "eq2": {
+        "description": "equality of 10 and 3",
+        "expected": "#f",
+        "input": "(eq? 10 3)"
+      },
+      "eq3": {
+        "description": "equality of a string and 3",
+        "expected": "primEq: expected integers, got VString \"string\"",
+        "input": "(eq? \"string\" 3)"
+      },
+      "eq4": {
+        "description": "equality of -10 and -10",
+        "expected": "#t",
+        "input": "(eq? -10 -10)"
+      }
     }
+  },
+  {
+    "tests": {
+      "lt1": {
+        "description": "less than 3 and 10",
+        "expected": "#t",
+        "input": "(< 3 10)"
+      },
+      "lt2": {
+        "description": "less than 10 and 3",
+        "expected": "#f",
+        "input": "(< 10 3)"
+      },
+      "lt3": {
+        "description": "less than a string and 3",
+        "expected": "primLt: expected integers, got VString \"string\"",
+        "input": "(< \"string\" 3)"
+      },
+      "lt4": {
+        "description": "less than -10 and -3",
+        "expected": "#t",
+        "input": "(< -10 -3)"
+      }
+    }
+  },
+  {
+    "tests": {
+      "gt1": {
+        "description": "greater than 10 and 3",
+        "expected": "#t",
+        "input": "(> 10 3)"
+      },
+      "gt2": {
+        "description": "greater than 3 and 10",
+        "expected": "#f",
+        "input": "(> 3 10)"
+      },
+      "gt3": {
+        "description": "greater than a string and 3",
+        "expected": "primGt: expected integers, got VString \"string\"",
+        "input": "(> \"string\" 3)"
+      },
+      "gt4": {
+        "description": "greater than -3 and -10",
+        "expected": "#t",
+        "input": "(> -3 -10)"
+      }
+    }
+  }
 ]

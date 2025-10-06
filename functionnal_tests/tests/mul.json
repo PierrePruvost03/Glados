@@ -1,26 +1,26 @@
 [
-    {
-        "tests": {
-            "mul1": {
-                "description": "multiplication of 10 by 1",
-                "expected": "10",
-                "input": "(* 10 1)"
-            },
-            "mul2": {
-                "description": "multiplication of 100 by 1",
-                "expected": "100",
-                "input": "(* 100 1)"
-            },
-            "mul3": {
-                "description": "multiplication of a string by 1",
-                "expected": "primMul: expected two integers, got [VInt 1,VString \"string\"]",
-                "input": "(* 1 \"string\")"
-            },
-            "mul4": {
-                "description": "multiplication of -10 by 1",
-                "expected": "-10",
-                "input": "(* 1 -10)"
-            }
-        }
+  {
+    "tests": {
+      "mul1": {
+        "description": "multiplication of 10 by 1",
+        "expected": "10",
+        "input": "(* 10 1)"
+      },
+      "mul2": {
+        "description": "multiplication of 100 by 1",
+        "expected": "100",
+        "input": "(* 100 1)"
+      },
+      "mul3": {
+        "description": "multiplication of a string by 1",
+        "expected": "primMul: expected integers, gotVString \"string\"",
+        "input": "(* 1 \"string\")"
+      },
+      "mul4": {
+        "description": "multiplication of -10 by 1",
+        "expected": "-10",
+        "input": "(* 1 -10)"
+      }
     }
+  }
 ]
