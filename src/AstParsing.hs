@@ -100,10 +100,6 @@ parseCall (SList (lc, SSymbol (lcName, call) : arg)) =
     Right lst -> ok $ ACall {callRef = (lcName, Left call), args = (lc, lst)}
     Left e@(ctx, _, _) | ctx /= "parse" -> Left e
     Left _ -> malformed "call" "malformed argument list" lc
-parseCall (SList (lc, SInt _ : _)) =
-  malformed "call" "call head must be a symbol" lc
-parseCall (SList (lc, [])) =
-  malformed "call" "empty list application" lc
 parseCall (SList (lc, _)) = notFoundAt lc
 parseCall (SInt (lc, _)) = notFoundAt lc
 parseCall (SSymbol (lc, _)) = notFoundAt lc
