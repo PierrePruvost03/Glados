@@ -4,6 +4,7 @@ module DataStruct.Value
   ( Value (..),
     Env,
     showValue,
+    showTypeAndValue,
   )
 where
 
@@ -25,10 +26,18 @@ showValue :: Value -> String
 showValue (VInt i) = show i
 showValue (VBool True) = "#t"
 showValue (VBool False) = "#f"
-showValue (VString s) = s
-showValue (VList xs) = "(" ++ unwords (map showValue xs) ++ ")"
-showValue (VLambda _ _ _) = "#<lambda>"
+showValue (VString s) = show s
+showValue (VList xs) = '(' : unwords (map showValue xs) <> ")"
+showValue (VLambda args _ _) = "#<lambda> " <> show args
 showValue (VPrim _ _) = "#<primitive>"
+
+showTypeAndValue :: Value -> String
+showTypeAndValue v@(VInt _) = "Int " <> showValue v
+showTypeAndValue v@(VBool _) = "Boolean " <> showValue v
+showTypeAndValue v@(VString _) = "String " <> showValue v
+showTypeAndValue (VList xs) = "List (" <> unwords (map showTypeAndValue xs) <> ")"
+showTypeAndValue v@(VLambda {}) = showValue v
+showTypeAndValue v@(VPrim _ _) = showValue v
 
 -- For debugging
 instance Show Value where
