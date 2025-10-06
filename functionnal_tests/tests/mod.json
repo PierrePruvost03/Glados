@@ -1,0 +1,31 @@
+[
+    {
+        "tests": {
+            "mod1": {
+                "description": "modulo of 10 by 3",
+                "expected": "1",
+                "input": "(mod 10 3)"
+            },
+            "mod2": {
+                "description": "modulo of 100 by 30",
+                "expected": "10",
+                "input": "(mod 100 30)"
+            },
+            "mod3": {
+                "description": "modulo of a string by 3",
+                "expected": "primMod: expected two integers, got [VInt 1,VString \"string\"]",
+                "input": "(mod 1 \"string\")"
+            },
+            "mod4": {
+                "description": "modulo of -10 by 3",
+                "expected": "2",
+                "input": "(mod -10 3)"
+            },
+            "mod5": {
+                "description": "modulo of 10 by 0",
+                "expected": "primMod: modulo by zero",
+                "input": "(mod 10 0)"
+            }
+        }
+    }
+]

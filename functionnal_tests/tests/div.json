@@ -1,0 +1,31 @@
+[
+    {
+        "tests": {
+            "div1": {
+                "description": "division of 10 by 2",
+                "expected": "5",
+                "input": "(div 10 2)"
+            },
+            "div2": {
+                "description": "division of 100 by 4",
+                "expected": "25",
+                "input": "(div 100 4)"
+            },
+            "div3": {
+                "description": "division of a string by 1",
+                "expected": "primDiv: expected two integers, got [VInt 1,VString \"string\"]",
+                "input": "(div 1 \"string\")"
+            },
+            "div4": {
+                "description": "division of -10 by 2",
+                "expected": "-5",
+                "input": "(div -10 2)"
+            },
+            "div5": {
+                "description": "division of 10 by 0",
+                "expected": "primDiv: division by zero",
+                "input": "(div 10 0)"
+            }
+        }
+    }
+]
