@@ -18,11 +18,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           fetch-tags: true
       - name: Configure Git security
         run: git config --global --add safe.directory /__w/Glados/Glados
       - name: Fetch tags with annotations
-        run: git fetch --tags
+        run: git fetch --tags --force
       - name: Build project
         run: make
       - name: Extract tag name
