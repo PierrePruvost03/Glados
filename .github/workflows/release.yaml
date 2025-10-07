@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Configure Git security
+        run: git config --global --add safe.directory /__w/Glados/Glados
       - name: Build project
         run: make
       - name: Extract tag name
