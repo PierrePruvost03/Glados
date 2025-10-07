@@ -1,0 +1,26 @@
+[
+  {
+    "tests": {
+      "sum1": {
+        "description": "sum of 1 to 10",
+        "expected": "11",
+        "input": "(+ 1 10)"
+      },
+      "sum2": {
+        "description": "sum of 1 to 100",
+        "expected": "101",
+        "input": "(+ 1 100)"
+      },
+      "sum3": {
+        "description": "sum of 1 to a string",
+        "expected": "primAdd: expected integers, got VString \"string\"",
+        "input": "(+ 1 \"string\")"
+      },
+      "sum4": {
+        "description": "sum of 1 to -10",
+        "expected": "-9",
+        "input": "(+ 1 -10)"
+      }
+    }
+  }
+]

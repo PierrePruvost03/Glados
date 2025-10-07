@@ -4,7 +4,7 @@ module Command (printHelp, printSymbols) where
 
 import Data.Map
 import DataStruct.Value
-import Interpreter.BaseEnv
+import Interpreter.Env.BaseEnv
 
 commandList :: [(String, String)]
 commandList =

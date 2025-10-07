@@ -28,7 +28,7 @@ showValue (VBool True) = "#t"
 showValue (VBool False) = "#f"
 showValue (VString s) = show s
 showValue (VList xs) = '(' : unwords (map showValue xs) <> ")"
-showValue (VLambda args _ _) = "#<lambda> " <> show args
+showValue v@(VLambda args _ _) = show v <> "       " <> "#<lambda> " <> show args
 showValue (VPrim _ _) = "#<primitive>"
 
 showTypeAndValue :: Value -> String
@@ -56,3 +56,19 @@ instance Eq Value where
   (VLambda p1 b1 e1) == (VLambda p2 b2 e2) = p1 == p2 && b1 == b2 && e1 == e2
   (VPrim n1 _) == (VPrim n2 _) = n1 == n2
   _ == _ = False
+
+instance Ord Value where
+  (VInt a) <= (VInt b) = a <= b
+  (VBool a) <= (VBool b) = a <= b
+  (VString a) <= (VString b) = a <= b
+  (VList a) <= (VList b) = f a b
+    where
+      f [] _ = True
+      f _ [] = False
+      f (x : xs) (y : ys)
+        | x < y = True
+        | x == y = f xs ys
+        | otherwise = False
+  (VInt a) <= (VBool b) = a <= fromEnum b
+  (VBool a) <= (VInt b) = fromEnum a <= b
+  _ <= _ = False

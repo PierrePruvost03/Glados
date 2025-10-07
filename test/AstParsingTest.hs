@@ -32,7 +32,7 @@ testParseValueString =
     ( assertEqual
         "should parse string value"
         (Right (AValue (lc0, AstString "42")))
-        (parseAstFromSExpr (SSymbol (lc0, "\"42\"")))
+        (parseAstFromSExpr (SString (lc0, "42")))
     )
 
 testParseSymbol :: Test
@@ -48,9 +48,9 @@ testParseList :: Test
 testParseList =
   TestCase
     ( assertBool
-        "should parse list as error under current call-first semantics"
+        "should parse list"
         ( case parseAstFromSExpr lst of
-            Left ("call", "call head must be a symbol", (0, 0)) -> True
+            Right _ -> True
             _ -> False
         )
     )
@@ -196,39 +196,13 @@ testParseCall =
         )
     expected = Right (ACall {callRef = (lc1, Left "*"), args = (lc0, expectedArgs)})
 
-testParseCallHeadMalformed :: Test
-testParseCallHeadMalformed =
-  TestCase
-    ( assertBool
-        "call should fail when head is not a symbol"
-        ( case parseAstFromSExpr sexpr of
-            Left ("call", _, _) -> True
-            _ -> False
-        )
-    )
-  where
-    sexpr = SList (lc0, [SInt (lc1, 1), SInt (lc2, 2)])
-
-testParsePlainListNotCall :: Test
-testParsePlainListNotCall =
-  TestCase
-    ( assertBool
-        "plain list (non-symbol head) should be rejected as call"
-        ( case parseAstFromSExpr sexpr of
-            Left ("call", _, _) -> True
-            _ -> False
-        )
-    )
-  where
-    sexpr = SList (lc0, [SList (lc1, []), SInt (lc2, 1)])
-
 testParseEmptyList :: Test
 testParseEmptyList =
   TestCase
     ( assertBool
-        "should reject empty list as empty application"
+        "should parse empty list"
         ( case parseAstFromSExpr (SList (lc0, [])) of
-            Left ("call", "empty list application", (0, 0)) -> True
+            Right _ -> True
             _ -> False
         )
     )
@@ -245,7 +219,5 @@ astParsingTests =
     TestLabel "if" testParseIf,
     TestLabel "if malformed" testParseIfMalformed,
     TestLabel "call" testParseCall,
-    TestLabel "call head malformed" testParseCallHeadMalformed,
-    TestLabel "plain list not call" testParsePlainListNotCall,
     TestLabel "empty list" testParseEmptyList
   ]

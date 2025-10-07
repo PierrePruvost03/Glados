@@ -4,12 +4,12 @@
     "tests": {
       "factorial_1": {
         "description": "factorial of 5",
-        "expected": "VInt 120",
+        "expected": "120",
         "input": "(fact 5)"
       },
       "factorial_2": {
         "description": "factorial of 20",
-        "expected": "VInt 2432902008176640000",
+        "expected": "2432902008176640000",
         "input": "(fact 20)"
       },
       "factorial_3": {
@@ -24,17 +24,17 @@
     "tests": {
       "fibonacci_1": {
         "description": "fibonacci of 10",
-        "expected": "VInt 55",
+        "expected": "55",
         "input": "(fib 10)"
       },
       "fibonacci_2": {
         "description": "fibonacci of 30",
-        "expected": "VInt 832040",
+        "expected": "832040",
         "input": "(fib 30)"
       },
       "fibonacci_3": {
         "description": "fibonacci of a string",
-        "expected": "primLt: expected two integers, got [VString \"string\",VInt 2]",
+        "expected": "primLt: expected integers, got VString \"string\"",
         "input": "(fib \"string\")"
       }
     }

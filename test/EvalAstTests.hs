@@ -3,7 +3,8 @@ module EvalAstTests (evalAstTests) where
 import Data.List (isInfixOf)
 import DataStruct.Ast (Ast (..), AstLambda (..), AstValue (..))
 import DataStruct.Value (Value (..))
-import Interpreter.BaseEnv (defaultEnv, emptyEnv, extendEnv)
+import Interpreter.Env.BaseEnv (defaultEnv, extendEnv)
+import Interpreter.Env.EmptyEnv (emptyEnv)
 import Interpreter.EvalAst (evalAst)
 import Test.HUnit
 

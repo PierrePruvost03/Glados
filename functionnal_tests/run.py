@@ -10,7 +10,8 @@ def gen_test_file(lisp_code: str, input: str, test_name: str):
         f.write(input)
 
 def read_tests(test_data: dict[str, str]):
-    lisp_code = open(test_data["lisp_file"]).read()
+    lisp_file = test_data.get("lisp_file", "")
+    lisp_code = open(lisp_file).read() if lisp_file else ""
 
     for test in test_data["tests"]:
         current_test = test_data["tests"][test]
