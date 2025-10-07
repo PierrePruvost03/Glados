@@ -25,6 +25,11 @@
         "description": "division of 10 by 0",
         "expected": "primDiv: division by zero",
         "input": "(div 10 0)"
+      },
+      "div6": {
+        "description": "division of multiple numbers",
+        "expected": "2",
+        "input": "(div 100 5 2)"
       }
     }
   }

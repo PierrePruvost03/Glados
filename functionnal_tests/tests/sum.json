@@ -20,6 +20,16 @@
         "description": "sum of 1 to -10",
         "expected": "-9",
         "input": "(+ 1 -10)"
+      },
+      "sum5": {
+        "description": "sum of list",
+        "expected": "15",
+        "input": "(+ 1 2 3 4 5)"
+      },
+      "sum6": {
+        "description": "sum of list with negative numbers",
+        "expected": "9",
+        "input": "(+ 1 2 -3 4 5)"
       }
     }
   }

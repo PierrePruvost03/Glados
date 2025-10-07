@@ -20,6 +20,11 @@
         "description": "multiplication of -10 by 1",
         "expected": "-10",
         "input": "(* 1 -10)"
+      },
+      "mul5": {
+        "description": "multiplication of multiple numbers",
+        "expected": "24",
+        "input": "(* 1 2 3 4)"
       }
     }
   }
