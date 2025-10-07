@@ -19,4 +19,4 @@ jobs:
       - name: run unit tests
         run: make tests_run
       - name: run functional tests
-        run: sudo apt-get update && sudo apt-get upgrade && sudo apt-get install python3-pip && pip install -r requirements.txt && python3 functionnal_tests/run.py
+        run: sudo apt-get update && sudo apt-get upgrade && sudo apt-get install python3-pip -y && pip install -r requirements.txt && python3 functionnal_tests/run.py
