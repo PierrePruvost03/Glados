@@ -18,7 +18,7 @@ testPrimAddFail =
   TestCase
     ( assertEqual
         "primAdd with wrong args should fail with correct message"
-        (Left "primAdd: expected integers, got VString \"ZIZI\"")
+        (Left "primAdd: expected integers, got [VInt 2,VString \"ZIZI\"]")
         (primAdd [VInt 2, VString "ZIZI"])
     )
 
@@ -35,8 +35,8 @@ testPrimSubFail :: Test
 testPrimSubFail =
   TestCase
     ( assertEqual
-        "primSub with wrong args should fail with correct message"
-        (Left "primSub: expected integers, got VBool True")
+        "primSub should handle bool and int values"
+        (Right $ VInt 4)
         (primSub [VInt 5, VBool True])
     )
 
@@ -53,8 +53,8 @@ testPrimMulFail :: Test
 testPrimMulFail =
   TestCase
     ( assertEqual
-        "primMul with wrong args should fail with correct message"
-        (Left "primMul: expected integers, got VBool True")
+        "primMul should handle bool and int values"
+        (Right $ VInt 4)
         (primMul [VInt 4, VBool True])
     )
 
@@ -71,8 +71,8 @@ testPrimDivFail :: Test
 testPrimDivFail =
   TestCase
     ( assertEqual
-        "primDiv with wrong args should fail with correct message"
-        (Left "primDiv: expected integers, got VBool True")
+        "primDiv should handle bool and int values"
+        (Right $ VInt 10)
         (primDiv [VInt 10, VBool True])
     )
 

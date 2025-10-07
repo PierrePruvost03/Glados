@@ -16,14 +16,18 @@ where
 
 import Data.List (transpose)
 import DataStruct.Value (Value (..))
-import Debug.Trace
 
 primOp :: [Value] -> (Int -> Int -> Int) -> Int -> Either String Value
 primOp [] _ base = Right $ VInt base
 primOp [VInt a] f base = Right $ VInt $ f base a
+primOp [VBool a] f base = Right $ VInt $ f base $ fromEnum a
 primOp [VInt a, VInt b] f _ = Right $ VInt $ f a b
+primOp [VBool a, VInt b] f _ = Right $ VInt $ f (fromEnum a) b
+primOp [VInt a, VBool b] f _ = Right $ VInt $ f a (fromEnum b)
 primOp (VInt a : VInt b : xs) f base = primOp (VInt (f a b) : xs) f base
-primOp (a : _) _ _ = Left $ "expected integers, got " ++ show a
+primOp (VBool a : VInt b : xs) f base = primOp (VInt (f (fromEnum a) b) : xs) f base
+primOp (VInt a : VBool b : xs) f base = primOp (VInt (f a (fromEnum b)) : xs) f base
+primOp l _ _ = Left $ "expected integers, got " ++ show l
 
 primAdd :: [Value] -> Either String Value
 primAdd l = case primOp l (+) 0 of
@@ -45,9 +49,10 @@ primDiv l@(_ : xs)
   | all f xs = case primOp l div 1 of
       v@(Right _) -> v
       Left s -> Left $ "primDiv: " <> s
-  | otherwise = Left $ "primDiv: division by zero"
+  | otherwise = Left "primDiv: division by zero"
   where
     f (VInt 0) = False
+    f (VBool False) = False
     f _ = True
 primDiv l = case primOp l div 1 of
   v@(Right _) -> v
