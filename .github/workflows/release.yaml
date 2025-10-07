@@ -29,11 +29,21 @@ jobs:
       - name: Extract release notes from tag message
         id: release_notes
         run: |
-          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ steps.tag.outputs.tag }})
+          echo "Tag: ${{ steps.tag.outputs.tag }}"
+          git tag -l
+          
+          TAG_MESSAGE=$(git show ${{ steps.tag.outputs.tag }} --format=%B --no-patch 2>/dev/null || echo "")
+          
+          if [ -z "$TAG_MESSAGE" ]; then
+            TAG_MESSAGE=$(git cat-file tag ${{ steps.tag.outputs.tag }} 2>/dev/null | sed '1,/^$/d' || echo "")
+          fi
           
           if [ -z "$TAG_MESSAGE" ]; then
             TAG_MESSAGE=$(git log -1 --pretty=%B)
           fi
+          
+          echo "Debug TAG_MESSAGE:"
+          echo "$TAG_MESSAGE"
           
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
