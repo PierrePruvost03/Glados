@@ -13,7 +13,7 @@
       },
       "eq3": {
         "description": "equality of a string and 3",
-        "expected": "primEq: expected integers, got VString \"string\"",
+        "expected": "#f",
         "input": "(eq? \"string\" 3)"
       },
       "eq4": {

@@ -16,13 +16,13 @@ where
 
 import Data.List (transpose)
 import DataStruct.Value (Value (..))
+import Debug.Trace
 
 primOp :: [Value] -> (Int -> Int -> Int) -> Int -> Either String Value
 primOp [] _ base = Right $ VInt base
-primOp (VInt a : xs) f base =
-  primOp xs f base >>= \case
-    (VInt b) -> Right $ VInt $ f a b
-    _ -> Left "YOU WON A BILLION DOLLAR"
+primOp [VInt a] f base = Right $ VInt $ f base a
+primOp [VInt a, VInt b] f _ = Right $ VInt $ f a b
+primOp (VInt a : VInt b : xs) f base = primOp (VInt (f a b) : xs) f base
 primOp (a : _) _ _ = Left $ "expected integers, got " ++ show a
 
 primAdd :: [Value] -> Either String Value
