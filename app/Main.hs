@@ -6,7 +6,7 @@ module Main (main, getUserInput) where
 
 import GHC.IO.StdHandles
 import System.Exit (exitSuccess)
-import Interpreter.BaseEnv (defaultEnv)
+import Interpreter.Env.BaseEnv (defaultEnv)
 import GetInput (getUserInput, loadFiles)
 import System.Environment (getArgs)
 
