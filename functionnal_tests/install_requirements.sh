@@ -12,5 +12,5 @@ fi
 echo -e "${GREEN}[+] Activating venv${NC}"
 source .venv/bin/activate
 echo -e "${GREEN}[+] Installing packages${NC}"
-pip install -r functionnal_tests/requirements.txt || { echo -e "${RED}[!] Installation error${NC}"; exit 1; }
+./.venv/bin/pip install -r functionnal_tests/requirements.txt || { echo -e "${RED}[!] Installation error${NC}"; exit 1; }
 echo -e "${GREEN}[+] Done${NC}"

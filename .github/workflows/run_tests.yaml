@@ -11,10 +11,15 @@ env:
 
 jobs:
   run_tests:
+    defaults: 
+      run:
+        shell: bash
     runs-on: ubuntu-latest
     container:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - name: run tests
+      - name: run unit tests
         run: make tests_run
+      - name: run functional tests
+        run: sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install python3-venv -y && functionnal_tests/install_requirements.sh && source .venv/bin/activate && python3 functionnal_tests/run.py

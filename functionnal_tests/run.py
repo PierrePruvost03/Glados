@@ -2,6 +2,7 @@ import glob
 import os
 from colorama import Fore, Style, Back
 import json
+import sys
 
 def gen_test_file(lisp_code: str, input: str, test_name: str):
     with open(f"functionnal_tests/tmp/{test_name}.lsp", "w") as f:
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     test_files = glob.glob("functionnal_tests/tests/*.json")
 
     print(Fore.GREEN + "Building the project..." + Style.RESET_ALL)
-    os.system("stack build")
+    os.system("make re")
     print(Fore.GREEN + "Running tests..." + Style.RESET_ALL)
     
     for test_file in test_files:
@@ -50,3 +51,6 @@ if __name__ == "__main__":
                 read_tests(test_data)
 
     print_summary()
+    if failed_tests:
+        sys.exit(1)
+    sys.exit(0)
