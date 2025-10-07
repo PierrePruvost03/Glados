@@ -1,11 +1,16 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use >=>" #-}
 module Main (main, getUserInput) where
 
 -- import Lib
 
 import GHC.IO.StdHandles
-import GetInput (getUserInput)
-import Interpreter.Env.BaseEnv (defaultEnv)
 import System.Exit (exitSuccess)
+import Interpreter.Env.BaseEnv (defaultEnv)
+import GetInput (getUserInput, loadFiles)
+import System.Environment (getArgs)
 
 main :: IO ()
-main = getUserInput "" defaultEnv stdin >> putStrLn "exit" >> exitSuccess
+main = getArgs
+    >>= \arguments -> loadFiles defaultEnv arguments
+    >>= \newEnv -> getUserInput "" newEnv stdin >> putStrLn "exit" >> exitSuccess

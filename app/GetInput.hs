@@ -1,4 +1,4 @@
-module GetInput (getUserInput) where
+module GetInput (getUserInput, loadFiles) where
 
 import AstParsing (parseAstFromSExpr)
 import DataStruct.SExpr (SExpr)
