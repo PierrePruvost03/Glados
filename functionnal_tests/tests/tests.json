@@ -1,0 +1,42 @@
+[
+  {
+    "lisp_file": "lisp/fact.lsp",
+    "tests": {
+      "factorial_1": {
+        "description": "factorial of 5",
+        "expected": "120",
+        "input": "(fact 5)"
+      },
+      "factorial_2": {
+        "description": "factorial of 20",
+        "expected": "2432902008176640000",
+        "input": "(fact 20)"
+      },
+      "factorial_3": {
+        "description": "factorial of a string",
+        "expected": "primZero: expected one integer, got [VString \"string\"]",
+        "input": "(fact \"string\")"
+      }
+    }
+  },
+  {
+    "lisp_file": "lisp/fib.lsp",
+    "tests": {
+      "fibonacci_1": {
+        "description": "fibonacci of 10",
+        "expected": "55",
+        "input": "(fib 10)"
+      },
+      "fibonacci_2": {
+        "description": "fibonacci of 30",
+        "expected": "832040",
+        "input": "(fib 30)"
+      },
+      "fibonacci_3": {
+        "description": "fibonacci of a string",
+        "expected": "primLt: elements are not comparable [VString \"string\",VInt 2]",
+        "input": "(fib \"string\")"
+      }
+    }
+  }
+]

@@ -13,7 +13,7 @@ jobs:
   is_mirror_repo:
     name: Check if mirror repo
     runs-on: ubuntu-latest
-    if: ${{ github.repository != vars.MIRROR_URL }}
+    if: ${{ github.repository != vars.MIRROR_URL && vars.MIRROR_URL != ''}}
     steps:
       - run: echo "mhhh, tu t'es pas trompé... le repo il aaaaaaaaaa"
 

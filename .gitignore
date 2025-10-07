@@ -2,3 +2,9 @@
 .stack-work
 glados*
 test/coverage
+.idea
+hie.yaml
+**/*.venv
+functionnal_tests/tmp/*.lsp
+**/*.log
+dist*

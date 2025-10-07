@@ -1,0 +1,31 @@
+[
+  {
+    "tests": {
+      "sub1": {
+        "description": "subtraction of 10 to 1",
+        "expected": "-9",
+        "input": "(- 1 10)"
+      },
+      "sub2": {
+        "description": "subtraction of 100 to 1",
+        "expected": "-99",
+        "input": "(- 1 100)"
+      },
+      "sub3": {
+        "description": "subtraction of a string to 1",
+        "expected": "primSub: expected integers, got [VInt 1,VString \"string\"]",
+        "input": "(- 1 \"string\")"
+      },
+      "sub4": {
+        "description": "subtraction of -10 to 1",
+        "expected": "11",
+        "input": "(- 1 -10)"
+      },
+      "sub5": {
+        "description": "subtraction of multiple numbers",
+        "expected": "14",
+        "input": "(- 20 1 2 3)"
+      }
+    }
+  }
+]
