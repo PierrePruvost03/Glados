@@ -18,12 +18,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           fetch-tags: true
       - name: Configure Git security
         run: git config --global --add safe.directory /__w/Glados/Glados
       - name: Fetch tags with annotations
-        run: git fetch --tags --force
+        run: git fetch --tags
       - name: Build project
         run: make
       - name: Extract tag name
@@ -33,12 +32,8 @@ jobs:
         id: release_notes
         run: |
           TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ steps.tag.outputs.tag }})
-          
-          echo "Debug - Tag message length: ${#TAG_MESSAGE}"
-          echo "Debug - Tag message: '$TAG_MESSAGE'"
-          
-          if [ -z "$TAG_MESSAGE" ] || [ "$TAG_MESSAGE" = "" ]; then
-            echo "Tag message is empty, using commit message"
+
+          if [ -z "$TAG_MESSAGE" ]; then
             TAG_MESSAGE=$(git log -1 --pretty=%B)
           fi
           
