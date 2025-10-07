@@ -12,7 +12,7 @@ where
 import Control.Monad (foldM)
 import DataStruct.Ast (Ast (..), AstLambda (..), AstValue (..))
 import DataStruct.Value (Env, Value (..))
-import Interpreter.BaseEnv (extendEnv, lookupEnv)
+import Interpreter.Env.BaseEnv (extendEnv, lookupEnv)
 import Parser (LineCount)
 
 throwError :: LineCount -> String -> Either String a
@@ -62,17 +62,17 @@ evalAst env (ACall (lineCount, Right func) (_, arg)) = case evalAst env (ALambda
 
 callFunction :: String -> LineCount -> Env -> Value -> Ast -> Either String (Value, Env)
 callFunction funcName lineCount callEnv (VLambda params body lambdaEnv) argAst =
-  evaluateArgs callEnv argAst >>= \(argValues, _) ->
-    case length params == length argValues of
-      False ->
-        throwError lineCount $
-          "Wrong number of arguments: expected "
-            ++ show (length params)
-            ++ ", got "
-            ++ show (length argValues)
-      True ->
-        evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body >>= \(result, _) ->
-          Right (result, callEnv)
+  evaluateArgs callEnv argAst >>= \(argValues, _) -> case () of
+    _
+      | length params /= length argValues ->
+          throwError lineCount $
+            "Wrong number of arguments: expected "
+              ++ show (length params)
+              ++ ", got "
+              ++ show (length argValues)
+      | otherwise ->
+          evalAst (extendEnv (extendEnv lambdaEnv [(funcName, VLambda params body lambdaEnv)]) (zip params argValues)) body
+            >>= \(result, _) -> Right (result, callEnv)
 callFunction _ _ callEnv (VPrim _ primFunc) argAst =
   evaluateArgs callEnv argAst >>= \(argValues, newEnv) ->
     primFunc argValues >>= \result -> Right (result, newEnv)

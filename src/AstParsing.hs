@@ -22,31 +22,19 @@ malformed ctx msg lc = Left (ctx, msg, lc)
 (<?|>) (Left ("parse", "no such element found", _)) r = r
 (<?|>) l _ = l
 
-isQuotedString :: String -> Bool
-isQuotedString ('"' : xs@(_ : _)) = case reverse xs of
-  '"' : _ -> True
-  _ -> False
-isQuotedString _ = False
-
-stripQuotes :: String -> String
-stripQuotes ('"' : xs@(_ : _)) = case reverse xs of
-  '"' : rest -> reverse rest
-  _ -> '"' : xs
-stripQuotes s = s
-
 parseValue :: SExpr -> AstResult Ast
 parseValue (SInt (lc, i)) = ok $ AValue (lc, AstInteger i)
-parseValue (SSymbol (lc, s))
-  | isQuotedString s = ok $ AValue (lc, AstString (stripQuotes s))
-  | otherwise = notFoundAt lc
+parseValue (SString (lc, s)) = ok $ AValue (lc, AstString s)
 parseValue (SBool (lc, b)) = ok $ AValue (lc, AstBool b)
 parseValue (SList (lc, _)) = notFoundAt lc
+parseValue (SSymbol (lc, _)) = notFoundAt lc
 
 parseSymbol :: SExpr -> AstResult Ast
 parseSymbol (SSymbol (lc, i)) = ok $ ASymbol (lc, i)
 parseSymbol (SInt (lc, _)) = notFoundAt lc
 parseSymbol (SList (lc, _)) = notFoundAt lc
 parseSymbol (SBool (lc, _)) = notFoundAt lc
+parseSymbol (SString (lc, _)) = notFoundAt lc
 
 parseDefine :: SExpr -> AstResult Ast
 parseDefine (SList (lc, [SSymbol (_, "define"), SSymbol (lcName, s), q])) =
@@ -60,6 +48,7 @@ parseDefine (SList (lc, _)) = notFoundAt lc
 parseDefine (SInt (lc, _)) = notFoundAt lc
 parseDefine (SSymbol (lc, _)) = notFoundAt lc
 parseDefine (SBool (lc, _)) = notFoundAt lc
+parseDefine (SString (lc, _)) = notFoundAt lc
 
 parseArgs :: SExpr -> AstResult Ast
 parseArgs (SList (lc, s)) = foldl step (ok (AList (lc, []))) s
@@ -73,6 +62,7 @@ parseArgs (SList (lc, s)) = foldl step (ok (AList (lc, []))) s
 parseArgs (SSymbol (lc, _)) = malformed "lambda-args" "expected list of symbols, got symbol" lc
 parseArgs (SInt (lc, _)) = malformed "lambda-args" "expected list of symbols, got integer" lc
 parseArgs (SBool (lc, _)) = malformed "lambda-args" "expected list of symbols, got boolean" lc
+parseArgs (SString (lc, _)) = malformed "lambda-args" "expected list of symbols, got string" lc
 
 parseLambda :: SExpr -> AstResult Ast
 parseLambda (SList (lc, [SSymbol (_, "lambda"), s, q])) = case (parseArgs s, parseAstFromSExpr q) of
@@ -86,6 +76,7 @@ parseLambda (SList (lc, _)) = notFoundAt lc
 parseLambda (SInt (lc, _)) = notFoundAt lc
 parseLambda (SSymbol (lc, _)) = notFoundAt lc
 parseLambda (SBool (lc, _)) = notFoundAt lc
+parseLambda (SString (lc, _)) = notFoundAt lc
 
 parseCall :: SExpr -> AstResult Ast
 parseCall (SList (lc, lambda@(SList (_, SSymbol (lcLam, "lambda") : _)) : arg)) = case parseLambda lambda of
@@ -104,6 +95,7 @@ parseCall (SList (lc, _)) = notFoundAt lc
 parseCall (SInt (lc, _)) = notFoundAt lc
 parseCall (SSymbol (lc, _)) = notFoundAt lc
 parseCall (SBool (lc, _)) = notFoundAt lc
+parseCall (SString (lc, _)) = notFoundAt lc
 
 parseIf :: SExpr -> AstResult Ast
 parseIf (SList (lc, [SSymbol (_, "if"), cond, tExp, fExp])) =
@@ -119,6 +111,7 @@ parseIf (SList (lc, _)) = notFoundAt lc
 parseIf (SInt (lc, _)) = notFoundAt lc
 parseIf (SSymbol (lc, _)) = notFoundAt lc
 parseIf (SBool (lc, _)) = notFoundAt lc
+parseIf (SString (lc, _)) = notFoundAt lc
 
 parseList :: SExpr -> AstResult Ast
 parseList (SList (lc, xs)) = foldl cons (ok (AList (lc, []))) xs
@@ -131,12 +124,13 @@ parseList (SList (lc, xs)) = foldl cons (ok (AList (lc, []))) xs
 parseList (SInt (lc, _)) = notFoundAt lc
 parseList (SSymbol (lc, _)) = notFoundAt lc
 parseList (SBool (lc, _)) = notFoundAt lc
+parseList (SString (lc, _)) = notFoundAt lc
 
 parseAstFromSExpr :: SExpr -> AstResult Ast
 parseAstFromSExpr sexpr =
   parseDefine sexpr
-    <?|> parseLambda sexpr
     <?|> parseValue sexpr
+    <?|> parseLambda sexpr
     <?|> parseSymbol sexpr
     <?|> parseIf sexpr
     <?|> parseCall sexpr

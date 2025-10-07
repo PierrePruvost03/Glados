@@ -32,7 +32,7 @@ testParseValueString =
     ( assertEqual
         "should parse string value"
         (Right (AValue (lc0, AstString "42")))
-        (parseAstFromSExpr (SSymbol (lc0, "\"42\"")))
+        (parseAstFromSExpr (SString (lc0, "42")))
     )
 
 testParseSymbol :: Test

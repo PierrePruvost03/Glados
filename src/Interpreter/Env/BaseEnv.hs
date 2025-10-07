@@ -1,18 +1,16 @@
-module Interpreter.BaseEnv
-  ( emptyEnv
-  , extendEnv
-  , lookupEnv
-  , err
-  , defaultEnv
-  ) where
+module Interpreter.Env.BaseEnv
+  ( extendEnv,
+    lookupEnv,
+    err,
+    defaultEnv,
+  )
+where
 
 import qualified Data.Map.Strict as Map
-import Parser (LineCount)
-import DataStruct.Value (Value(..), Env)
+import DataStruct.Value (Env, Value (..))
+import Interpreter.Env.EmptyEnv
 import Interpreter.Primitives.Primitives (primitiveList)
-
-emptyEnv :: Env
-emptyEnv = Map.empty
+import Parser (LineCount)
 
 extendEnv :: Env -> [(String, Value)] -> Env
 extendEnv = foldr (uncurry Map.insert)
@@ -24,4 +22,4 @@ defaultEnv :: Env
 defaultEnv = extendEnv emptyEnv primitiveList
 
 err :: LineCount -> String -> Either String a
-err (l,c) msg = Left $ "Error at " ++ show (l,c) ++ ": " ++ msg
+err (l, c) msg = Left $ "Error at " ++ show (l, c) ++ ": " ++ msg

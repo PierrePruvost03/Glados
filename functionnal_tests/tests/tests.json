@@ -34,7 +34,7 @@
       },
       "fibonacci_3": {
         "description": "fibonacci of a string",
-        "expected": "primLt: expected two integers, got [VString \"string\",VInt 2]",
+        "expected": "primLt: expected integers, got VString \"string\"",
         "input": "(fib \"string\")"
       }
     }
