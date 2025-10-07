@@ -37,7 +37,7 @@
       },
       "lt3": {
         "description": "less than a string and 3",
-        "expected": "primLt: expected integers, got VString \"string\"",
+        "expected": "primLt: elements are not comparable [VString \"string\",VInt 3]",
         "input": "(< \"string\" 3)"
       },
       "lt4": {
@@ -61,7 +61,7 @@
       },
       "gt3": {
         "description": "greater than a string and 3",
-        "expected": "primGt: expected integers, got VString \"string\"",
+        "expected": "primGt: elements are not comparable [VString \"string\",VInt 3]",
         "input": "(> \"string\" 3)"
       },
       "gt4": {
