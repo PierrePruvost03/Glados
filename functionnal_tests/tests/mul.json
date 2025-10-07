@@ -13,7 +13,7 @@
       },
       "mul3": {
         "description": "multiplication of a string by 1",
-        "expected": "primMul: expected integers, got VString \"string\"",
+        "expected": "primMul: expected integers, got [VInt 1,VString \"string\"]",
         "input": "(* 1 \"string\")"
       },
       "mul4": {

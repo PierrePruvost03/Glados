@@ -13,7 +13,7 @@
       },
       "sub3": {
         "description": "subtraction of a string to 1",
-        "expected": "primSub: expected integers, got VString \"string\"",
+        "expected": "primSub: expected integers, got [VInt 1,VString \"string\"]",
         "input": "(- 1 \"string\")"
       },
       "sub4": {
@@ -23,7 +23,7 @@
       },
       "sub5": {
         "description": "subtraction of multiple numbers",
-        "expected": "-14",
+        "expected": "14",
         "input": "(- 20 1 2 3)"
       }
     }

@@ -13,7 +13,7 @@
       },
       "div3": {
         "description": "division of a string by 1",
-        "expected": "primDiv: expected integers, got VString \"string\"",
+        "expected": "primDiv: expected integers, got [VInt 1,VString \"string\"]",
         "input": "(div 1 \"string\")"
       },
       "div4": {
@@ -28,7 +28,7 @@
       },
       "div6": {
         "description": "division of multiple numbers",
-        "expected": "2",
+        "expected": "10",
         "input": "(div 100 5 2)"
       }
     }

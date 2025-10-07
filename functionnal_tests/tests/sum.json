@@ -13,7 +13,7 @@
       },
       "sum3": {
         "description": "sum of 1 to a string",
-        "expected": "primAdd: expected integers, got VString \"string\"",
+        "expected": "primAdd: expected integers, got [VInt 1,VString \"string\"]",
         "input": "(+ 1 \"string\")"
       },
       "sum4": {
