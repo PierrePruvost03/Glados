@@ -16,5 +16,7 @@ jobs:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - name: run tests
+      - name: run unit tests
         run: make tests_run
+      - name: run functional tests
+        run: ./functionnal_tests/install_requirements.sh && source .venv/bin/activate && python3 functionnal_tests/run.py
