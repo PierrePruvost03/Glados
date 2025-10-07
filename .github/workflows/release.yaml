@@ -19,8 +19,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
       - name: Configure Git security
         run: git config --global --add safe.directory /__w/Glados/Glados
+      - name: Fetch tags with annotations
+        run: git fetch --tags --force
       - name: Build project
         run: make
       - name: Extract tag name
@@ -29,21 +32,15 @@ jobs:
       - name: Extract release notes from tag message
         id: release_notes
         run: |
-          echo "Tag: ${{ steps.tag.outputs.tag }}"
-          git tag -l
+          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ steps.tag.outputs.tag }})
           
-          TAG_MESSAGE=$(git show ${{ steps.tag.outputs.tag }} --format=%B --no-patch 2>/dev/null || echo "")
+          echo "Debug - Tag message length: ${#TAG_MESSAGE}"
+          echo "Debug - Tag message: '$TAG_MESSAGE'"
           
-          if [ -z "$TAG_MESSAGE" ]; then
-            TAG_MESSAGE=$(git cat-file tag ${{ steps.tag.outputs.tag }} 2>/dev/null | sed '1,/^$/d' || echo "")
-          fi
-          
-          if [ -z "$TAG_MESSAGE" ]; then
+          if [ -z "$TAG_MESSAGE" ] || [ "$TAG_MESSAGE" = "" ]; then
+            echo "Tag message is empty, using commit message"
             TAG_MESSAGE=$(git log -1 --pretty=%B)
           fi
-          
-          echo "Debug TAG_MESSAGE:"
-          echo "$TAG_MESSAGE"
           
           echo "notes<<EOF" >> $GITHUB_OUTPUT
           echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
