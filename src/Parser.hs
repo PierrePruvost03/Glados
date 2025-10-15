@@ -1,5 +1,5 @@
 module Parser
-  ( Parser,
+  ( Parser (..),
     LineCount,
     Rest,
     ParsingError,
@@ -8,6 +8,7 @@ module Parser
     runParser,
     parseChar,
     parseNotEmpty,
+    isAnyNotChar,
     parseString,
     parseInt,
     parseFloat,
@@ -29,6 +30,7 @@ module Parser
     (<|>),
     (>>=),
     parseSomeUntilAnyChar,
+    parseTry,
   )
 where
 
@@ -101,6 +103,14 @@ parseNotEmpty = Parser $ \(s, lc) -> case s of
   [] -> Left ("Error parsing not empty", "string empty", lc)
   _ -> Right ("", (s, lc))
 
+isAnyNotChar :: String -> Parser ()
+isAnyNotChar str = Parser $ \(s, lc) -> case s of
+    [] -> Right ((), (s, lc))
+    (x : _)
+        | x `elem` str -> Left ("Error parsing any not char \"" <> str <> "\"", "Character found in string", lc)
+        | otherwise -> Right ((), (s, lc))
+
+
 parseNotChar :: Char -> Parser Char
 parseNotChar c = Parser $ \(s, lc) -> case s of
   [] -> Left ("Error parsing not char \"" <> [c] <> "\"", "String empty", lc)
@@ -163,3 +173,8 @@ parseUntilAnyChar str = many $ parseAnyNotChar str
 
 parseSomeUntilAnyChar :: String -> Parser String
 parseSomeUntilAnyChar str = some $ parseAnyNotChar str
+
+parseTry :: Parser a -> Parser a
+parseTry a = Parser $ \rest -> case runParser a rest of
+    Left e -> Left e
+    Right (v, _) -> Right (v, rest)

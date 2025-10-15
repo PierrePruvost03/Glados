@@ -3,52 +3,144 @@
 module DataStruct.Ast
   ( AstInt,
     AstSymbol,
-    AstList,
+    AstNumber (..),
     AstBool,
-    AstLambda (..),
-    AstBoolLambda (..),
+    AstChar,
+    AstFloat,
+    Type (..),
     AstValue (..),
     Ast (..),
+    AExpression (..),
   )
 where
 
 import Parser (LineCount)
 
+-- Basic types
 type AstInt = Int
-
 type AstSymbol = String
-
-type AstList = [Ast]
-
 type AstBool = Bool
+type AstChar = Char
+type AstFloat = Double
 
-data AstLambda = AstLambda AstList Ast deriving (Eq, Ord, Show)
+-- Type system
+data Type
+  = TInt
+  | TBool
+  | TChar
+  | TString
+  | TFloat
+  | TKonst Type
+  | TStrong Type            -- long modifier
+  | TKong Type              -- unsigned modifier
+  | TStruct String          -- struct type by name
+  | TTrait String           -- trait type by name
+  | TArray Type Int         -- Type[size]
+  | TVector Type AExpression-- Type<size>
+  | TList Type Int          -- Type[size]
+  | TTuple [Type]           -- (Type1, Type2, ...)
+  | TCustom String          -- custom type alias
+  deriving Show
 
-data AstBoolLambda
-  = AstBLBool AstBool
-  | AstBLLambda AstLambda
-  -- ACall
-  deriving (Eq, Ord, Show)
-
-{--
-data AstType
-  = AInt AstInt
-  | ABool AstBool
-  | ACustom String -- pour l'instant
---}
+data AstNumber
+    = AInteger AstInt
+    | ABool AstBool
+    | AChar AstChar
+    | AFloat AstFloat
+    deriving Show
 
 data AstValue
-  = AstInteger AstInt
-  | AstBool AstBool
-  | AstString String
-  deriving (Eq, Ord, Show)
+  = ANumber AstNumber
+  | AString String
+  | ATuple [AstValue]
+  deriving Show
 
+data AExpression
+    = AValue AstValue
+    | AAttribution
+        { variable :: String,
+          value :: AExpression
+        }
+    | ACall
+        { callFunction :: String,
+          callArgs :: [Ast]
+        }
+    deriving Show
+
+
+-- Main AST
 data Ast
-  = AValue (LineCount, AstValue)
-  | ASymbol (LineCount, AstSymbol)
-  | AList (LineCount, AstList)
-  | ADefine {name :: (LineCount, AstSymbol), value :: (LineCount, Ast)}
-  | ALambdas (LineCount, AstLambda)
-  | ACall {callRef :: (LineCount, Either String AstLambda), args :: (LineCount, Ast)}
-  | AIf {ifCond :: (LineCount, Ast), ifThen :: (LineCount, Ast), ifElse :: (LineCount, Ast)}
-  deriving (Eq, Ord, Show)
+  -- Declarations & Definitions
+  = AFunkDef
+      { funkName :: String,
+        funkParams :: [(Type, String)],
+        funkReturnType :: Type,
+        funkBody :: Ast
+      }
+  | AStruktDef
+      { struktName :: String,
+        struktFields :: [(Type, String)]
+      }
+  | ATypeAlias
+      { aliasName :: String,
+        aliasType :: Type
+      }
+  | AVarDecl
+      { varIsKonst :: Bool,
+        varType :: Type,
+        varName :: String,
+        varValue :: Ast
+      }
+  | AInclude
+      { includeItems :: [String],
+        includeFrom :: String
+      }
+  -- Expressions
+  | ASymbol AstSymbol
+  | ALambda
+      { lambdaParams :: [(Type, String)],
+        lambdaReturnType :: Type,
+        lambdaBody :: Ast
+      }
+  -- Control Flow
+  | AIf
+      { ifCond :: Ast,
+        ifThen :: Ast,
+        ifElifs :: [(Ast, Ast)],  -- [(condition, body)]
+        ifElse :: Maybe Ast
+      }
+  | AReturn {returnValue :: Ast}
+  | ABlock [Ast]
+  | AWhile
+      { whileCond :: Ast,
+        whileBody :: Ast
+      }
+  | AFor
+      { forInit :: Ast,
+        forCond :: Ast,
+        forIncr :: Ast,
+        forBody :: Ast
+      }
+  | AForIn
+      { forInVar :: String,
+        forInIter :: Ast,
+        forInBody :: Ast
+      }
+  -- Access Operations
+  | AArrayAccess
+      { arrayExpr :: Ast,
+        arrayIndex :: Ast
+      }
+  | AVectorAccess
+      { vectorExpr :: Ast,
+        vectorIndex :: Ast
+      }
+  | ATupleAccess
+      { tupleExpr :: Ast,
+        tupleIndex :: Int
+      }
+  | AStructAccess
+      { structExpr :: Ast,
+        structFields :: [String]
+      }
+  deriving Show

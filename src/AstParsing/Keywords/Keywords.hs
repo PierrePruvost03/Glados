@@ -1,0 +1,17 @@
+module AstParsing.Keywords.Keywords where
+
+symbolFunc = "Funk"
+symbolConst = "Konst"
+symbolUnsigned = "Kong"
+symbolLong = "Strong"
+symbolInt = "Int"
+symbolFloat = "Float"
+symbolBool = "Bool"
+symbolChar = "Char"
+symbolString = "String"
+symbolVecIn = '<'
+symbolVecOut = '>'
+symbolArrayIn = '['
+symbolArrayOut = ']'
+symbolTuple = '|'
+wrapperList = "<|["
