@@ -15,3 +15,5 @@ symbolArrayIn = '['
 symbolArrayOut = ']'
 symbolTuple = '|'
 wrapperList = "<|["
+symbolTrue = "true"
+symbolFalse = "false"

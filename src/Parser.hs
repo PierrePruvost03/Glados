@@ -5,7 +5,6 @@ module Parser
     ParsingError,
     getLineCount,
     generateError,
-    runParser,
     parseChar,
     parseNotEmpty,
     isAnyNotChar,
@@ -21,6 +20,7 @@ module Parser
     parseManyWithSeparator,
     parseAnyNotChar,
     parseUntilAnyChar,
+    parseSomeUntilAnyNotChar,
     fmap,
     pure,
     many,
@@ -170,6 +170,9 @@ parseManyWithSeparator p c = (:) <$> p <*> many (parseChar c *> p) <|> pure []
 
 parseUntilAnyChar :: String -> Parser String
 parseUntilAnyChar str = many $ parseAnyNotChar str
+
+parseSomeUntilAnyNotChar :: String -> Parser String
+parseSomeUntilAnyNotChar str = some $ parseAnyChar str
 
 parseSomeUntilAnyChar :: String -> Parser String
 parseSomeUntilAnyChar str = some $ parseAnyNotChar str

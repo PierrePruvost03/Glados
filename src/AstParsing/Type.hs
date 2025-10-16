@@ -28,7 +28,8 @@ parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
         where f =
                 TVector <$> (base <* skip) <*>
-                    (parseChar symbolVecIn *> parseExpression
+                    (parseChar symbolVecIn *> (parseExpression
+                        <|> pure (AValue (ANumber (AInteger 0))))
                     <* parseChar symbolVecOut) <|>
                 TArray <$> (base <* skip) <*>
                     (parseChar symbolArrayIn *> skip *> parseInt

@@ -21,7 +21,7 @@ type AstInt = Int
 type AstSymbol = String
 type AstBool = Bool
 type AstChar = Char
-type AstFloat = Double
+type AstFloat = Float
 
 -- Type system
 data Type
@@ -52,7 +52,7 @@ data AstNumber
 data AstValue
   = ANumber AstNumber
   | AString String
-  | ATuple [AstValue]
+  | ATuple [AExpression]
   deriving Show
 
 data AExpression
@@ -73,10 +73,11 @@ data Ast
   -- Declarations & Definitions
   = AFunkDef
       { funkName :: String,
-        funkParams :: [(Type, String)],
+        funkParams :: [Ast],
         funkReturnType :: Type,
-        funkBody :: Ast
+        funkBody :: [Ast]
       }
+  | AExpress AExpression
   | AStruktDef
       { struktName :: String,
         struktFields :: [(Type, String)]
@@ -86,10 +87,10 @@ data Ast
         aliasType :: Type
       }
   | AVarDecl
-      { varIsKonst :: Bool,
+      {
         varType :: Type,
         varName :: String,
-        varValue :: Ast
+        varValue :: Maybe AExpression
       }
   | AInclude
       { includeItems :: [String],
