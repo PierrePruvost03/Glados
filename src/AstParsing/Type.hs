@@ -9,8 +9,8 @@ import AstParsing.Skip
 parseBaseType :: Parser Type
 parseBaseType = parseConstType f
     where f =
-            skip *> (TKong <$> (parseString symbolUnsigned *> parseBaseType) <|>
-            TStrong <$> (parseString symbolLong *> parseBaseType) <|>
+            skip *> (TKong <$> (parseString symbolUnsigned *> f) <|>
+            TStrong <$> (parseString symbolLong *> f) <|>
             TInt <$ parseString symbolInt <|>
             TBool <$ parseString symbolBool <|>
             TChar <$ parseString symbolChar <|>
