@@ -3,6 +3,15 @@ module AstParsing.Keywords.Keywords where
 symbolFunc :: String
 symbolFunc = "Funk"
 
+symbolStruct :: String
+symbolStruct = "Strukt"
+
+symbolStructIn :: String
+symbolStructIn = "{"
+
+symbolStructOut :: String
+symbolStructOut = "}"
+
 symbolConst :: String
 symbolConst = "Konst"
 
