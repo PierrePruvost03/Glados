@@ -6,12 +6,6 @@ symbolFunc = "Funk"
 symbolStruct :: String
 symbolStruct = "Strukt"
 
-symbolStructIn :: String
-symbolStructIn = "{"
-
-symbolStructOut :: String
-symbolStructOut = "}"
-
 symbolStructSep :: Char
 symbolStructSep = ';'
 
@@ -82,7 +76,7 @@ symbolFalse :: String
 symbolFalse = "false"
 
 allowedInfix :: String
-allowedInfix = "+-/:*^!%?><&|"
+allowedInfix = "+-/:*^!%?><&|="
 
 symbolLineComment :: String
 symbolLineComment = "//"
