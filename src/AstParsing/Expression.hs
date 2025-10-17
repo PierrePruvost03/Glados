@@ -8,7 +8,7 @@ import AstParsing.Skip
 import AstParsing.Utils
 
 parseStringValue :: Parser AstValue
-parseStringValue = AString <$> (parseChar '"' *> parseUntilChar '"' <* parseChar '"')
+parseStringValue = AString <$> parseBetween '"'
 
 parseNumberValue :: Parser AstValue
 parseNumberValue = ANumber <$>
@@ -26,12 +26,25 @@ parseTupleValue = ATuple <$>
     parseMultiple parseExpression <*
     parseChar symbolTuple)
 
+parseVarCall :: Parser AstValue
+parseVarCall = AVarCall <$> parseName
+
 parseValue :: Parser AExpression
 parseValue = skip *> (AValue <$> (
         parseStringValue <|>
         parseNumberValue <|>
-        parseTupleValue
+        parseTupleValue <|>
+        parseVarCall
     )) <* skip
+
+parseCall :: Parser AExpression
+parseCall = skip *> (
+        ((\e1 n e2 -> ACall n [e1, e2]) <$>
+        parseExpression <* skip <*>
+        (parseBetween '`' <|> ((:[]) <$> parseCharAny)) <* skip <*>
+        parseExpression) <|>
+        (ACall <$> parseName <* skip <*> (parseChar '(' *> parseMultiple parseExpression <* parseChar ')'))
+    ) <* skip
 
 parseExpression :: Parser AExpression
 parseExpression = parseValue

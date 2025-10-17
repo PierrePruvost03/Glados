@@ -20,6 +20,7 @@ module Parser
     parseManyWithSeparator,
     parseAnyNotChar,
     parseUntilAnyChar,
+    parseBetween,
     parseSomeUntilAnyNotChar,
     fmap,
     pure,
@@ -152,6 +153,9 @@ skipSomeChars s = some (parseAnyChar s)
 
 parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c
+
+parseBetween :: Char -> Parser String
+parseBetween c = parseChar c *> parseUntilChar c <* parseChar c
 
 parseInt :: Parser Int
 parseInt = read <$> ((parseChar '-' >> ('-' :) <$> some (parseAnyChar ['0' .. '9'])) <|> some (parseAnyChar ['0' .. '9']))

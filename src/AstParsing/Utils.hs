@@ -6,7 +6,11 @@ import AstParsing.Keywords.Keywords
 import AstParsing.Skip
 
 parseMultiple :: Parser a -> Parser [a]
-parseMultiple p = ((:) <$> p <*> many (skip *> parseChar ',' *> p)) <|> pure []
+parseMultiple p = parseMultipleSep p ','
+
+parseMultipleSep :: Parser a -> Char -> Parser [a]
+parseMultipleSep p s = ((:) <$> p <*> many (skip *> parseChar s *> p)) <|> pure []
+
 
 parseName :: Parser String
 parseName = skip *>

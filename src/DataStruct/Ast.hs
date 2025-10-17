@@ -53,6 +53,7 @@ data AstValue
   = ANumber AstNumber
   | AString String
   | ATuple [AExpression]
+  | AVarCall String
   deriving Show
 
 data AExpression
@@ -63,7 +64,7 @@ data AExpression
         }
     | ACall
         { callFunction :: String,
-          callArgs :: [Ast]
+          callArgs :: [AExpression]
         }
     deriving Show
 

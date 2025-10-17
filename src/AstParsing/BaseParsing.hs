@@ -15,10 +15,18 @@ parseFunction = AFunkDef <$>
     (skip *> parseString symbolFunc *> skip *> parseName) <*>
     (skip *> parseChar '(' *> parseMultiple parseDeclaration <* parseChar ')') <*>
     (skip *> parseString "->" *> parseType <* skip) <*>
-    (parseChar '{' *> ((:[]) <$> (AExpress <$> parseExpression)) <* parseChar '}')
+    (parseChar '{' *> parseAstBlock <* parseChar '}')
 
-parseAst :: Parser [Ast]
-parseAst = many $ skip *>
+parseAstBlock :: Parser [Ast]
+parseAstBlock = many $ skip *>
+    (parseAstFile <|> (AExpress <$> parseExpression))
+    <* skip
+
+parseAstFile :: Parser Ast
+parseAstFile = skip *>
     parseFunction <|>
     parseDeclaration
     <* skip
+
+parseAst :: Parser [Ast]
+parseAst = many $ parseAstFile
