@@ -11,6 +11,7 @@ module DataStruct.Ast
     AstValue (..),
     Ast (..),
     AExpression (..),
+    AstAccess (..),
   )
 where
 
@@ -35,10 +36,9 @@ data Type
   | TKong Type              -- unsigned modifier
   | TStruct String          -- struct type by name
   | TTrait String           -- trait type by name
-  | TArray Type Int         -- Type[size]
+  | TArray Type AExpression -- Type[size]
   | TVector Type AExpression-- Type<size>
-  | TList Type Int          -- Type[size]
-  | TTuple [Type]           -- (Type1, Type2, ...)
+  | TTuple [Type]           -- |Type1, Type2, ...|
   | TCustom String          -- custom type alias
   deriving Show
 
@@ -53,11 +53,34 @@ data AstValue
   = ANumber AstNumber
   | AString String
   | ATuple [AExpression]
+  | AArray [AExpression]
+  | AVector [AExpression]
+  | AStruct [(String, AExpression)]
   | AVarCall String
   deriving Show
 
+data AstAccess
+    = AArrayAccess {
+        aVarName :: String,
+        aIndex :: AExpression
+    }
+    | AVectorAccess {
+        vVarName :: String,
+        vIndex :: AExpression
+    }
+    | ATupleAccess {
+        tVarName :: String,
+        tIndex :: AExpression
+    }
+    | AStructAccess {
+        sVarName :: String,
+        fields :: [String]
+    }
+    deriving Show
+
 data AExpression
     = AValue AstValue
+    | AAccess AstAccess
     | AAttribution
         { variable :: String,
           value :: AExpression
@@ -127,22 +150,5 @@ data Ast
       { forInVar :: String,
         forInIter :: Ast,
         forInBody :: Ast
-      }
-  -- Access Operations
-  | AArrayAccess
-      { arrayExpr :: Ast,
-        arrayIndex :: Ast
-      }
-  | AVectorAccess
-      { vectorExpr :: Ast,
-        vectorIndex :: Ast
-      }
-  | ATupleAccess
-      { tupleExpr :: Ast,
-        tupleIndex :: Int
-      }
-  | AStructAccess
-      { structExpr :: Ast,
-        structFields :: [String]
       }
   deriving Show

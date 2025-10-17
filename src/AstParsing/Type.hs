@@ -5,6 +5,7 @@ import Parser
 import DataStruct.Ast
 import AstParsing.Keywords.Keywords
 import AstParsing.Skip
+import AstParsing.Utils
 
 parseBaseType :: Parser Type
 parseBaseType = parseConstType f
@@ -14,7 +15,10 @@ parseBaseType = parseConstType f
             TInt <$ parseString symbolInt <|>
             TBool <$ parseString symbolBool <|>
             TChar <$ parseString symbolChar <|>
-            TFloat <$ parseString symbolFloat) <* skip
+            TFloat <$ parseString symbolFloat <|>
+            TTuple <$> (parseChar symbolTuple *>
+                parseMultiple parseType <* parseChar symbolTuple) <|>
+            TCustom <$> parseName) <* skip
 
 parseConstType :: Parser Type -> Parser Type
 parseConstType base = skip *>
@@ -28,11 +32,11 @@ parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
         where f =
                 TVector <$> (base <* skip) <*>
-                    (parseChar symbolVecIn *> (parseExpression
+                    (parseChar symbolVectorIn *> (parseExpression
                         <|> pure (AValue (ANumber (AInteger 0))))
-                    <* parseChar symbolVecOut) <|>
+                    <* parseChar symbolVectorOut) <|>
                 TArray <$> (base <* skip) <*>
-                    (parseChar symbolArrayIn *> skip *> parseInt
+                    (parseChar symbolArrayIn *> skip *> parseExpression
                     <* skip <* parseChar symbolArrayOut)
 
 parseRecParentType  :: Parser Type -> Parser Type

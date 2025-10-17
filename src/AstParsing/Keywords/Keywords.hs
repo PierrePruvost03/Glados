@@ -27,17 +27,23 @@ symbolChar = "Char"
 symbolString :: String
 symbolString = "String"
 
-symbolVecIn :: Char
-symbolVecIn = '<'
+symbolVectorIn :: Char
+symbolVectorIn = '<'
 
-symbolVecOut :: Char
-symbolVecOut = '>'
+symbolVectorOut :: Char
+symbolVectorOut = '>'
 
 symbolArrayIn :: Char
 symbolArrayIn = '['
 
 symbolArrayOut :: Char
 symbolArrayOut = ']'
+
+symbolStructIn :: Char
+symbolStructIn = '{'
+
+symbolStructOut :: Char
+symbolStructOut = '}'
 
 symbolTuple :: Char
 symbolTuple = '|'
@@ -50,3 +56,6 @@ symbolTrue = "true"
 
 symbolFalse :: String
 symbolFalse = "false"
+
+allowedInfix :: String
+allowedInfix = "+-/:*^!%?><&|"
