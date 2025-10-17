@@ -15,6 +15,6 @@ parseStruct :: Parser Ast
 parseStruct = AStruktDef
     <$> (parseString symbolStruct *> parseName)
     <*> (skip *> parseString symbolStructIn
-    *> many (skip *> parseField <* skip <* parseChar ';' <* skip)
+    *> many (skip *> parseField <* skip <* parseChar symbolStructSep <* skip)
     <* parseString symbolStructOut
     )
