@@ -17,6 +17,7 @@ module Parser
     skipChars,
     skipSomeChars,
     parseUntilChar,
+    parseUntilString,
     parseManyWithSeparator,
     parseAnyNotChar,
     parseUntilAnyChar,
@@ -153,6 +154,15 @@ skipSomeChars s = some (parseAnyChar s)
 
 parseUntilChar :: Char -> Parser String
 parseUntilChar c = many $ parseNotChar c
+
+parseUntilString :: String -> Parser String
+parseUntilString s = Parser $ \rest -> go rest ""
+  where
+    go r@(str, lc) acc = case runParser (parseString s) r of
+      Right _ -> Right (acc, r)
+      Left _ -> case str of
+        [] -> Right (acc, r)
+        (x : xs) -> go (getRest x xs lc) (acc ++ [x])
 
 parseBetween :: Char -> Parser String
 parseBetween c = parseChar c *> parseUntilChar c <* parseChar c

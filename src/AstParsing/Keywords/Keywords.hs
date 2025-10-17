@@ -74,3 +74,12 @@ symbolTrue = "true"
 
 symbolFalse :: String
 symbolFalse = "false"
+
+symbolLineComment :: String
+symbolLineComment = "//"
+
+symbolCommentIn :: String
+symbolCommentIn = "/*"
+
+symbolCommentOut :: String
+symbolCommentOut = "*/"
