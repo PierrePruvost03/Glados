@@ -15,3 +15,6 @@ parseDeclaration = skip *> (
             parseName <*>
             optional (parseChar '=' *> parseExpression)
     ) <* skip
+
+parseLineDeclaration :: Parser Ast
+parseLineDeclaration = parseDeclaration <* parseChar ';'

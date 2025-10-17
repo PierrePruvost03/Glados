@@ -1,4 +1,4 @@
-module AstParsing.Expression (parseExpression) where
+module AstParsing.Expression (parseExpression, parseLineExpression) where
 
 import Parser
 import DataStruct.Ast

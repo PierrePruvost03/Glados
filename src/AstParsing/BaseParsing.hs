@@ -7,7 +7,7 @@ import AstParsing.Skip
 import AstParsing.Utils
 import AstParsing.Type
 import AstParsing.Declaration
-import AstParsing.Expression
+import AstParsing.Expression (parseLineExpression)
 
 parseFunction :: Parser Ast
 parseFunction = AFunkDef <$>
@@ -18,13 +18,13 @@ parseFunction = AFunkDef <$>
 
 parseAstBlock :: Parser [Ast]
 parseAstBlock = many $ skip *>
-    (parseAstFile <|> (AExpress <$> parseExpression))
+    (parseAstFile <|> (AExpress <$> parseLineExpression))
     <* skip
 
 parseAstFile :: Parser Ast
 parseAstFile = skip *>
     parseFunction <|>
-    parseDeclaration
+    parseLineDeclaration
     <* skip
 
 parseAst :: Parser [Ast]

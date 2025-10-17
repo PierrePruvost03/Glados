@@ -1,4 +1,4 @@
-module AstParsing.Type (parseType) where
+module AstParsing.Type (parseType, parseBaseType) where
 
 import AstParsing.Expression (parseExpression)
 import Parser
