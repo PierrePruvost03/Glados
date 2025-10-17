@@ -117,8 +117,8 @@ data Ast
         varValue :: Maybe AExpression
       }
   | AInclude
-      { includeItems :: [String],
-        includeFrom :: String
+      { includeFrom :: String,
+        includeItems :: [String]
       }
   -- Expressions
   | ASymbol AstSymbol

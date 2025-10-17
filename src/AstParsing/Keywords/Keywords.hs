@@ -3,6 +3,30 @@ module AstParsing.Keywords.Keywords where
 symbolFunc :: String
 symbolFunc = "Funk"
 
+symbolStruct :: String
+symbolStruct = "Strukt"
+
+symbolStructIn :: String
+symbolStructIn = "{"
+
+symbolStructOut :: String
+symbolStructOut = "}"
+
+symbolStructSep :: Char
+symbolStructSep = ';'
+
+symbolInclude :: String
+symbolInclude = "Inklude"
+
+symbolIncludeIn :: String
+symbolIncludeIn = "("
+
+symbolIncludeOut :: String
+symbolIncludeOut = ")"
+
+symbolIncludeSep :: Char
+symbolIncludeSep = ','
+
 symbolConst :: String
 symbolConst = "Konst"
 
@@ -59,3 +83,12 @@ symbolFalse = "false"
 
 allowedInfix :: String
 allowedInfix = "+-/:*^!%?><&|"
+
+symbolLineComment :: String
+symbolLineComment = "//"
+
+symbolCommentIn :: String
+symbolCommentIn = "/*"
+
+symbolCommentOut :: String
+symbolCommentOut = "*/"

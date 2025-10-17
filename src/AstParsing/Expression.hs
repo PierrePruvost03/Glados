@@ -93,4 +93,4 @@ parseBasicExpression :: Parser AExpression
 parseBasicExpression =  parseAccess <|> parseCall <|> parseValue
 
 parseExpression :: Parser AExpression
-parseExpression = parseInfix <|> parseBasicExpression
+parseExpression = (parseInfix <|> parseBasicExpression) *> parseChar ';'
