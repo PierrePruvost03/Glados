@@ -2,7 +2,7 @@ module AstParsing.Expression (parseExpression) where
 
 import Parser
 import DataStruct.Ast
-import Parser
+import Data.Functor
 import AstParsing.Keywords.Keywords
 import AstParsing.Skip
 import AstParsing.Utils
@@ -17,7 +17,7 @@ parseNumberValue = ANumber <$>
         parseAstFloat = AFloat <$> parseFloat
         parseAstInt = AInteger <$> parseInt
         parseAstBool = ABool <$>
-            ((parseString symbolTrue *> pure True) <|> (parseString symbolFalse *> pure False))
+            (parseString symbolTrue $> True <|> parseString symbolFalse $> False)
         parseAstChar = AChar <$> (parseChar '\'' *> parseCharAny <* parseChar '\'')
 
 parseTupleValue :: Parser AstValue

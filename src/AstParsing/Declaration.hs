@@ -3,7 +3,7 @@ module AstParsing.Declaration where
 import AstParsing.Expression (parseExpression)
 import Parser
 import DataStruct.Ast
-import AstParsing.Keywords.Keywords
+import Control.Applicative
 import AstParsing.Skip
 import AstParsing.Type
 import AstParsing.Utils
@@ -13,5 +13,5 @@ parseDeclaration = skip *> (
         AVarDecl <$>
             parseType <*>
             parseName <*>
-            (((Just <$> (parseChar '=' *> parseExpression)) <|> pure Nothing))
+            optional (parseChar '=' *> parseExpression)
     ) <* skip
