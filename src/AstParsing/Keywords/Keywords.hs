@@ -12,6 +12,18 @@ symbolStructIn = "{"
 symbolStructOut :: String
 symbolStructOut = "}"
 
+symbolInclude :: String
+symbolInclude = "Inklude"
+
+symbolIncludeIn :: String
+symbolIncludeIn = "("
+
+symbolIncludeOut :: String
+symbolIncludeOut = ")"
+
+symbolIncludeSep :: Char
+symbolIncludeSep = ','
+
 symbolConst :: String
 symbolConst = "Konst"
 
