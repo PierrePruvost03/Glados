@@ -61,10 +61,12 @@ parseValue = skip *> (AValue <$> (
 
 parseInfix :: Parser AExpression
 parseInfix = skip *> (
-        ((\e1 n e2 -> ACall n (catMaybes [e1, Just e2])) <$>
-        (optional parseBasicExpression) <* skip <*>
-        (parseBetween '`' <|> ((:[]) <$> parseAnyChar allowedInfix)) <* skip <*>
-        parseExpression))
+        (\e1 n e2 -> ACall n (catMaybes [e1, Just e2])) <$>
+        ((optional parseBasicExpression)) <* skip <*>
+        infixSymbol <* skip <*>
+        parseExpression)
+    where
+        infixSymbol = (parseBetween '`' <|> ((:[]) <$> parseAnyChar allowedInfix))
 
 parseCall :: Parser AExpression
 parseCall = skip *> (
@@ -90,7 +92,11 @@ parseAccess = AAccess <$> (skip *> (
     ))
 
 parseBasicExpression :: Parser AExpression
-parseBasicExpression =  parseAccess <|> parseCall <|> parseValue
+parseBasicExpression =
+    (parseChar '(' *> parseExpression <* parseChar ')') <|>
+    parseAccess <|>
+    parseCall <|>
+    parseValue
 
 parseExpression :: Parser AExpression
 parseExpression = (parseInfix <|> parseBasicExpression)
