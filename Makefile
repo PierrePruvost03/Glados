@@ -9,28 +9,36 @@ NAME	= glados
 
 STACKNAME	=	glados-exe
 
-all:	$(NAME)
+all: lisp kong
 
-$(NAME):
-	stack build --copy-bins --allow-different-user
-	mv $(STACKNAME)	$@
+lisp:
+	@echo "=== Building LISP Interpreter ==="
+	cd LispInterpreter && $(MAKE)
+
+kong:
+	@echo "=== Building Kong Compiler ==="
+	cd Kong && $(MAKE)
+
+test: test-lisp test-kong
+
+test-lisp:
+	@echo "=== Testing LISP Interpreter ==="
+	cd LispInterpreter && $(MAKE) test
+
+test-kong:
+	@echo "=== Testing Kong Compiler ==="
+	cd Kong && $(MAKE) test
 
 clean:
-	stack clean
-	$(RM) test/coverage/*.html
-	$(RM) test/coverage/*.tix
+	@echo "=== Cleaning all projects ==="
+	cd LispInterpreter && $(MAKE) clean || true
+	cd Kong && $(MAKE) clean || true
 
-fclean:	clean
-	$(RM) $(NAME)
+fclean:
+	@echo "=== Deep cleaning all projects ==="
+	cd LispInterpreter && $(MAKE) fclean || true
+	cd Kong && $(MAKE) fclean || true
 
-re:	fclean all
+re: fclean all
 
-FUNC_TEST_OUTPUT_DIR	=	functionnal_tests/tmp
-
-FUNC_TEST_OUTPUT_LOG	=	$(FUNC_TEST_OUTPUT_DIR)/result.log
-
-tests_run:
-	stack test --coverage --allow-different-user
-	stack hpc report --all --destdir ./test/coverage
-
-.PHONY: all clear fclean re tests_run
+.PHONY: all lisp kong clean fclean re test
