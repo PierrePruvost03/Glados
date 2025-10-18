@@ -4,8 +4,10 @@ run-name: Mirroring Glados
 on:
   workflow_run:
     workflows:
-      - basic checks
-      - run tests
+      - LISP Interpreter - Basic Checks
+      - LISP Interpreter - Tests
+      - Kong Compiler - Basic Checks
+      - Kong Compiler - Tests
     types:
       - completed
 

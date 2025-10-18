@@ -1,0 +1,33 @@
+name: Kong Compiler - Tests
+
+on:
+  pull_request:
+    paths:
+      - 'Kong/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'Kong/**'
+
+env:
+  STACK_ROOT: /tmp/stack-root
+
+jobs:
+  run_kong_tests:
+    defaults: 
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: run Kong unit tests
+        run: make test-kong
+      - name: test Kong compiler functionality
+        run: |
+          echo "Testing Kong compiler basic functionality..."
+          Kong/glados --version
+          Kong/glados --help
+          echo "Kong compiler tests passed"
