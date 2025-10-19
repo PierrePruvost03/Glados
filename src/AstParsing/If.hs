@@ -10,7 +10,7 @@ import Parser
 parseBody :: Parser Ast
 parseBody =
   ABlock
-    <$> (skip *> parseChar symbolAstBlockIn *> parseAstBlock <* skip <* parseChar symbolAstBlockOut <* skip)
+    <$> (skip *> parseChar symbolBlockIn *> parseAstBlock <* skip <* parseChar symbolBlockOut <* skip)
 
 parseCond :: Parser Ast
 parseCond =
