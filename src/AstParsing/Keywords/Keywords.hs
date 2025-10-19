@@ -87,11 +87,11 @@ symbolCommentIn = "/*"
 symbolCommentOut :: String
 symbolCommentOut = "*/"
 
-symbolAstBlockIn :: Char
-symbolAstBlockIn = '{'
+symbolBlockIn :: Char
+symbolBlockIn = '{'
 
-symbolAstBlockOut :: Char
-symbolAstBlockOut = '}'
+symbolBlockOut :: Char
+symbolBlockOut = '}'
 
 symbolCondIn :: Char
 symbolCondIn = '('
@@ -107,3 +107,15 @@ symbolElif = "elif"
 
 symbolElse :: String
 symbolElse = "else"
+
+symbolFor :: String
+symbolFor = "for"
+
+symbolForIn :: Char
+symbolForIn = '('
+
+symbolForOut :: Char
+symbolForOut = ')'
+
+symbolForSep :: Char
+symbolForSep = ';'
