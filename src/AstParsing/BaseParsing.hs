@@ -14,7 +14,7 @@ parseFunction = AFunkDef <$>
     (skip *> parseString symbolFunc *> skip *> parseName) <*>
     (skip *> parseChar '(' *> parseMultiple parseDeclaration <* parseChar ')') <*>
     (skip *> parseString "->" *> parseType <* skip) <*>
-    (parseChar '{' *> parseAstBlock <* parseChar '}')
+    (parseChar symbolAstBlockIn *> parseAstBlock <* parseChar symbolAstBlockOut)
 
 parseAstBlock :: Parser [Ast]
 parseAstBlock = many $ skip *>

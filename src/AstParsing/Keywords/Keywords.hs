@@ -86,3 +86,24 @@ symbolCommentIn = "/*"
 
 symbolCommentOut :: String
 symbolCommentOut = "*/"
+
+symbolAstBlockIn :: Char
+symbolAstBlockIn = '{'
+
+symbolAstBlockOut :: Char
+symbolAstBlockOut = '}'
+
+symbolCondIn :: Char
+symbolCondIn = '('
+
+symbolCondOut :: Char
+symbolCondOut = ')'
+
+symbolIf :: String
+symbolIf = "if"
+
+symbolElif :: String
+symbolElif = "elif"
+
+symbolElse :: String
+symbolElse = "else"

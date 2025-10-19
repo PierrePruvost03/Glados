@@ -10,16 +10,16 @@ import Parser
 parseBody :: Parser Ast
 parseBody =
   ABlock
-    <$> (skip *> parseChar '{' *> parseAstBlock <* skip <* parseChar '}' <* skip)
+    <$> (skip *> parseChar symbolAstBlockIn *> parseAstBlock <* skip <* parseChar symbolAstBlockOut <* skip)
 
 parseCond :: Parser Ast
 parseCond =
-  skip *> parseChar '(' *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar ')' <* skip
+  skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar symbolCondOut <* skip
 
 parseIf :: Parser Ast
 parseIf =
   AIf
-    <$> (parseString "if" *> parseCond)
+    <$> (parseString symbolIf *> parseCond)
     <*> (skip *> parseBody)
-    <*> many ((,) <$> (skip *> parseString "elif" *> parseCond) <*> parseBody)
-    <*> ((parseString "else" *> (Just <$> parseBody)) <|> pure Nothing)
+    <*> many ((,) <$> (skip *> parseString symbolElif *> parseCond) <*> parseBody)
+    <*> ((parseString symbolElse *> (Just <$> parseBody)) <|> pure Nothing)
