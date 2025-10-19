@@ -1,4 +1,4 @@
-module AstParsing.If () where
+module AstParsing.If (parseIf) where
 
 import AstParsing.BaseParsing
 import AstParsing.Expression
