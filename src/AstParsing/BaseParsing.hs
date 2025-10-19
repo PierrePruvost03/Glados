@@ -27,5 +27,11 @@ parseAstFile = skip *>
     parseLineDeclaration
     <* skip
 
+parseBody :: Parser Ast
+parseBody =
+  ABlock
+    <$> (skip *> parseChar symbolBlockIn *> many (AExpress <$> parseLineExpression) <* skip <* parseChar symbolBlockOut <* skip)
+
+
 parseAst :: Parser [Ast]
-parseAst = many $ parseAstFile
+parseAst = many parseAstFile

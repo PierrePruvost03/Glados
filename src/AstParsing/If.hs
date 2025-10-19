@@ -7,11 +7,6 @@ import AstParsing.Skip
 import DataStruct.Ast
 import Parser
 
-parseBody :: Parser Ast
-parseBody =
-  ABlock
-    <$> (skip *> parseChar symbolBlockIn *> parseAstBlock <* skip <* parseChar symbolBlockOut <* skip)
-
 parseCond :: Parser Ast
 parseCond =
   skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar symbolCondOut <* skip
