@@ -5,6 +5,7 @@ import AstParsing.Declaration
 import AstParsing.Expression
 import AstParsing.Keywords.Keywords
 import AstParsing.Skip
+import AstParsing.Utils
 import Control.Applicative
 import DataStruct.Ast
 import Parser
@@ -19,4 +20,14 @@ parseFor =
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
            <*> (parseChar symbolForOut *> skip *> parseChar symbolBlockIn *> (ABlock <$> parseAstBlock) <* parseChar symbolBlockOut)
+       )
+
+parseForIn :: Parser Ast
+parseForIn =
+  parseString symbolFor
+    *> skip
+    *> ( AForIn
+           <$> parseName <* skip <* parseString symbolIn
+           <*> (AExpress <$> parseExpression)
+           <*> parseBody
        )

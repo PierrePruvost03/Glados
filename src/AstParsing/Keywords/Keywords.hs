@@ -119,3 +119,6 @@ symbolForOut = ')'
 
 symbolForSep :: Char
 symbolForSep = ';'
+
+symbolIn :: String
+symbolIn = "in"
