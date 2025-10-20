@@ -1,4 +1,4 @@
-module AstParsing.For () where
+module AstParsing.For (parseFor, parseForIn) where
 
 import AstParsing.BaseParsing
 import AstParsing.Declaration
