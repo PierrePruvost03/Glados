@@ -12,8 +12,9 @@ import AstParsing.Expression (parseLineExpression)
 parseFunction :: Parser Ast
 parseFunction = AFunkDef <$>
     (skip *> parseString symbolFunc *> skip *> parseName) <*>
-    (skip *> parseChar '(' *> parseMultiple parseDeclaration <* parseChar ')') <*>
-    (skip *> parseString "->" *> parseType <* skip) <*>
+    (skip *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\"")) *>
+        parseMultiple parseDeclaration <* parseChar symbolFuncParamOut) <*>
+    (skip *> parseString symbolFuncReturn *> parseType <* skip) <*>
     (parseChar '{' *> parseAstBlock <* parseChar '}')
 
 parseAstBlock :: Parser [Ast]

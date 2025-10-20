@@ -3,6 +3,12 @@ module AstParsing.Keywords.Keywords where
 symbolFunc :: String
 symbolFunc = "Funk"
 
+symbolFuncParamIn :: Char
+symbolFuncParamIn = '('
+
+symbolFuncParamOut :: Char
+symbolFuncParamOut = ')'
+
 symbolStruct :: String
 symbolStruct = "Strukt"
 
@@ -40,7 +46,7 @@ symbolBool :: String
 symbolBool = "Bool"
 
 symbolChar :: String
-symbolChar = "Char"
+symbolChar = "Khar"
 
 symbolString :: String
 symbolString = "String"
@@ -86,3 +92,6 @@ symbolCommentIn = "/*"
 
 symbolCommentOut :: String
 symbolCommentOut = "*/"
+
+symbolFuncReturn :: String
+symbolFuncReturn = "->"

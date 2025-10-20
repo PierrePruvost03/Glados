@@ -92,11 +92,11 @@ parseAccess = AAccess <$> (skip *> (
     ))
 
 parseBasicExpression :: Parser AExpression
-parseBasicExpression =
+parseBasicExpression = skip *> (
     (parseChar '(' *> parseExpression <* parseChar ')') <|>
     parseAccess <|>
     parseCall <|>
-    parseValue
+    parseValue) <* skip
 
 parseExpression :: Parser AExpression
 parseExpression = (parseInfix <|> parseBasicExpression)
