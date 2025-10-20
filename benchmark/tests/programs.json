@@ -1,0 +1,10 @@
+[
+    {
+        "test1": {
+            "script": "lisp/fib.lsp"
+        },
+        "test2": {
+            "script": "lisp/fact.lsp"
+        }
+    }
+]

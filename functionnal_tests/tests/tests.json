@@ -34,7 +34,7 @@
       },
       "fibonacci_3": {
         "description": "fibonacci of a string",
-        "expected": "primLt: elements are not comparable [VString \"string\",VInt 2]",
+        "expected": "primLt: elements are not comparable [VString \"string\",VInt 1]",
         "input": "(fib \"string\")"
       }
     }

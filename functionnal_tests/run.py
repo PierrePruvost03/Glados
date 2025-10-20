@@ -4,13 +4,13 @@ from colorama import Fore, Style, Back
 import json
 import sys
 
-def gen_test_file(lisp_code: str, input: str, test_name: str):
+def gen_test_file(lisp_code: str, input: str, test_name: str) -> None:
     with open(f"functionnal_tests/tmp/{test_name}.lsp", "w") as f:
         f.write(lisp_code)
         f.write("\n")
         f.write(input)
 
-def read_tests(test_data: dict[str, str]):
+def read_tests(test_data: dict[str, str]) -> None:
     lisp_file = test_data.get("lisp_file", "")
     lisp_code = open(lisp_file).read() if lisp_file else ""
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     print(Fore.GREEN + "Building the project..." + Style.RESET_ALL)
     os.system("make re")
     print(Fore.GREEN + "Running tests..." + Style.RESET_ALL)
-    
+
     for test_file in test_files:
         with open(test_file, "r") as f:
             for test_data in json.load(f):
