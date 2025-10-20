@@ -11,7 +11,7 @@ module DataStruct.VM
 
 import qualified Data.Vector as V
 import qualified Data.Map.Strict as M
-import DataStruct.Bytecode (Value, Instr)
+import DataStruct.Bytecode.Value (Value, Instr)
 
 -- Types de base de la VM
 type Env = M.Map String Value
