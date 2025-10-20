@@ -100,16 +100,16 @@ symbolCondOut :: Char
 symbolCondOut = ')'
 
 symbolIf :: String
-symbolIf = "if"
+symbolIf = "If"
 
 symbolElif :: String
-symbolElif = "elif"
+symbolElif = "Elif"
 
 symbolElse :: String
-symbolElse = "else"
+symbolElse = "Else"
 
 symbolFor :: String
-symbolFor = "for"
+symbolFor = "For"
 
 symbolForIn :: Char
 symbolForIn = '('
@@ -121,4 +121,4 @@ symbolForSep :: Char
 symbolForSep = ';'
 
 symbolIn :: String
-symbolIn = "in"
+symbolIn = "In"
