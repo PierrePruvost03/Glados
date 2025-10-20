@@ -14,7 +14,7 @@ parseField = (,) <$> parseType <*> (skip *> parseName)
 parseStruct :: Parser Ast
 parseStruct = AStruktDef
     <$> (parseString symbolStruct *> parseName)
-    <*> (skip *> parseString symbolStructIn
+    <*> (skip *> parseChar symbolStructIn
     *> many (skip *> parseField <* skip <* parseChar symbolStructSep <* skip)
-    <* parseString symbolStructOut
+    <* parseChar symbolStructOut
     )

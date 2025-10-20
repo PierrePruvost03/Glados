@@ -15,7 +15,8 @@ parseFunction = AFunkDef <$>
     (skip *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\"")) *>
         parseMultiple parseDeclaration <* parseChar symbolFuncParamOut) <*>
     (skip *> parseString symbolFuncReturn *> parseType <* skip) <*>
-    (parseChar '{' *> parseAstBlock <* parseChar '}')
+    (parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut)
+
 
 parseAstBlock :: Parser [Ast]
 parseAstBlock = many $ skip *>
@@ -28,5 +29,11 @@ parseAstFile = skip *>
     parseLineDeclaration
     <* skip
 
+parseBody :: Parser Ast
+parseBody =
+  ABlock
+    <$> (skip *> parseChar symbolBlockIn *> many (AExpress <$> parseLineExpression) <* skip <* parseChar symbolBlockOut <* skip)
+
+
 parseAst :: Parser [Ast]
-parseAst = many $ parseAstFile
+parseAst = many parseAstFile

@@ -95,3 +95,39 @@ symbolCommentOut = "*/"
 
 symbolFuncReturn :: String
 symbolFuncReturn = "->"
+
+symbolBlockIn :: Char
+symbolBlockIn = '{'
+
+symbolBlockOut :: Char
+symbolBlockOut = '}'
+
+symbolCondIn :: Char
+symbolCondIn = '('
+
+symbolCondOut :: Char
+symbolCondOut = ')'
+
+symbolIf :: String
+symbolIf = "If"
+
+symbolElif :: String
+symbolElif = "Elif"
+
+symbolElse :: String
+symbolElse = "Else"
+
+symbolFor :: String
+symbolFor = "For"
+
+symbolForIn :: Char
+symbolForIn = '('
+
+symbolForOut :: Char
+symbolForOut = ')'
+
+symbolForSep :: Char
+symbolForSep = ';'
+
+symbolIn :: String
+symbolIn = "In"

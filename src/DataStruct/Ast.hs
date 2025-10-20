@@ -141,9 +141,9 @@ data Ast
         whileBody :: Ast
       }
   | AFor
-      { forInit :: Ast,
-        forCond :: Ast,
-        forIncr :: Ast,
+      { forInit :: Maybe Ast,
+        forCond :: Maybe Ast,
+        forIncr :: Maybe Ast,
         forBody :: Ast
       }
   | AForIn
