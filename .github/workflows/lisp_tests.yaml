@@ -1,0 +1,34 @@
+name: LISP Interpreter - Tests
+
+on:
+  pull_request:
+    paths:
+      - 'LispInterpreter/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'LispInterpreter/**'
+
+env:
+  STACK_ROOT: /tmp/stack-root
+
+jobs:
+  run_lisp_tests:
+    defaults: 
+      run:
+        shell: bash
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: run LISP unit tests
+        run: make test-lisp
+      - name: run LISP functional tests
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install python3-venv -y
+          cd LispInterpreter
+          functionnal_tests/install_requirements.sh
+          source .venv/bin/activate
+          python3 functionnal_tests/run.py
