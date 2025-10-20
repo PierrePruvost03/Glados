@@ -19,7 +19,7 @@ parseFor =
            <$> optional parseDeclaration
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
-           <*> (parseChar symbolForOut *> skip *> parseChar symbolBlockIn *> (ABlock <$> parseAstBlock) <* parseChar symbolBlockOut)
+           <*> (parseChar symbolForOut *> skip *> parseBody)
        )
 
 parseForIn :: Parser Ast
