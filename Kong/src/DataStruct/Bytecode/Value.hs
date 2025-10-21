@@ -51,6 +51,7 @@ instance Binary Value where
         9 -> return VEmpty
         _ -> fail "Unknow Value"
 
+
 data Instr
     = Push Value
     | PushEnv String
