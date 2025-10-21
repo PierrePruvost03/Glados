@@ -142,7 +142,7 @@ data Ast
       }
   | AFor
       { forInit :: Maybe Ast,
-        forCond :: Maybe Ast,
+        forCond :: Ast,
         forIncr :: Maybe Ast,
         forBody :: Ast
       }

@@ -1,13 +1,51 @@
 module AstParsing.BaseParsing where
 
-import Parser
-import DataStruct.Ast
+import AstParsing.Declaration
+import AstParsing.Expression
 import AstParsing.Keywords.Keywords
 import AstParsing.Skip
-import AstParsing.Utils
 import AstParsing.Type
-import AstParsing.Declaration
-import AstParsing.Expression (parseLineExpression)
+import AstParsing.Utils
+import AstParsing.Return
+import Control.Applicative
+import DataStruct.Ast
+import Parser
+
+parseFor :: Parser Ast
+parseFor =
+  parseString symbolFor
+    *> skip
+    *> parseChar symbolForIn
+    *> ( AFor
+           <$> optional parseDeclaration
+           <*> (parseChar symbolForSep *> (AExpress <$> parseExpression))
+           <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
+           <*> (parseChar symbolForOut *> skip *> parseBody)
+       )
+
+parseForIn :: Parser Ast
+parseForIn =
+  parseString symbolFor
+    *> skip
+    *> ( AForIn
+           <$> parseName
+           <* skip
+           <* parseString symbolIn
+           <*> (AExpress <$> parseExpression)
+           <*> parseBody
+       )
+
+parseCond :: Parser Ast
+parseCond =
+  skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar symbolCondOut <* skip
+
+parseIf :: Parser Ast
+parseIf =
+  AIf
+    <$> (parseString symbolIf *> parseCond)
+    <*> (skip *> parseBody)
+    <*> many ((,) <$> (skip *> parseString symbolElif *> parseCond) <*> parseBody)
+    <*> ((parseString symbolElse *> (Just <$> parseBody)) <|> pure Nothing)
 
 parseFunction :: Parser Ast
 parseFunction = AFunkDef <$>
@@ -33,7 +71,6 @@ parseBody :: Parser Ast
 parseBody =
   ABlock
     <$> (skip *> parseChar symbolBlockIn *> many (AExpress <$> parseLineExpression) <* skip <* parseChar symbolBlockOut <* skip)
-
 
 parseAst :: Parser [Ast]
 parseAst = many parseAstFile
