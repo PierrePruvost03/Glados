@@ -131,3 +131,6 @@ symbolForSep = ';'
 
 symbolIn :: String
 symbolIn = "In"
+
+symbolReturn :: String
+symbolReturn = "Return"
