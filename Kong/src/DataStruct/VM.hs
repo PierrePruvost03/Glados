@@ -2,7 +2,6 @@
 
 module DataStruct.VM
   ( VMState(..)
-  , ExecError(..)
   , Env
   , Heap
   , Stack
@@ -13,7 +12,6 @@ module DataStruct.VM
 import qualified Data.Vector as V
 import qualified Data.Map.Strict as M
 import DataStruct.Bytecode.Value (Value, Instr)
-import Control.Exception
 
 -- Types de base de la VM
 type Env = M.Map String Value
@@ -36,6 +34,6 @@ initVMState instructions = VMState
   { stack = []
   , env = M.empty
   , heap = V.empty
-  , code = V.fromList instructions
+  , code = instructions
   , ip = 0
   }
