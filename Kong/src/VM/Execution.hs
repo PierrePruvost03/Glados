@@ -35,23 +35,72 @@ makeBoolValue (VString _) = True
 makeBoolValue VEmpty = False
 
 -- calculate :: Op -> Value -> Value -> Value
--- -- works differently with numbers and with lists
+-- works differently with numbers and with lists
 -- calculate Add (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
 -- calculate Sub (VNumber v1) (VNumber v2) = VNumber $ v1 - v2
 -- calculate Mul (VNumber v1) (VNumber v2) = VNumber $ v1 * v2
 -- calculate Div (VNumber v1) (VNumber v2) = VNumber $ v1 `div` v2
 -- calculate Equal (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
--- -- only works with numbers
+-- only works with numbers
 -- calculate Lt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 < v2
 -- calculate Gt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 > v2
 -- calculate Le (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 <= v2
 -- calculate Ge (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 >= v2
 -- calculate Ne (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 /= v2
--- -- transforms non-bool into bool before op
+-- transforms non-bool into bool before op
 -- calculate And v1 v2 = VBool $ (makeBoolValue v1) && (makeBoolValue v2)
 -- calculate Or v1 v2 = VBool $ (makeBoolValue v1) || (makeBoolValue v2)
--- -- "not" operator only takes 1 argument, not sure how to handle this case
--- -- calculate Not
+-- "not" operator only takes 1 argument, not sure how to handle this case
+-- calculate Not
+
+compareTypes :: Number -> Number -> (Number, Number)
+compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
+compareTypes (VBool a) (VChar b) = (VChar a2, VChar b) where a2 = toEnum (fromEnum a)::Char
+compareTypes (VBool a) (VInt b) = (VInt a2, VInt b) where a2 = fromEnum a
+compareTypes (VBool a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral (fromEnum a)::Double
+compareTypes a (VBool b) = (a2, b2) where (b2, a2) = compareTypes (VBool b) a
+compareTypes (VChar a) (VChar b) = (VChar a, VChar b)
+compareTypes (VChar a) (VInt b) = (VInt a2, VInt b) where a2 = fromEnum a
+compareTypes (VChar a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral (fromEnum a)::Double
+compareTypes a (VChar b) = (a2, b2) where (b2, a2) = compareTypes (VChar b) a
+compareTypes (VInt a) (VInt b) = (VInt a, VInt b)
+compareTypes (VInt a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral a::Double
+compareTypes a (VInt b) = (a2, b2) where (b2, a2) = compareTypes (VInt b) a
+compareTypes (VFloat a) (VFloat b) = (VFloat a, VFloat b)
+
+addOp :: (Number, Number) -> Number
+addOp ((VBool a), (VBool b)) = VBool $ (a /= b)
+addOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) + (fromEnum b))::Char)
+addOp ((VInt a), (VInt b)) = VInt $ a + b
+addOp ((VFloat a), (VFloat b)) = VFloat $ a + b
+
+subOp :: (Number, Number) -> Number
+subOp ((VBool a), (VBool b)) = VBool $ (a == b)
+subOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) - (fromEnum b))::Char)
+subOp ((VInt a), (VInt b)) = VInt $ a - b
+subOp ((VFloat a), (VFloat b)) = VFloat $ a - b
+
+mulOp :: (Number, Number) -> Number
+mulOp ((VBool a), (VBool b)) = VBool $ (a && b)
+mulOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) * (fromEnum b))::Char)
+mulOp ((VInt a), (VInt b)) = VInt $ a * b
+mulOp ((VFloat a), (VFloat b)) = VFloat $ a * b
+
+divOp :: (Number, Number) -> Number
+divOp ((VBool a), (VBool b)) = VBool $ (a /= b)
+divOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) + (fromEnum b))::Char)
+divOp ((VInt a), (VInt b)) = VInt $ a + b
+divOp ((VFloat a), (VFloat b)) = VFloat $ a + b
+
+equalOp :: (Number, Number) -> Number
+equalOp (a, b) = VBool $ (a == b)
+
+applyOp :: VMState -> Op -> VMState
+applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Add = state {stack = [VNumber (addOp $ compareTypes a b)] <> xs}
+applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Sub = state {stack = [VNumber (subOp $ compareTypes a b)] <> xs}
+applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Mul = state {stack = [VNumber (mulOp $ compareTypes a b)] <> xs}
+applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Div = state {stack = [VNumber (divOp $ compareTypes a b)] <> xs}
+applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Equal = state {stack = [VNumber (equalOp $ compareTypes a b)] <> xs}
 
 exec :: VMState -> IO VMState
 exec state@(VMState s _ _ code ip) = case code!?ip of
@@ -59,7 +108,8 @@ exec state@(VMState s _ _ code ip) = case code!?ip of
     Just instr -> checkInstrution state instr
 
 checkInstrution :: VMState -> Instr -> IO VMState
-checkInstrution state (Push v) = pure $ state
+checkInstrution state@(VMState {stack = xs, ip = n}) (Push value) = exec $ state {stack = [value] <> xs, ip = n + 1}
+checkInstrution state (DoOp op) = exec $ applyOp state op
 
 -- checkOp :: VMState -> Op -> IO VMState
 -- checkOp state@(VMState {stack = (a:b:xs)}) Add = state {stack = (builtinAdd a b : xs)}
@@ -71,26 +121,26 @@ checkInstrution state (Push v) = pure $ state
 -- exec :: Env -> [Instr] -> Stack -> Either String Value
 -- exec _ [] _ = Left "Error: ending instruction set without a return"
 -- exec e (Push value : is) st = exec e is $ [value] <> st
--- -- exec e (PushEnv String : is) _ =
--- -- exec _ (Call : is) _ =
+-- exec e (PushEnv String : is) _ =
+-- exec _ (Call : is) _ =
 -- exec _ (Ret : _) (value : _) = Right value
 -- exec _ (Ret : _) [] = Left "Error: no value to return"
--- -- exec _ (Nop : is) _ =
--- -- exec _ (SetVar String : is) _ =
--- -- exec _ (SetArray Int : is) _ =
--- -- exec _ (SetVector Int : is) _ =
--- -- exec _ (SetStruct String : is) _ =
--- -- exec _ (SetTuple Int : is) _ =
--- -- exec _ (GetArray Int : is) _ =
--- -- exec _ (ArrayGet : is) _ =
--- -- exec _ (GetVector Int : is) _ =
--- -- exec _ (GetStruct String : is) _ =
--- -- exec _ (GetTuple Int : is) _ =
--- -- exec _ (Jump Int : is) _ =
--- -- exec _ (JumpIfFalse Int : is) _ =
--- -- exec _ (JumpIfTrue Int : is) _ =
+-- exec _ (Nop : is) _ =
+-- exec _ (SetVar String : is) _ =
+-- exec _ (SetArray Int : is) _ =
+-- exec _ (SetVector Int : is) _ =
+-- exec _ (SetStruct String : is) _ =
+-- exec _ (SetTuple Int : is) _ =
+-- exec _ (GetArray Int : is) _ =
+-- exec _ (ArrayGet : is) _ =
+-- exec _ (GetVector Int : is) _ =
+-- exec _ (GetStruct String : is) _ =
+-- exec _ (GetTuple Int : is) _ =
+-- exec _ (Jump Int : is) _ =
+-- exec _ (JumpIfFalse Int : is) _ =
+-- exec _ (JumpIfTrue Int : is) _ =
 -- exec e (DoOp op : is) (value1 : value2 : st) = exec e is $ [calculate op value1 value2] <> st
--- -- exec _ (PushLambda [String] [Instr] : is) _ =
--- -- exec _ (Alloc : is) _ =
--- -- exec _ (LoadRef : is) _ =
--- -- exec _ (StoreRef : is) _ =
+-- exec _ (PushLambda [String] [Instr] : is) _ =
+-- exec _ (Alloc : is) _ =
+-- exec _ (LoadRef : is) _ =
+-- exec _ (StoreRef : is) _ =
