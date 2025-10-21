@@ -18,14 +18,13 @@ type Env = M.Map String Value
 type HeapAddr = Int
 type Heap = V.Vector Value
 type Stack = [Value]
-type Code = V.Vector Instr
 
 -- État complet de la VM Kong
 data VMState = VMState
   { stack :: Stack
   , env :: Env
   , heap :: Heap
-  , code :: Code
+  , code :: [Instr]
   , ip :: Int  -- Instruction Pointer
   } deriving (Show)
 
