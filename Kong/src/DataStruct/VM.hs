@@ -2,6 +2,7 @@
 
 module DataStruct.VM
   ( VMState(..)
+  , ExecError(..)
   , Env
   , Heap
   , Stack
@@ -12,20 +13,20 @@ module DataStruct.VM
 import qualified Data.Vector as V
 import qualified Data.Map.Strict as M
 import DataStruct.Bytecode.Value (Value, Instr)
+import Control.Exception
 
 -- Types de base de la VM
 type Env = M.Map String Value
 type HeapAddr = Int
 type Heap = V.Vector Value
 type Stack = [Value]
-type Code = V.Vector Instr
 
 -- État complet de la VM Kong
 data VMState = VMState
   { stack :: Stack
   , env :: Env
   , heap :: Heap
-  , code :: Code
+  , code :: [Instr]
   , ip :: Int  -- Instruction Pointer
   } deriving (Show)
 
@@ -35,6 +36,6 @@ initVMState instructions = VMState
   { stack = []
   , env = M.empty
   , heap = V.empty
-  , code = instructions
+  , code = V.fromList instructions
   , ip = 0
   }
