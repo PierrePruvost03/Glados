@@ -7,7 +7,9 @@ module Compiler.KongCompiler
   ) where
 
 import DataStruct.Ast
-import DataStruct.Bytecode (Value(..), Instr(..), Op(..), builtinOps, stringToOp)
+import DataStruct.Bytecode.Number (Number(..))
+import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp)
+import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.VM (Env)
 import qualified Data.Map as M
 
@@ -23,50 +25,50 @@ compile ast = compileAst ast M.empty
 
 compileAst :: Ast -> Env -> Either CompilerError [Instr]
 compileAst ast env = case ast of
-  ABlock asts -> 
+  ABlock asts ->
     fmap concat $ mapM (`compileAst` env) asts
-  AFunkDef name params returnType body -> 
-    fmap (\instrs -> [Push (VFunction (extractParamNames params) (concat instrs ++ [Ret]) env), SetVar name]) 
+  AFunkDef name params returnType body ->
+    fmap (\instrs -> [Push (VFunction (extractParamNames params) (concat instrs ++ [Ret]) env), SetVar name])
          (mapM (`compileAst` env) body)
-  AVarDecl varType name Nothing -> 
+  AVarDecl varType name Nothing ->
     Right [Push (defaultValue varType), SetVar name]
-  AVarDecl varType name (Just value) -> 
+  AVarDecl varType name (Just value) ->
     fmap (++ [SetVar name]) (compileExpr value env)
   AExpress expr -> compileExpr expr env
   ASymbol symbol -> Right [PushEnv symbol]
-  AReturn expr -> 
+  AReturn expr ->
     fmap (++ [Ret]) (compileAst expr env)
   _ -> Left $ UnsupportedAst (show ast)
 
 compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
 compileExpr expr env = case expr of
-  AAttribution var value -> 
+  AAttribution var value ->
     fmap (++ [SetVar var]) (compileExpr value env)
-  ACall funcName args -> 
-    fmap (\argInstrs -> concat argInstrs ++ compileCall funcName) 
+  ACall funcName args ->
+    fmap (\argInstrs -> concat argInstrs ++ compileCall funcName)
          (mapM (`compileExpr` env) (reverse args))
   AValue astValue -> compileValue astValue env
   AAccess access -> compileAccess access env
 
 compileCall :: String -> [Instr]
-compileCall funcName = 
+compileCall funcName =
   case funcName `elem` builtinOps of
     True -> [DoOp (stringToOp funcName)]
     False -> [PushEnv funcName, Call]
 
 compileValue :: AstValue -> Env -> Either CompilerError [Instr]
 compileValue value env = case value of
-  ANumber (AInteger n) -> Right [Push (VInt n)]
-  ANumber (AFloat f) -> Right [Push (VFloat (realToFrac f))]
-  ANumber (ABool b) -> Right [Push (VBool b)]
-  ANumber (AChar c) -> Right [Push (VChar c)]
+  ANumber (AInteger n) -> Right [Push (VNumber (VInt n))]
+  ANumber (AFloat f) -> Right [Push (VNumber (VFloat (realToFrac f)))]
+  ANumber (ABool b) -> Right [Push (VNumber (VBool b))]
+  ANumber (AChar c) -> Right [Push (VNumber (VChar c))]
   AString s -> Right [Push (VString s)]
   AVarCall varName -> Right [PushEnv varName]
   _ -> Left $ UnsupportedAst ("Unsupported value: " ++ show value)
 
 compileAccess :: AstAccess -> Env -> Either CompilerError [Instr]
 compileAccess access env = case access of
-  AArrayAccess varName index -> 
+  AArrayAccess varName index ->
     fmap (([PushEnv varName] ++) . (++ [ArrayGet])) (compileExpr index env)
   _ -> Left $ UnsupportedAst ("Unsupported access: " ++ show access)
 
@@ -78,11 +80,11 @@ extractParamNames = foldr extractParam []
 
 defaultValue :: Type -> Value
 defaultValue = \case
-  TInt -> VInt 0
-  TBool -> VBool False
-  TChar -> VChar '\0'
+  TInt -> VNumber $ VInt 0
+  TBool -> VNumber $ VBool False
+  TChar -> VNumber $ VChar '\0'
+  TFloat -> VNumber $ VFloat 0.0
   TString -> VString ""
-  TFloat -> VFloat 0.0
   TStrong t -> defaultValue t
   TKong t -> defaultValue t
   _ -> VEmpty
