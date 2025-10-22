@@ -137,3 +137,9 @@ symbolReturn = "Return"
 
 symbolWhile :: String
 symbolWhile = "While"
+
+symbolDeclaration :: Char
+symbolDeclaration = '='
+
+symbolEndOfDeclaration :: Char
+symbolEndOfDeclaration = ';'

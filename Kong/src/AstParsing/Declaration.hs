@@ -1,20 +1,23 @@
 module AstParsing.Declaration where
 
 import AstParsing.Expression (parseExpression)
-import Parser
-import DataStruct.Ast
-import Control.Applicative
+import AstParsing.Keywords.Keywords
 import AstParsing.Skip
 import AstParsing.Type
 import AstParsing.Utils
+import Control.Applicative
+import DataStruct.Ast
+import Parser
 
 parseDeclaration :: Parser Ast
-parseDeclaration = skip *> (
-        AVarDecl <$>
-            parseType <*>
-            parseName <*>
-            optional (parseChar '=' *> parseExpression)
-    ) <* skip
+parseDeclaration =
+  skip
+    *> ( AVarDecl
+           <$> parseType
+           <*> parseName
+           <*> optional (parseChar symbolDeclaration *> parseExpression)
+       )
+    <* skip
 
 parseLineDeclaration :: Parser Ast
-parseLineDeclaration = parseDeclaration <* parseChar ';'
+parseLineDeclaration = parseDeclaration <* parseChar symbolEndOfDeclaration
