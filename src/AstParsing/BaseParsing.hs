@@ -53,10 +53,9 @@ parseCond =
 parseIf :: Parser Ast
 parseIf =
   AIf
-    <$> (parseString symbolIf *> parseCond)
+    <$> (skip *> parseString symbolIf *> parseCond)
     <*> (skip *> parseBody)
-    <*> many ((,) <$> (skip *> parseString symbolElif *> parseCond) <*> parseBody)
-    <*> ((parseString symbolElse *> (Just <$> parseBody)) <|> pure Nothing)
+    <*> optional (parseString symbolElse *> skip *> (parseBody <|> parseIf))
 
 parseFunction :: Parser Ast
 parseFunction =
@@ -77,7 +76,7 @@ parseAstBlockContent =
     <|> parseForIn
     <|> parseReturn
     <|> parseAstFile
-    <|> (AExpress <$> parseLineExpression)
+    <|> AExpress <$> parseLineExpression
 
 parseAstBlock :: Parser [Ast]
 parseAstBlock =
@@ -98,7 +97,7 @@ parseAstFile =
 parseBody :: Parser Ast
 parseBody =
   ABlock
-    <$> (skip *> parseChar symbolBlockIn *> many (AExpress <$> parseLineExpression) <* skip <* parseChar symbolBlockOut <* skip)
+    <$> (skip *> parseChar symbolBlockIn *> (parseAstBlock <|> pure []) <* skip <* parseChar symbolBlockOut <* skip)
 
 parseAst :: Parser [Ast]
 parseAst = many parseAstFile

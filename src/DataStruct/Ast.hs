@@ -131,7 +131,6 @@ data Ast
   | AIf
       { ifCond :: Ast,
         ifThen :: Ast,
-        ifElifs :: [(Ast, Ast)],  -- [(condition, body)]
         ifElse :: Maybe Ast
       }
   | AReturn {returnValue :: Ast}
