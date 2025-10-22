@@ -15,8 +15,6 @@ module DataStruct.Ast
   )
 where
 
-import Parser (LineCount)
-
 -- Basic types
 type AstInt = Int
 type AstSymbol = String
