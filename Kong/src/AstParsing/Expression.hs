@@ -118,7 +118,7 @@ parseAccess =
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
-    *> ( parseChar '(' *> parseExpression <* parseChar ')'
+    *> ( parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut
            <|> parseAccess
            <|> parseCall
            <|> parseValue
@@ -129,4 +129,4 @@ parseExpression :: Parser AExpression
 parseExpression = parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
-parseLineExpression = parseExpression <* parseChar ';'
+parseLineExpression = parseExpression <* parseChar symbolEndOfExpression

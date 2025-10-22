@@ -144,6 +144,9 @@ symbolDeclaration = '='
 symbolEndOfDeclaration :: Char
 symbolEndOfDeclaration = ';'
 
+symbolEndOfExpression :: Char
+symbolEndOfExpression = ';'
+
 symbolStringDelimiter :: Char
 symbolStringDelimiter = '"'
 
