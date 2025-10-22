@@ -134,3 +134,6 @@ symbolIn = "In"
 
 symbolReturn :: String
 symbolReturn = "Return"
+
+symbolWhile :: String
+symbolWhile = "While"

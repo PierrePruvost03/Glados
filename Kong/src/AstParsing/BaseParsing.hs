@@ -15,7 +15,7 @@ import Parser
 
 parseWhile :: Parser Ast
 parseWhile =
-  parseString "While"
+  parseString symbolWhile
     *> ( ALoop Nothing
            <$> (parseChar symbolForIn *> (AExpress <$> parseExpression) <* parseChar symbolForOut)
            <*> pure Nothing
