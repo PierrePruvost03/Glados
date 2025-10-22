@@ -97,7 +97,7 @@ parseAstFile =
 parseBody :: Parser Ast
 parseBody =
   ABlock
-    <$> (skip *> parseChar symbolBlockIn *> (parseAstBlock <|> pure []) <* skip <* parseChar symbolBlockOut <* skip)
+    <$> (skip *> parseChar symbolBlockIn *> parseAstBlock <* skip <* parseChar symbolBlockOut <* skip)
 
 parseAst :: Parser [Ast]
 parseAst = many parseAstFile
