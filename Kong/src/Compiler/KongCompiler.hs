@@ -1,7 +1,9 @@
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Compiler.KongCompiler
   ( compile
+  , compileIf
   , compileAst
   , CompilerError(..)
   ) where
@@ -10,7 +12,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
-import DataStruct.VM (Env)
+import DataStruct.VM (Env, MemoryCell)
 import qualified Data.Map as M
 
 data CompilerError
@@ -20,25 +22,56 @@ data CompilerError
   | InvalidArguments String
   deriving (Show, Eq)
 
+
+getMemoryCell :: Env -> String -> MemoryCell
+getMemoryCell env varName =
+  case M.lookup varName env of
+    Just (_, cell) -> cell
+    Nothing -> error $ "Variable not found in environment: " ++ varName
+
+
 compile :: Ast -> Either CompilerError [Instr]
 compile ast = compileAst ast M.empty
 
 compileAst :: Ast -> Env -> Either CompilerError [Instr]
-compileAst ast env = case ast of
-  ABlock asts ->
-    fmap concat $ mapM (`compileAst` env) asts
-  AFunkDef name params returnType body ->
-    fmap (\instrs -> [Push (VFunction (extractParamNames params) (concat instrs ++ [Ret]) env), SetVar name])
-         (mapM (`compileAst` env) body)
-  AVarDecl varType name Nothing ->
-    Right [Push (defaultValue varType), SetVar name]
-  AVarDecl varType name (Just value) ->
-    fmap (++ [SetVar name]) (compileExpr value env)
-  AExpress expr -> compileExpr expr env
-  ASymbol symbol -> Right [PushEnv symbol]
-  AReturn expr ->
-    fmap (++ [Ret]) (compileAst expr env)
-  _ -> Left $ UnsupportedAst (show ast)
+compileAst (ABlock asts) env =
+  concat <$> mapM (`compileAst` env) asts
+compileAst (AFunkDef name params _ body) env =
+  fmap (\instrs -> [Push (VFunction (extractParamNames params) (concat instrs ++ [Ret]) (M.map fst env)), SetVar name])
+       (mapM (`compileAst` env) body)
+compileAst (AVarDecl varType name Nothing) _ =
+  Right [Push (defaultValue varType), SetVar name]
+compileAst (AVarDecl _ name (Just value)) env =
+  fmap (++ [SetVar name]) (compileExpr value env)
+compileAst (AExpress expr) env = compileExpr expr env
+compileAst (ASymbol symbol) _ = Right [PushEnv symbol]
+compileAst (AReturn expr) env =
+  fmap (++ [Ret]) (compileAst expr env)
+compileAst ifStmt@(AIf {}) env = compileIf ifStmt env
+compileAst ast _ = Left $ UnsupportedAst (show ast)
+
+-- if (x < y)
+-- then
+  -- zizi
+  -- prout
+-- 
+-- 
+-- pushEnv "x"
+-- pushEnv "y"
+-- DoOp Lt
+-- JumpIfFalse  
+
+compileIf :: Ast -> Env -> Either CompilerError [Instr]
+compileIf (AIf (AExpress cond) thenBranch@(ABlock thenBlock) [] elseBranch) env =
+  concat <$> sequence
+  ([ compileExpr cond env
+    , Right [JumpIfFalse (length thenBlock)]
+    , compileAst thenBranch env
+    ] <> f elseBranch)
+    where
+      f (Just a) = [compileAst a env]
+      f Nothing = mempty
+compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
 
 compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
 compileExpr expr env = case expr of
@@ -51,13 +84,12 @@ compileExpr expr env = case expr of
   AAccess access -> compileAccess access env
 
 compileCall :: String -> [Instr]
-compileCall funcName =
-  case funcName `elem` builtinOps of
-    True -> [DoOp (stringToOp funcName)]
-    False -> [PushEnv funcName, Call]
+compileCall funcName
+  | funcName `elem` builtinOps = [DoOp (stringToOp funcName)]
+  | otherwise                  = [PushEnv funcName, Call]
 
 compileValue :: AstValue -> Env -> Either CompilerError [Instr]
-compileValue value env = case value of
+compileValue value _ = case value of
   ANumber (AInteger n) -> Right [Push (VNumber (VInt n))]
   ANumber (AFloat f) -> Right [Push (VNumber (VFloat (realToFrac f)))]
   ANumber (ABool b) -> Right [Push (VNumber (VBool b))]

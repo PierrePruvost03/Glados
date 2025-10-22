@@ -7,6 +7,7 @@ module DataStruct.VM
   , Stack
   , HeapAddr
   , initVMState
+  , MemoryCell
   ) where
 
 import qualified Data.Vector as V
@@ -14,7 +15,8 @@ import qualified Data.Map.Strict as M
 import DataStruct.Bytecode.Value (Value, Instr)
 
 -- Types de base de la VM
-type Env = M.Map String Value
+data MemoryCell = THEAP | TSTACK deriving (Show, Eq)
+type Env = M.Map String (Value, MemoryCell)
 type HeapAddr = Int
 type Heap = V.Vector Value
 type Stack = [Value]
@@ -35,6 +37,6 @@ initVMState instructions = VMState
   { stack = []
   , env = M.empty
   , heap = V.empty
-  , code = instructions
+  , code = V.fromList instructions
   , ip = 0
   }
