@@ -143,3 +143,24 @@ symbolDeclaration = '='
 
 symbolEndOfDeclaration :: Char
 symbolEndOfDeclaration = ';'
+
+symbolStringDelimiter :: Char
+symbolStringDelimiter = '"'
+
+symbolCharDelimiter :: Char
+symbolCharDelimiter = '\''
+
+symbolInfix :: Char
+symbolInfix = '`'
+
+symbolCallIn :: Char
+symbolCallIn = '('
+
+symbolCallOut :: Char
+symbolCallOut = ')'
+
+symbolExpressionIn :: Char
+symbolExpressionIn = '('
+
+symbolExpressionOut :: Char
+symbolExpressionOut = ')'
