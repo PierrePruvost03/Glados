@@ -1,0 +1,30 @@
+name: Kong Compiler - Basic Checks
+
+on:
+  push:
+    paths:
+      - 'Kong/**'
+      - '.github/workflows/kong_checks.yaml'
+  pull_request:
+    paths:
+      - 'Kong/**'
+
+env:
+  STACK_ROOT: /tmp/stack-root
+
+jobs:
+  check_kong_compilation:
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: build Kong compiler
+        run: make kong
+      - name: check Kong binary exists
+        run: test -f Kong/glados
+      - name: test Kong binary works
+        run: |
+          Kong/glados --version
+          Kong/glados --help
+          echo "Kong compiler basic test passed"
