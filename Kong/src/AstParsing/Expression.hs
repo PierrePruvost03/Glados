@@ -76,23 +76,22 @@ parseInfix :: Parser AExpression
 parseInfix =
   skip
     *> ( (\e1 n e2 -> ACall n (catMaybes [e1, Just e2]))
-           <$> ((optional parseBasicExpression))
+           <$> optional parseBasicExpression
            <* skip
            <*> infixSymbol
            <* skip
            <*> parseExpression
        )
   where
-    infixSymbol = (parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix))
+    infixSymbol = parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix)
 
 parseCall :: Parser AExpression
 parseCall =
   skip
-    *> ( ( ACall
+    *> ( ACall
              <$> parseName
              <* skip
              <*> (parseChar symbolCallIn *> parseMultiple parseExpression <* parseChar symbolCallOut)
-         )
        )
     <* skip
 
@@ -106,21 +105,20 @@ parseAccess =
             *> ( parseWrapperAccess AArrayAccess symbolArrayIn symbolArrayOut
                    <|> parseWrapperAccess AVectorAccess symbolVectorIn symbolVectorOut
                    <|> parseWrapperAccess ATupleAccess symbolTuple symbolTuple
-                   <|> ( AStructAccess
+                   <|> AStructAccess
                            <$> (parseName <* skip)
                            <*> ( parseChar symbolStructIn
                                    *> parseMultiple (skip *> parseName <* skip)
                                    <* skip
                                    <* parseChar symbolStructOut
                                )
-                       )
                )
         )
 
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
-    *> ( (parseChar '(' *> parseExpression <* parseChar ')')
+    *> ( parseChar '(' *> parseExpression <* parseChar ')'
            <|> parseAccess
            <|> parseCall
            <|> parseValue
@@ -128,7 +126,7 @@ parseBasicExpression =
     <* skip
 
 parseExpression :: Parser AExpression
-parseExpression = (parseInfix <|> parseBasicExpression)
+parseExpression = parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
 parseLineExpression = parseExpression <* parseChar ';'
