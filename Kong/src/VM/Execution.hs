@@ -23,12 +23,10 @@ makeBoolValue (VNumber (VChar _)) = True
 makeBoolValue (VNumber (VFloat n))
     | n > 0 = True
     | otherwise = False
-makeBoolValue (VString "") = False
-makeBoolValue (VString _) = True
--- makeBoolValue VTuple (V.Vector Value)
--- makeBoolValue VArray (V.Vector Value) Bool
--- makeBoolValue VVector (V.Vector Value)
--- makeBoolValue VList (V.Vector Value)
+makeBoolValue (VString string) = null string
+makeBoolValue (VTuple (vector) _) = null vector
+makeBoolValue (VArray (vector) _) = null vector
+makeBoolValue (VVector (vector) _) = null vector
 -- makeBoolValue VStruct String (M.Map String HeapAddr)
 -- makeBoolValue VFunction [String] [Instr] Env
 -- makeBoolValue VBuiltinOp Op
@@ -100,7 +98,14 @@ checkInstrution state@(VMState {stack, ip}) (DoOp op) =
      applyOp state op >>= \x -> exec $ state {stack = VNumber x : stack, ip = ip + 1}
 checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
     exec $ s {stack = ((env!n) : stack), ip = ip + 1}
-checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
+checkInstrution state@(VMState {ip}) (Nop) = exec $ state {ip = ip + 1}
+checkInstrution state@(VMState {ip}) (Jump n) = exec $ state {ip = ip + n}
+checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfFalse n)
+    | not $ makeBoolValue x = exec $ state {stack = xs, ip = ip + n}
+    | otherwise = exec $ state {stack = xs, ip = ip + 1}
+checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfTrue n)
+    | makeBoolValue x = exec $ state {stack = xs, ip = ip + n}
+    | otherwise = exec $ state {stack = xs, ip = ip + 1}
 
 -- calculate :: Op -> Value -> Value -> Value
 -- -- works differently with numbers and with lists
