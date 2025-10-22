@@ -7,6 +7,8 @@ import AstParsing.Skip
 import AstParsing.Type
 import AstParsing.Utils
 import AstParsing.Return
+import AstParsing.Include
+import AstParsing.Struct
 import Control.Applicative
 import DataStruct.Ast
 import Parser
@@ -55,17 +57,30 @@ parseFunction = AFunkDef <$>
     (skip *> parseString symbolFuncReturn *> parseType <* skip) <*>
     (parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut)
 
+parseAstBlockContent :: Parser Ast
+parseAstBlockContent =
+    parseIf
+    <|> parseFor
+    <|> parseForIn
+    <|> parseReturn
+    <|> parseAstFile
+    <|> (AExpress <$> parseLineExpression)
 
 parseAstBlock :: Parser [Ast]
-parseAstBlock = many $ skip *>
-    (parseAstFile <|> (AExpress <$> parseLineExpression))
-    <* skip
+parseAstBlock =
+  many $
+    skip
+      *> parseAstBlockContent
+      <* skip
 
 parseAstFile :: Parser Ast
-parseAstFile = skip *>
-    parseFunction <|>
-    parseLineDeclaration
-    <* skip
+parseAstFile =
+  skip
+    *> parseFunction
+    <|> parseInclude
+    <|> parseLineDeclaration
+    <|> parseStruct
+      <* skip
 
 parseBody :: Parser Ast
 parseBody =
