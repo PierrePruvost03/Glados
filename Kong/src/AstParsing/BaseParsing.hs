@@ -72,6 +72,7 @@ parseFunction =
 parseAstBlockContent :: Parser Ast
 parseAstBlockContent =
   parseIf
+    <|> parseWhile
     <|> parseFor
     <|> parseForIn
     <|> parseReturn
