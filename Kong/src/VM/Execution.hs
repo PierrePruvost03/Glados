@@ -87,7 +87,11 @@ mulOp ((VInt a), (VInt b)) = VInt $ a * b
 mulOp ((VFloat a), (VFloat b)) = VFloat $ a * b
 
 divOp :: (Number, Number) -> Number
-divOp ((VBool a), (VBool b)) = VBool $ (a /= b)
+divOp ((VBool a), (VBool False)) = throw
+divOp ((VChar a), (VChar '\0')) = throw
+divOp ((VInt a), (VInt 0)) = throw
+divOp ((VFloat a), (VFloat 0)) = throw
+divOp ((VBool a), (VBool b)) = VBool $ (a && b)
 divOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = VInt $ a + b
 divOp ((VFloat a), (VFloat b)) = VFloat $ a + b
@@ -108,8 +112,9 @@ exec state@(VMState s _ _ code ip) = case code!?ip of
     Just instr -> checkInstrution state instr
 
 checkInstrution :: VMState -> Instr -> IO VMState
-checkInstrution state@(VMState {stack = xs, ip = n}) (Push value) = exec $ state {stack = [value] <> xs, ip = n + 1}
+checkInstrution state@(VMState {stack = xs, ip = n}) (Push value) = exec $ state {stack = value : xs, ip = n + 1}
 checkInstrution state (DoOp op) = exec $ applyOp state op
+checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
 
 -- checkOp :: VMState -> Op -> IO VMState
 -- checkOp state@(VMState {stack = (a:b:xs)}) Add = state {stack = (builtinAdd a b : xs)}
