@@ -32,6 +32,7 @@ makeBoolValue (VVector (vector) _) = null vector
 -- makeBoolValue VBuiltinOp Op
 -- makeBoolValue VRef HeapAddr
 makeBoolValue VEmpty = False
+makeBoolValue _ = False
 
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
@@ -53,50 +54,55 @@ addOp ((VBool a), (VBool b)) = pure $ VBool (a /= b)
 addOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 addOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
 addOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
+addOp _ = throw $ Err 0
 
 subOp :: (Number, Number) -> IO Number
 subOp ((VBool a), (VBool b)) = pure $ VBool (a == b)
 subOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) - (fromEnum b))::Char)
 subOp ((VInt a), (VInt b)) = pure $ VInt (a - b)
 subOp ((VFloat a), (VFloat b)) = pure $ VFloat (a - b)
+subOp _ = throw $ Err 0
 
 mulOp :: (Number, Number) -> IO Number
 mulOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
 mulOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) * (fromEnum b))::Char)
 mulOp ((VInt a), (VInt b)) = pure $ VInt (a * b)
 mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
+mulOp _ = throw $ Err 0
 
 divOp :: (Number, Number) -> IO Number
-divOp ((VBool a), (VBool False)) = throw $ Err 2
-divOp ((VChar a), (VChar '\0')) = throw $ Err 2
-divOp ((VInt a), (VInt 0)) = throw $ Err 2
-divOp ((VFloat a), (VFloat 0)) = throw $ Err 2
+divOp (_, (VBool False)) = throw $ Err 2
+divOp (_, (VChar '\0')) = throw $ Err 2
+divOp (_, (VInt 0)) = throw $ Err 2
+divOp (_, (VFloat 0)) = throw $ Err 2
 divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
 divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
 divOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
+divOp _ = throw $ Err 0
 
 equalOp :: (Number, Number) -> IO Number
 equalOp (a, b) = pure $ VBool (a == b)
 
 applyOp :: VMState -> Op -> IO Number
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Add = addOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Sub = subOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Mul = mulOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Div = divOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Equal = equalOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Add = addOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Sub = subOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Mul = mulOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Div = divOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Equal = equalOp $ compareTypes a b
+applyOp _ _ = throw $ Err 0
 
 exec :: VMState -> IO VMState
-exec state@(VMState s _ _ code ip) = case code!?ip of
+exec state@(VMState {code, ip}) = case code!?ip of
     Nothing -> throw $ Err 1
     Just instr -> checkInstrution state instr
 
 checkInstrution :: VMState -> Instr -> IO VMState
 checkInstrution state@(VMState {stack = xs, ip}) (Push value) =
     exec $ state {stack = value : xs, ip = ip + 1}
-checkInstrution state@(VMState {stack, ip}) (DoOp op) =
-     applyOp state op >>= \x -> exec $ state {stack = VNumber x : stack, ip = ip + 1}
-checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
+checkInstrution state@(VMState {stack = _ : _ : xs, ip}) (DoOp op) =
+     applyOp state op >>= \x -> exec $ state {stack = VNumber x : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack, env, ip}) (PushEnv n) =
     exec $ s {stack = ((env!n) : stack), ip = ip + 1}
 checkInstrution state@(VMState {ip}) (Nop) = exec $ state {ip = ip + 1}
 checkInstrution state@(VMState {ip}) (Jump n) = exec $ state {ip = ip + n}
@@ -106,4 +112,4 @@ checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfFalse n)
 checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfTrue n)
     | makeBoolValue x = exec $ state {stack = xs, ip = ip + n}
     | otherwise = exec $ state {stack = xs, ip = ip + 1}
-
+checkInstrution _ _ = throw $ Err 0
