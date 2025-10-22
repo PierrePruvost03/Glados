@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-
+{-# LANGUAGE NamedFieldPuns #-}
 module VM.Execution
     (
     ) where
@@ -10,7 +10,8 @@ import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp, get, put)
 import DataStruct.Bytecode.Utils (construct, constructList, putManyMany, getMany, getList)
 import DataStruct.Bytecode.Value
 import Control.Exception
-import Data.Vector
+import Data.Vector ((!?))
+import Data.Map ((!))
 
 makeBoolValue :: Value -> Bool
 makeBoolValue (VNumber (VBool value)) = value
@@ -33,25 +34,6 @@ makeBoolValue (VString _) = True
 -- makeBoolValue VBuiltinOp Op
 -- makeBoolValue VRef HeapAddr
 makeBoolValue VEmpty = False
-
--- calculate :: Op -> Value -> Value -> Value
--- works differently with numbers and with lists
--- calculate Add (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
--- calculate Sub (VNumber v1) (VNumber v2) = VNumber $ v1 - v2
--- calculate Mul (VNumber v1) (VNumber v2) = VNumber $ v1 * v2
--- calculate Div (VNumber v1) (VNumber v2) = VNumber $ v1 `div` v2
--- calculate Equal (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
--- only works with numbers
--- calculate Lt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 < v2
--- calculate Gt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 > v2
--- calculate Le (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 <= v2
--- calculate Ge (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 >= v2
--- calculate Ne (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 /= v2
--- transforms non-bool into bool before op
--- calculate And v1 v2 = VBool $ (makeBoolValue v1) && (makeBoolValue v2)
--- calculate Or v1 v2 = VBool $ (makeBoolValue v1) || (makeBoolValue v2)
--- "not" operator only takes 1 argument, not sure how to handle this case
--- calculate Not
 
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
@@ -99,12 +81,12 @@ divOp ((VFloat a), (VFloat b)) = VFloat $ a + b
 equalOp :: (Number, Number) -> Number
 equalOp (a, b) = VBool $ (a == b)
 
-applyOp :: VMState -> Op -> VMState
-applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Add = state {stack = [VNumber (addOp $ compareTypes a b)] <> xs}
-applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Sub = state {stack = [VNumber (subOp $ compareTypes a b)] <> xs}
-applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Mul = state {stack = [VNumber (mulOp $ compareTypes a b)] <> xs}
-applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Div = state {stack = [VNumber (divOp $ compareTypes a b)] <> xs}
-applyOp state@(VMState {stack = (VNumber a: VNumber b:xs)}) Equal = state {stack = [VNumber (equalOp $ compareTypes a b)] <> xs}
+applyOp :: VMState -> Op -> IO Number
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Add = pure $ addOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Sub = pure $ subOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Mul = pure $ mulOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Div = pure $ divOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Equal = pure $ equalOp $ compareTypes a b
 
 exec :: VMState -> IO VMState
 exec state@(VMState s _ _ code ip) = case code!?ip of
@@ -112,6 +94,33 @@ exec state@(VMState s _ _ code ip) = case code!?ip of
     Just instr -> checkInstrution state instr
 
 checkInstrution :: VMState -> Instr -> IO VMState
+checkInstrution state@(VMState {stack = xs, ip}) (Push value) =
+    exec $ state {stack = value : xs, ip = ip + 1}
+checkInstrution state@(VMState {stack, ip}) (DoOp op) =
+     applyOp state op >>= \x -> exec $ state {stack = VNumber x : stack, ip = ip + 1}
+checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
+    exec $ s {stack = ((env!n) : stack), ip = ip + 1}
+
+-- calculate :: Op -> Value -> Value -> Value
+-- -- works differently with numbers and with lists
+-- calculate Add (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
+-- calculate Sub (VNumber v1) (VNumber v2) = VNumber $ v1 - v2
+-- calculate Mul (VNumber v1) (VNumber v2) = VNumber $ v1 * v2
+-- calculate Div (VNumber v1) (VNumber v2) = VNumber $ v1 `div` v2
+-- calculate Equal (VNumber v1) (VNumber v2) = VNumber $ v1 + v2
+-- -- only works with numbers
+-- calculate Lt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 < v2
+-- calculate Gt (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 > v2
+-- calculate Le (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 <= v2
+-- calculate Ge (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 >= v2
+-- calculate Ne (VNumber v1) (VNumber v2) = VNumber $ VBool $ v1 /= v2
+-- -- transforms non-bool into bool before op
+-- calculate And v1 v2 = VBool $ (makeBoolValue v1) && (makeBoolValue v2)
+-- calculate Or v1 v2 = VBool $ (makeBoolValue v1) || (makeBoolValue v2)
+-- -- "not" operator only takes 1 argument, not sure how to handle this case
+-- -- calculate Not
+
+-- checkInstrution s@
 checkInstrution state@(VMState {stack = xs, ip = n}) (Push value) = exec $ state {stack = value : xs, ip = n + 1}
 checkInstrution state (DoOp op) = exec $ applyOp state op
 checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
@@ -126,26 +135,26 @@ checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
 -- exec :: Env -> [Instr] -> Stack -> Either String Value
 -- exec _ [] _ = Left "Error: ending instruction set without a return"
 -- exec e (Push value : is) st = exec e is $ [value] <> st
--- exec e (PushEnv String : is) _ =
--- exec _ (Call : is) _ =
+-- -- exec e (PushEnv String : is) _ =
+-- -- exec _ (Call : is) _ =
 -- exec _ (Ret : _) (value : _) = Right value
 -- exec _ (Ret : _) [] = Left "Error: no value to return"
--- exec _ (Nop : is) _ =
--- exec _ (SetVar String : is) _ =
--- exec _ (SetArray Int : is) _ =
--- exec _ (SetVector Int : is) _ =
--- exec _ (SetStruct String : is) _ =
--- exec _ (SetTuple Int : is) _ =
--- exec _ (GetArray Int : is) _ =
--- exec _ (ArrayGet : is) _ =
--- exec _ (GetVector Int : is) _ =
--- exec _ (GetStruct String : is) _ =
--- exec _ (GetTuple Int : is) _ =
--- exec _ (Jump Int : is) _ =
--- exec _ (JumpIfFalse Int : is) _ =
--- exec _ (JumpIfTrue Int : is) _ =
+-- -- exec _ (Nop : is) _ =
+-- -- exec _ (SetVar String : is) _ =
+-- -- exec _ (SetArray Int : is) _ =
+-- -- exec _ (SetVector Int : is) _ =
+-- -- exec _ (SetStruct String : is) _ =
+-- -- exec _ (SetTuple Int : is) _ =
+-- -- exec _ (GetArray Int : is) _ =
+-- -- exec _ (ArrayGet : is) _ =
+-- -- exec _ (GetVector Int : is) _ =
+-- -- exec _ (GetStruct String : is) _ =
+-- -- exec _ (GetTuple Int : is) _ =
+-- -- exec _ (Jump Int : is) _ =
+-- -- exec _ (JumpIfFalse Int : is) _ =
+-- -- exec _ (JumpIfTrue Int : is) _ =
 -- exec e (DoOp op : is) (value1 : value2 : st) = exec e is $ [calculate op value1 value2] <> st
--- exec _ (PushLambda [String] [Instr] : is) _ =
--- exec _ (Alloc : is) _ =
--- exec _ (LoadRef : is) _ =
--- exec _ (StoreRef : is) _ =
+-- -- exec _ (PushLambda [String] [Instr] : is) _ =
+-- -- exec _ (Alloc : is) _ =
+-- -- exec _ (LoadRef : is) _ =
+-- -- exec _ (StoreRef : is) _ =
