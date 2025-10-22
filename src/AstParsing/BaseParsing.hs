@@ -2,23 +2,32 @@ module AstParsing.BaseParsing where
 
 import AstParsing.Declaration
 import AstParsing.Expression
+import AstParsing.Include
 import AstParsing.Keywords.Keywords
+import AstParsing.Return
 import AstParsing.Skip
+import AstParsing.Struct
 import AstParsing.Type
 import AstParsing.Utils
-import AstParsing.Return
-import AstParsing.Include
-import AstParsing.Struct
 import Control.Applicative
 import DataStruct.Ast
 import Parser
+
+parseWhile :: Parser Ast
+parseWhile =
+  parseString "While"
+    *> ( ALoop Nothing
+           <$> (parseChar symbolForIn *> (AExpress <$> parseExpression) <* parseChar symbolForOut)
+           <*> pure Nothing
+           <*> parseBody
+       )
 
 parseFor :: Parser Ast
 parseFor =
   parseString symbolFor
     *> skip
     *> parseChar symbolForIn
-    *> ( AFor
+    *> ( ALoop
            <$> optional parseDeclaration
            <*> (parseChar symbolForSep *> (AExpress <$> parseExpression))
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
@@ -50,16 +59,20 @@ parseIf =
     <*> ((parseString symbolElse *> (Just <$> parseBody)) <|> pure Nothing)
 
 parseFunction :: Parser Ast
-parseFunction = AFunkDef <$>
-    (skip *> parseString symbolFunc *> skip *> parseName) <*>
-    (skip *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\"")) *>
-        parseMultiple parseDeclaration <* parseChar symbolFuncParamOut) <*>
-    (skip *> parseString symbolFuncReturn *> parseType <* skip) <*>
-    (parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut)
+parseFunction =
+  AFunkDef
+    <$> (skip *> parseString symbolFunc *> skip *> parseName)
+    <*> ( skip
+            *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
+            *> parseMultiple parseDeclaration
+            <* parseChar symbolFuncParamOut
+        )
+    <*> (skip *> parseString symbolFuncReturn *> parseType <* skip)
+    <*> (parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut)
 
 parseAstBlockContent :: Parser Ast
 parseAstBlockContent =
-    parseIf
+  parseIf
     <|> parseFor
     <|> parseForIn
     <|> parseReturn
