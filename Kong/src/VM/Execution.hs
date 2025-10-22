@@ -50,43 +50,43 @@ compareTypes (VInt a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral
 compareTypes a (VInt b) = (a2, b2) where (b2, a2) = compareTypes (VInt b) a
 compareTypes (VFloat a) (VFloat b) = (VFloat a, VFloat b)
 
-addOp :: (Number, Number) -> Number
-addOp ((VBool a), (VBool b)) = VBool $ (a /= b)
-addOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) + (fromEnum b))::Char)
-addOp ((VInt a), (VInt b)) = VInt $ a + b
-addOp ((VFloat a), (VFloat b)) = VFloat $ a + b
+addOp :: (Number, Number) -> IO Number
+addOp ((VBool a), (VBool b)) = pure $ VBool (a /= b)
+addOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
+addOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
+addOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
 
-subOp :: (Number, Number) -> Number
-subOp ((VBool a), (VBool b)) = VBool $ (a == b)
-subOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) - (fromEnum b))::Char)
-subOp ((VInt a), (VInt b)) = VInt $ a - b
-subOp ((VFloat a), (VFloat b)) = VFloat $ a - b
+subOp :: (Number, Number) -> IO Number
+subOp ((VBool a), (VBool b)) = pure $ VBool (a == b)
+subOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) - (fromEnum b))::Char)
+subOp ((VInt a), (VInt b)) = pure $ VInt (a - b)
+subOp ((VFloat a), (VFloat b)) = pure $ VFloat (a - b)
 
-mulOp :: (Number, Number) -> Number
-mulOp ((VBool a), (VBool b)) = VBool $ (a && b)
-mulOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) * (fromEnum b))::Char)
-mulOp ((VInt a), (VInt b)) = VInt $ a * b
-mulOp ((VFloat a), (VFloat b)) = VFloat $ a * b
+mulOp :: (Number, Number) -> IO Number
+mulOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
+mulOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) * (fromEnum b))::Char)
+mulOp ((VInt a), (VInt b)) = pure $ VInt (a * b)
+mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
 
-divOp :: (Number, Number) -> Number
-divOp ((VBool a), (VBool False)) = throw
-divOp ((VChar a), (VChar '\0')) = throw
-divOp ((VInt a), (VInt 0)) = throw
-divOp ((VFloat a), (VFloat 0)) = throw
-divOp ((VBool a), (VBool b)) = VBool $ (a && b)
-divOp ((VChar a), (VChar b)) = VChar $ (toEnum ((fromEnum a) + (fromEnum b))::Char)
-divOp ((VInt a), (VInt b)) = VInt $ a + b
-divOp ((VFloat a), (VFloat b)) = VFloat $ a + b
+divOp :: (Number, Number) -> IO Number
+divOp ((VBool a), (VBool False)) = throw $ Err 2
+divOp ((VChar a), (VChar '\0')) = throw $ Err 2
+divOp ((VInt a), (VInt 0)) = throw $ Err 2
+divOp ((VFloat a), (VFloat 0)) = throw $ Err 2
+divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
+divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
+divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
+divOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
 
-equalOp :: (Number, Number) -> Number
-equalOp (a, b) = VBool $ (a == b)
+equalOp :: (Number, Number) -> IO Number
+equalOp (a, b) = pure $ VBool (a == b)
 
 applyOp :: VMState -> Op -> IO Number
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Add = pure $ addOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Sub = pure $ subOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Mul = pure $ mulOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Div = pure $ divOp $ compareTypes a b
-applyOp VMState {stack = (VNumber a: VNumber b:xs)} Equal = pure $ equalOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Add = addOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Sub = subOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Mul = mulOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Div = divOp $ compareTypes a b
+applyOp VMState {stack = (VNumber a: VNumber b:xs)} Equal = equalOp $ compareTypes a b
 
 exec :: VMState -> IO VMState
 exec state@(VMState s _ _ code ip) = case code!?ip of
@@ -100,6 +100,7 @@ checkInstrution state@(VMState {stack, ip}) (DoOp op) =
      applyOp state op >>= \x -> exec $ state {stack = VNumber x : stack, ip = ip + 1}
 checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
     exec $ s {stack = ((env!n) : stack), ip = ip + 1}
+checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
 
 -- calculate :: Op -> Value -> Value -> Value
 -- -- works differently with numbers and with lists
@@ -121,9 +122,6 @@ checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
 -- -- calculate Not
 
 -- checkInstrution s@
-checkInstrution state@(VMState {stack = xs, ip = n}) (Push value) = exec $ state {stack = value : xs, ip = n + 1}
-checkInstrution state (DoOp op) = exec $ applyOp state op
-checkInstrution state@(VMState {ip = n}) (Nop) = exec $ state {ip = n + 1}
 
 -- checkOp :: VMState -> Op -> IO VMState
 -- checkOp state@(VMState {stack = (a:b:xs)}) Add = state {stack = (builtinAdd a b : xs)}

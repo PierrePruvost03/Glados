@@ -26,6 +26,7 @@ data ExecError = Err Int
 
 instance Show ExecError where
     show (Err 1) = "Bytecode too funky"
+    show (Err 2) = "Impossible operation: division by zero"
     show _ = "Unknow error"
 
 instance Exception ExecError
