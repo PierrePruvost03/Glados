@@ -25,7 +25,9 @@ type Code = V.Vector Instr
 data ExecError = Err Int
 
 instance Show ExecError where
-    show (Err 1) = "Bytecode too funky"
+    show (Err 0) = "Error: Impossible instruction or wrong arguments"
+    show (Err 1) = "Error: Ending code without a return value or jumping out of range"
+    show (Err 2) = "Error: Impossible operation - division by zero"
     show _ = "Unknow error"
 
 instance Exception ExecError

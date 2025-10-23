@@ -97,10 +97,10 @@ instance Binary Instr where
     put Ret = put (3 :: Word8)
     put Nop = put (4 :: Word8)
     put (SetVar v) = put (5 :: Word8) <> putList v
-    put (SetArray v) = put (6 :: Word8) <> put v
-    put (SetVector v) = put (7 :: Word8) <> put v
-    put (SetStruct v) = put (8 :: Word8) <> putList v
-    put (SetTuple v) = put (9 :: Word8) <> put v
+    put (SetArray s v) = put (6 :: Word8) <> putList s <> put v
+    put (SetVector s v) = put (7 :: Word8) <> putList s <> put v
+    put (SetStruct s v) = put (8 :: Word8) <> putList s <> putList v
+    put (SetTuple s v) = put (9 :: Word8) <> putList s <> put v
     put (GetArray v) = put (10 :: Word8) <> put v
     put ArrayGet = put (11 :: Word8)
     put (GetVector v) = put (12 :: Word8) <> put v
@@ -122,10 +122,10 @@ instance Binary Instr where
         3 -> return Ret
         4 -> return Nop
         5 -> constructList SetVar
-        6 -> construct SetArray
-        7 -> construct SetVector
-        8 -> constructList SetStruct
-        9 -> construct SetTuple
+        6 -> SetArray <$> getList (get :: Get Char) <*> (get :: Get Int)
+        7 -> SetVector <$> getList (get :: Get Char) <*> (get :: Get Int)
+        8 -> SetStruct <$> getList (get :: Get Char) <*> getList (get :: Get Char)
+        9 -> SetTuple <$> getList (get :: Get Char) <*> (get :: Get Int)
         10 -> construct GetArray
         11 -> return ArrayGet
         12 -> construct GetVector
