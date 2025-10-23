@@ -10,8 +10,9 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
-import DataStruct.VM (Env)
+import DataStruct.VM (ExecEnv)
 import qualified Data.Map as M
+import qualified Data.Vector as V
 
 data CompilerError
   = UnsupportedAst String
@@ -23,12 +24,12 @@ data CompilerError
 compile :: Ast -> Either CompilerError [Instr]
 compile ast = compileAst ast M.empty
 
-compileAst :: Ast -> Env -> Either CompilerError [Instr]
+compileAst :: Ast -> ExecEnv -> Either CompilerError [Instr]
 compileAst ast env = case ast of
   ABlock asts ->
     fmap concat $ mapM (`compileAst` env) asts
   AFunkDef name params returnType body ->
-    fmap (\instrs -> [Push (VFunction (extractParamNames params) (concat instrs ++ [Ret]) env), SetVar name])
+    fmap (\instrs -> [Push (VFunction (extractParamNames params) (V.fromList (concat instrs ++ [Ret]))), SetVar name])
          (mapM (`compileAst` env) body)
   AVarDecl varType name Nothing ->
     Right [Push (defaultValue varType), SetVar name]
@@ -40,7 +41,7 @@ compileAst ast env = case ast of
     fmap (++ [Ret]) (compileAst expr env)
   _ -> Left $ UnsupportedAst (show ast)
 
-compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
+compileExpr :: AExpression -> ExecEnv -> Either CompilerError [Instr]
 compileExpr expr env = case expr of
   AAttribution var value ->
     fmap (++ [SetVar var]) (compileExpr value env)
@@ -56,7 +57,7 @@ compileCall funcName =
     True -> [DoOp (stringToOp funcName)]
     False -> [PushEnv funcName, Call]
 
-compileValue :: AstValue -> Env -> Either CompilerError [Instr]
+compileValue :: AstValue -> ExecEnv -> Either CompilerError [Instr]
 compileValue value env = case value of
   ANumber (AInteger n) -> Right [Push (VNumber (VInt n))]
   ANumber (AFloat f) -> Right [Push (VNumber (VFloat (realToFrac f)))]
@@ -66,7 +67,7 @@ compileValue value env = case value of
   AVarCall varName -> Right [PushEnv varName]
   _ -> Left $ UnsupportedAst ("Unsupported value: " ++ show value)
 
-compileAccess :: AstAccess -> Env -> Either CompilerError [Instr]
+compileAccess :: AstAccess -> ExecEnv -> Either CompilerError [Instr]
 compileAccess access env = case access of
   AArrayAccess varName index ->
     fmap (([PushEnv varName] ++) . (++ [ArrayGet])) (compileExpr index env)

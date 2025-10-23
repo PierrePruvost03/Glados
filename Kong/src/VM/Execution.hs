@@ -4,14 +4,15 @@ module VM.Execution
     (
     ) where
 
-import DataStruct.VM (VMState(..), ExecError(..), Env, Heap, Stack, HeapAddr, initVMState)
+import DataStruct.VM (VMState(..), ExecError(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
 import DataStruct.Bytecode.Number
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp, get, put)
 import DataStruct.Bytecode.Utils (construct, constructList, putManyMany, getMany, getList)
 import DataStruct.Bytecode.Value
 import Control.Exception
 import Data.Vector ((!?))
-import Data.Map ((!))
+import Data.Map ((!), insert)
+import VM.EnvGestion (mergeEnv)
 
 makeBoolValue :: Value -> Bool
 makeBoolValue (VNumber (VBool value)) = value
@@ -90,12 +91,23 @@ exec state@(VMState s _ _ code ip) = case code!?ip of
     Just instr -> checkInstrution state instr
 
 checkInstrution :: VMState -> Instr -> IO VMState
+checkInstrution s Ret = pure s
+checkInstrution s@(VMState {ip}) Nop = exec $ s {ip = ip + 1}
 checkInstrution state@(VMState {stack = xs, ip}) (Push value) =
     exec $ state {stack = value : xs, ip = ip + 1}
 checkInstrution state@(VMState {stack, ip}) (DoOp op) =
      applyOp state op >>= \x -> exec $ state {stack = VNumber x : stack, ip = ip + 1}
 checkInstrution s@(VMState { stack, env, ip }) (PushEnv n) =
     exec $ s {stack = ((env!n) : stack), ip = ip + 1}
+checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, ip}) Call =
+    exec (s {code = code, stack = xs, env = mergeEnv env symbols, ip = 0}) >>=
+        \(VMState {stack = (x:_)}) -> exec $ s {stack = x:xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
+    exec $ s {env = insert n x env, stack = xs, ip = ip + 1}
+-- checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVector n i) =
+--     exec $ s {env = insert n x env, stack = xs, ip = ip + 1}
+
+
 
 -- calculate :: Op -> Value -> Value -> Value
 -- -- works differently with numbers and with lists

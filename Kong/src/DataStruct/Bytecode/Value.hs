@@ -18,7 +18,7 @@ data Value
   | VArray (V.Vector Value) Bool        -- Bool = isKonst
   | VVector (V.Vector Value) Bool
   | VStruct (M.Map String HeapAddr) Bool
-  | VFunction [String] [Instr] Env
+  | VFunction [String] (V.Vector Instr)
   | VBuiltinOp Op
   | VRef HeapAddr
   | VEmpty
@@ -33,7 +33,7 @@ instance Binary Value where
     put (VArray v k) = put (3 :: Word8) <> putList (V.toList v) <> put k
     put (VVector v k) = put (4 :: Word8) <> putList (V.toList v) <> put k
     put (VStruct v k) = put (5 :: Word8) <> put (M.size v) <> put v <> put k
-    put (VFunction a i e) = put (6 :: Word8) <> putManyMany a <> putList i <> put e
+    put (VFunction a i) = put (6 :: Word8) <> putManyMany a <> putList (V.toList i)
     put (VBuiltinOp v) = put (7 :: Word8) <> put v
     put (VRef v) = put (8 :: Word8) <> put v
     put (VEmpty) = put (9 :: Word8)
@@ -45,7 +45,7 @@ instance Binary Value where
         3 -> VArray <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
         4 -> VVector <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
         5 -> VStruct <$> (get :: Get (M.Map String HeapAddr)) <*> (get :: Get Bool)
-        6 -> VFunction <$> getList (getList (get :: Get Char)) <*> getList (get :: Get Instr) <*> (get :: Get Env)
+        6 -> VFunction <$> getList (getList (get :: Get Char)) <*> (V.fromList <$> getList (get :: Get Instr))
         7 -> construct VBuiltinOp
         8 -> construct VRef
         9 -> return VEmpty
@@ -60,10 +60,10 @@ data Instr
 
     -- Assignations
     | SetVar String
-    | SetArray Int
-    | SetVector Int
-    | SetStruct String
-    | SetTuple Int
+    | SetArray String Int -- name index
+    | SetVector String Int
+    | SetStruct String String -- name field
+    | SetTuple String Int -- name index
 
     -- Accès
     | GetArray Int
@@ -140,3 +140,35 @@ instance Binary Instr where
         21 -> return LoadRef
         22 -> return StoreRef
         _ -> fail "Unknow Insrtuction"
+
+
+
+
+-- Int p = 5;
+
+-- Funk c(Int x) -> Int {
+--     Int d = 5; //  p = 5, c [] , x
+--     Int d = 3;
+--     p = 3;
+--     Return d; // p = 5, c [] d = 5
+-- }
+
+-- PushEnv x
+
+-- Funk a(Int x) -> Int {
+--     // pushEnv x
+--     Int c = 4; // p = 5, x, a [],c []
+
+--     Funk b(Int y) -> Int {
+--         Return y + c; //
+--     }
+--     p = p + 4
+--     c = c + 1;
+
+--     Int d = 5;
+--     Return b(4);
+-- }
+
+
+-- Push "Main"
+-- Call
