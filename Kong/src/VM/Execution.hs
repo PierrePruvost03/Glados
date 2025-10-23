@@ -105,12 +105,44 @@ divOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 equalOp :: (Number, Number) -> IO Number
 equalOp (a, b) = pure $ VBool (a == b)
 
+lessThanOp :: (Number, Number) -> IO Number
+lessThanOp (a, b) = pure $ VBool (a < b)
+
+greaterThanOp :: (Number, Number) -> IO Number
+greaterThanOp (a, b) = pure $ VBool (a > b)
+
+lessEqualOp :: (Number, Number) -> IO Number
+lessEqualOp (a, b) = pure $ VBool (a <= b)
+
+greaterEqualOp :: (Number, Number) -> IO Number
+greaterEqualOp (a, b) = pure $ VBool (a >= b)
+
+notEqualOp :: (Number, Number) -> IO Number
+notEqualOp (a, b) = pure $ VBool (a /= b)
+
+andOp :: (Number, Number) -> IO Number
+andOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) && makeBoolValue (VNumber b))
+
+orOp :: (Number, Number) -> IO Number
+orOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
+
+notOp :: Number -> IO Number
+notOp n = pure $ VBool (not (makeBoolValue (VNumber n)))
+
 applyOp :: VMState -> Op -> IO Number
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Add = addOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Sub = subOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Mul = mulOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Div = divOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Equal = equalOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Lt = lessThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Gt = greaterThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Le = lessEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ge = greaterEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ne = notEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) And = andOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Or = orOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: _)}) Not = notOp a
 applyOp (VMState {stack = (v1: v2: _)}) _ = throwIO $ InvalidOpTypeError v1 v2
 applyOp _ _ = throwIO $ InvalidStackAccess
 
