@@ -67,13 +67,14 @@ compileAst ast env = case ast of
          (mapM (`compileAst` env) body)
   AVarDecl varType name Nothing ->
     Right [Push (defaultValue varType), SetVar name]
-  AVarDecl varType name (Just value) ->
+  AVarDecl _ name (Just value) ->
     fmap (++ [SetVar name]) (compileExpr value env)
   AExpress expr -> compileExpr expr env
   ASymbol symbol -> Right [PushEnv symbol]
   AReturn expr ->
     fmap (++ [Ret]) (compileAst expr env)
   AIf {} -> compileIf ast env
+  ALoop {} -> compileLoop ast env
   _ -> Left $ UnsupportedAst (show ast)
 
 
@@ -99,6 +100,17 @@ compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
       f (Just a) = [compileAst a env]
       f Nothing = mempty
 compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
+
+compileLoop :: Ast -> Env -> Either CompilerError [Instr]
+compileLoop (ALoop Nothing cond (Just incr) body) env =
+  concat <$> sequence
+  [compileAst cond env
+    , Right [JumpIfFalse (length (compileAst incr env) + length (compileAst body env) + 2)]
+    , compileAst body env
+    , compileAst incr env
+    , Right [Jump (- (length (compileAst cond env) + length (compileAst incr env) + length (compileAst body env) + 1))]
+  ]
+compileLoop _ _ = Left $ UnsupportedAst "Loop not supported"
 
 compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
 compileExpr expr env = case expr of
