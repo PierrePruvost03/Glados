@@ -9,6 +9,7 @@ data ExecError
     | VarDoesNotExists String
     | AccessOutOfRange String Int
     | InvalidStackAccess
+    | InvalidHeapAccess
     | UnknowInstruction
 
 instance Show ExecError where
@@ -17,6 +18,7 @@ instance Show ExecError where
     show (VarDoesNotExists n) = "Unknow variable " <> show n
     show (AccessOutOfRange n i) = "Unable to access var " <> show n <> "at index " <> show i
     show (InvalidStackAccess) = "Invalid Stack Access"
+    show (InvalidHeapAccess) = "Invalid Heap Access"
     show (UnknowInstruction) = "Unknow instruction, this might be because of invalid stack value for existing instruction"
 
 instance Exception ExecError

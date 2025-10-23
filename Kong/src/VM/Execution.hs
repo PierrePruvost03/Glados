@@ -128,7 +128,11 @@ checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVector n i) = case env
 checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetArray n i) = case env M.!? n of
     Just (VArray v c) -> exec $ s {env = M.insert n (VArray (v V.// [(i, x)]) c) env, stack = xs, ip = ip + 1}
     Nothing -> throwIO $ VarDoesNotExists n
-
-
+checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetTuple n i) = case env M.!? n of
+    Just (VArray v c) -> exec $ s {env = M.insert n (VTuple (v V.// [(i, x)]) c) env, stack = xs, ip = ip + 1}
+    Nothing -> throwIO $ VarDoesNotExists n
+checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case heap V.!? addr of
+    Just v -> exec $ s {stack = v : xs, ip = ip + 1}
+    Nothing -> throwIO $ InvalidHeapAccess
 
 checkInstrution _ _ = throw $ UnknowInstruction
