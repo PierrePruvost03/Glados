@@ -3,21 +3,10 @@ module Main (main) where
 import qualified System.Exit as Exit
 import Test.HUnit
 
-testKongCompilerExists :: Test
-testKongCompilerExists =
-  TestCase
-    ( assertBool
-        "Kong compiler module should exist (placeholder)"
-        True
-    )
-
-kongTests :: [Test]
-kongTests = [
-    TestLabel "kong compiler exists" testKongCompilerExists
-  ]
+import KongCompilerTests (kongCompilerTests)
 
 tests :: Test
-tests = TestList kongTests
+tests = TestList kongCompilerTests
 
 main :: IO ()
 main = do
