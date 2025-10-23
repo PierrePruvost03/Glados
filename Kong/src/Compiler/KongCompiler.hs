@@ -62,10 +62,10 @@ compileAst ast _ = Left $ UnsupportedAst (show ast)
 -- JumpIfFalse  
 
 compileIf :: Ast -> Env -> Either CompilerError [Instr]
-compileIf (AIf (AExpress cond) thenBranch@(ABlock thenBlock) [] elseBranch) env =
+compileIf (AIf (AExpress cond) thenBranch [] elseBranch) env =
   concat <$> sequence
   ([ compileExpr cond env
-    , Right [JumpIfFalse (length thenBlock)]
+    , Right [JumpIfFalse (length (compileAst thenBranch env) + 1)]
     , compileAst thenBranch env
     ] <> f elseBranch)
     where
