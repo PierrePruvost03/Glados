@@ -13,11 +13,8 @@ type HeapAddr = Int
 
 data Value
   = VNumber Number
-  | VString String
-  | VTuple (V.Vector Value) Bool
-  | VArray (V.Vector Value) Bool        -- Bool = isKonst
-  | VVector (V.Vector Value) Bool
-  | VStruct (M.Map String HeapAddr) Bool
+  | VList (V.Vector Value) Bool
+  | VStruct (M.Map String Value) Bool
   | VFunction [String] (V.Vector Instr)
   | VBuiltinOp Op
   | VRef HeapAddr
@@ -28,27 +25,21 @@ data Value
 instance Binary Value where
     -- writing
     put (VNumber v) = put (0 :: Word8) <> put v
-    put (VString v) = put (1 :: Word8) <> putList v
-    put (VTuple v k) = put (2 :: Word8) <> putList (V.toList v) <> put k
-    put (VArray v k) = put (3 :: Word8) <> putList (V.toList v) <> put k
-    put (VVector v k) = put (4 :: Word8) <> putList (V.toList v) <> put k
-    put (VStruct v k) = put (5 :: Word8) <> put (M.size v) <> put v <> put k
-    put (VFunction a i) = put (6 :: Word8) <> putManyMany a <> putList (V.toList i)
-    put (VBuiltinOp v) = put (7 :: Word8) <> put v
-    put (VRef v) = put (8 :: Word8) <> put v
-    put (VEmpty) = put (9 :: Word8)
+    put (VList v k) = put (2 :: Word8) <> putList (V.toList v) <> put k
+    put (VStruct v k) = put (3 :: Word8) <> put v <> put k
+    put (VFunction a i) = put (4 :: Word8) <> putManyMany a <> putList (V.toList i)
+    put (VBuiltinOp v) = put (5 :: Word8) <> put v
+    put (VRef v) = put (6 :: Word8) <> put v
+    put (VEmpty) = put (7 :: Word8)
     -- reading
     get = (get :: Get Word8) >>= \case
         0 -> construct VNumber
-        1 -> constructList VString
-        2 -> VTuple <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
-        3 -> VArray <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
-        4 -> VVector <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
-        5 -> VStruct <$> (get :: Get (M.Map String HeapAddr)) <*> (get :: Get Bool)
-        6 -> VFunction <$> getList (getList (get :: Get Char)) <*> (V.fromList <$> getList (get :: Get Instr))
-        7 -> construct VBuiltinOp
-        8 -> construct VRef
-        9 -> return VEmpty
+        2 -> VList <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
+        3 -> VStruct <$> (get :: Get (M.Map String Value)) <*> (get :: Get Bool)
+        4 -> VFunction <$> getList (getList (get :: Get Char)) <*> (V.fromList <$> getList (get :: Get Instr))
+        5 -> construct VBuiltinOp
+        6 -> construct VRef
+        7 -> return VEmpty
         _ -> fail "Unknow Value"
 
 data Instr
@@ -59,18 +50,17 @@ data Instr
     | Nop
 
     -- Assignations
-    | SetVar String
-    | SetArray String Int -- name index
-    | SetVector String Int
-    | SetStruct String String -- name field
-    | SetTuple String Int -- name index
+    | SetVar String     -- stack state (value : xs)
+    | SetList           -- stack state (list : index : value : xs)
+    | SetStruct String  -- stack state (struct : value : xs)
 
     -- Accès
-    | GetArray Int
-    | ArrayGet         -- Pour l'accès aux tableaux génériques
-    | GetVector Int
-    | GetStruct String
-    | GetTuple Int
+    | GetList           -- stack state (list : index : xs)
+    | GetStruct String  -- stack state (struct : xs) -- field pas dans la stack car impossible d'acceder à un field avec une expression
+
+    -- Creation
+    | CreateList Int        -- stack access for int = 2 (value : value : xs)
+    | CreateStruct [String] -- stack access for array = ["age", "name"] (age value : name value : xs)
 
     -- Sauts
     | Jump Int
@@ -79,9 +69,6 @@ data Instr
 
     -- Opérations natives
     | DoOp Op
-
-    -- Fonctions
-    | PushLambda [String] [Instr]
 
     -- Heap
     | Alloc
@@ -97,23 +84,19 @@ instance Binary Instr where
     put Ret = put (3 :: Word8)
     put Nop = put (4 :: Word8)
     put (SetVar v) = put (5 :: Word8) <> putList v
-    put (SetArray s v) = put (6 :: Word8) <> putList s <> put v
-    put (SetVector s v) = put (7 :: Word8) <> putList s <> put v
-    put (SetStruct s v) = put (8 :: Word8) <> putList s <> putList v
-    put (SetTuple s v) = put (9 :: Word8) <> putList s <> put v
-    put (GetArray v) = put (10 :: Word8) <> put v
-    put ArrayGet = put (11 :: Word8)
-    put (GetVector v) = put (12 :: Word8) <> put v
-    put (GetStruct v) = put (13 :: Word8) <> putList v
-    put (GetTuple v) = put (14 :: Word8) <> put v
-    put (Jump v) = put (15 :: Word8) <> put v
-    put (JumpIfFalse v) = put (16 :: Word8) <> put v
-    put (JumpIfTrue v) = put (17 :: Word8) <> put v
-    put (DoOp v) = put (18 :: Word8) <> put v
-    put (PushLambda a i) = put (19 :: Word8) <> putList a <> putList i
-    put Alloc = put (20 :: Word8)
-    put LoadRef = put (21 :: Word8)
-    put StoreRef = put (22 :: Word8)
+    put (SetList) = put (6 :: Word8)
+    put (SetStruct s) = put (7 :: Word8) <> putList s
+    put (GetList) = put (8 :: Word8)
+    put (GetStruct v) = put (9 :: Word8) <> putList v
+    put (CreateList i) = put (10 :: Word8) <> put i
+    put (CreateStruct l) = put (11 :: Word8) <> putManyMany l
+    put (Jump v) = put (12 :: Word8) <> put v
+    put (JumpIfFalse v) = put (13 :: Word8) <> put v
+    put (JumpIfTrue v) = put (14 :: Word8) <> put v
+    put (DoOp v) = put (15 :: Word8) <> put v
+    put Alloc = put (16 :: Word8)
+    put LoadRef = put (17 :: Word8)
+    put StoreRef = put (18 :: Word8)
 
     get = (get :: Get Word8) >>= \case
         0 -> construct Push
@@ -122,23 +105,19 @@ instance Binary Instr where
         3 -> return Ret
         4 -> return Nop
         5 -> constructList SetVar
-        6 -> SetArray <$> getList (get :: Get Char) <*> (get :: Get Int)
-        7 -> SetVector <$> getList (get :: Get Char) <*> (get :: Get Int)
-        8 -> SetStruct <$> getList (get :: Get Char) <*> getList (get :: Get Char)
-        9 -> SetTuple <$> getList (get :: Get Char) <*> (get :: Get Int)
-        10 -> construct GetArray
-        11 -> return ArrayGet
-        12 -> construct GetVector
-        13 -> constructList GetStruct
-        14 -> construct GetTuple
-        15 -> construct Jump
-        16 -> construct JumpIfFalse
-        17 -> construct JumpIfTrue
-        18 -> construct DoOp
-        19 -> PushLambda <$> getList (getList (get :: Get Char)) <*> getList (get :: Get Instr)
-        20 -> return Alloc
-        21 -> return LoadRef
-        22 -> return StoreRef
+        6 -> return SetList
+        7 -> constructList SetStruct
+        8 -> return GetList
+        9 -> constructList GetStruct
+        10 -> construct CreateList
+        11 -> CreateStruct <$> getList (getList (get :: Get Char))
+        12 -> construct Jump
+        13 -> construct JumpIfFalse
+        14 -> construct JumpIfTrue
+        15 -> construct DoOp
+        16 -> return Alloc
+        17 -> return LoadRef
+        18 -> return StoreRef
         _ -> fail "Unknow Insrtuction"
 
 

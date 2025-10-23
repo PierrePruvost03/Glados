@@ -63,14 +63,14 @@ compileValue value env = case value of
   ANumber (AFloat f) -> Right [Push (VNumber (VFloat (realToFrac f)))]
   ANumber (ABool b) -> Right [Push (VNumber (VBool b))]
   ANumber (AChar c) -> Right [Push (VNumber (VChar c))]
-  AString s -> Right [Push (VString s)]
+  -- AString s -> Right [Push (VString s)]
   AVarCall varName -> Right [PushEnv varName]
   _ -> Left $ UnsupportedAst ("Unsupported value: " ++ show value)
 
 compileAccess :: AstAccess -> ExecEnv -> Either CompilerError [Instr]
 compileAccess access env = case access of
-  AArrayAccess varName index ->
-    fmap (([PushEnv varName] ++) . (++ [ArrayGet])) (compileExpr index env)
+  -- AArrayAccess varName index ->
+  --   fmap (([PushEnv varName] ++) . (++ [ArrayGet])) (compileExpr index env)
   _ -> Left $ UnsupportedAst ("Unsupported access: " ++ show access)
 
 extractParamNames :: [Ast] -> [String]
@@ -85,7 +85,7 @@ defaultValue = \case
   TBool -> VNumber $ VBool False
   TChar -> VNumber $ VChar '\0'
   TFloat -> VNumber $ VFloat 0.0
-  TString -> VString ""
+  -- TString -> VString ""
   TStrong t -> defaultValue t
   TKong t -> defaultValue t
   _ -> VEmpty
