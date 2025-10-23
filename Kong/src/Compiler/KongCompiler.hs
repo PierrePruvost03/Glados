@@ -27,7 +27,7 @@ data ProgramError = ProgramError
   { peFile :: String
   , peAst :: Ast
   , peError :: CompilerError
-  } deriving (Show, Eq)
+  } deriving (Show)
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram = resultsToEither . map compilePair . expand
