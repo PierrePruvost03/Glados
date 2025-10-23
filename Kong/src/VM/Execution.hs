@@ -4,7 +4,7 @@ module VM.Execution
     (
     ) where
 
-import DataStruct.VM (VMState(..), ExecError(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
+import DataStruct.VM (VMState(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
 import DataStruct.Bytecode.Number
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp, get, put)
 import DataStruct.Bytecode.Utils (construct, constructList, putManyMany, getMany, getList)
@@ -92,10 +92,10 @@ mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
 mulOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 divOp :: (Number, Number) -> IO Number
-divOp (_, (VBool False)) = throw $ Err 2
-divOp (_, (VChar '\0')) = throw $ Err 2
-divOp (_, (VInt 0)) = throw $ Err 2
-divOp (_, (VFloat 0)) = throw $ Err 2
+divOp (_, (VBool False)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VChar '\0')) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VInt 0)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VFloat 0)) = throwIO $ ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
 divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)

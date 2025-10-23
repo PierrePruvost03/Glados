@@ -13,6 +13,7 @@ data ExecError
     | UnknowInstruction
     | InvalidIntConversion
     | InvalidStructAccess String
+    | ImpossibleDivsionByZero
 
 instance Show ExecError where
     show ByteCodeOutOfRange = "Bytecode access out of range"
@@ -24,5 +25,6 @@ instance Show ExecError where
     show (UnknowInstruction) = "Unknow instruction, this might be because of invalid stack value for existing instruction"
     show (InvalidIntConversion) = "Invalid Int Conversion, value cannot be computed as integer"
     show (InvalidStructAccess s) = "Invalid struct access on field" <> show s
+    show (ImpossibleDivsionByZero) = "Division by zero is an impossible operation"
 
 instance Exception ExecError
