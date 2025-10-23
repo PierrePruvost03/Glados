@@ -105,15 +105,15 @@ compileLoop :: Ast -> Env -> Either CompilerError [Instr]
 compileLoop (ALoop Nothing cond (Just incr) body) env =
   concat <$> sequence
   [compileAst cond env
-    , Right [JumpIfFalse (loopLength + 2)]
+    , Right [JumpIfFalse loopLength]
     , compiledBody
     , compiledIncr
-    , Right [Jump (- (loopLength + 1))]
+    , Right [Jump (- loopLength)]
   ]
     where
       compiledBody = compileAst body env
       compiledIncr = compileAst incr env
-      loopLength = length compiledBody + length compiledIncr
+      loopLength = length compiledBody + length compiledIncr + 2
 compileLoop _ _ = Left $ UnsupportedAst "Loop not supported"
 
 compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
