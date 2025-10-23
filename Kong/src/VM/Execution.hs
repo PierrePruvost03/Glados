@@ -5,7 +5,7 @@ module VM.Execution
       makeIntValue
     ) where
 
-import DataStruct.VM (VMState(..), ExecError(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
+import DataStruct.VM (VMState(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
 import DataStruct.Bytecode.Number
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp, get, put)
 import DataStruct.Bytecode.Utils (construct, constructList, putManyMany, getMany, getList)
@@ -93,10 +93,10 @@ mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
 mulOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 divOp :: (Number, Number) -> IO Number
-divOp (_, (VBool False)) = throw $ Err 2
-divOp (_, (VChar '\0')) = throw $ Err 2
-divOp (_, (VInt 0)) = throw $ Err 2
-divOp (_, (VFloat 0)) = throw $ Err 2
+divOp (_, (VBool False)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VChar '\0')) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VInt 0)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VFloat 0)) = throwIO $ ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
 divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
@@ -106,12 +106,44 @@ divOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 equalOp :: (Number, Number) -> IO Number
 equalOp (a, b) = pure $ VBool (a == b)
 
+lessThanOp :: (Number, Number) -> IO Number
+lessThanOp (a, b) = pure $ VBool (a < b)
+
+greaterThanOp :: (Number, Number) -> IO Number
+greaterThanOp (a, b) = pure $ VBool (a > b)
+
+lessEqualOp :: (Number, Number) -> IO Number
+lessEqualOp (a, b) = pure $ VBool (a <= b)
+
+greaterEqualOp :: (Number, Number) -> IO Number
+greaterEqualOp (a, b) = pure $ VBool (a >= b)
+
+notEqualOp :: (Number, Number) -> IO Number
+notEqualOp (a, b) = pure $ VBool (a /= b)
+
+andOp :: (Number, Number) -> IO Number
+andOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) && makeBoolValue (VNumber b))
+
+orOp :: (Number, Number) -> IO Number
+orOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
+
+notOp :: Number -> IO Number
+notOp n = pure $ VBool (not (makeBoolValue (VNumber n)))
+
 applyOp :: VMState -> Op -> IO Number
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Add = addOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Sub = subOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Mul = mulOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Div = divOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Equal = equalOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Lt = lessThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Gt = greaterThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Le = lessEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ge = greaterEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ne = notEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) And = andOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Or = orOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: _)}) Not = notOp a
 applyOp (VMState {stack = (v1: v2: _)}) _ = throwIO $ InvalidOpTypeError v1 v2
 applyOp _ _ = throwIO $ InvalidStackAccess
 

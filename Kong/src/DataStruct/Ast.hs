@@ -129,20 +129,15 @@ data Ast
   | AIf
       { ifCond :: Ast,
         ifThen :: Ast,
-        ifElifs :: [(Ast, Ast)],  -- [(condition, body)]
         ifElse :: Maybe Ast
       }
   | AReturn {returnValue :: Ast}
   | ABlock [Ast]
-  | AWhile
-      { whileCond :: Ast,
-        whileBody :: Ast
-      }
-  | AFor
-      { forInit :: Maybe Ast,
-        forCond :: Maybe Ast,
-        forIncr :: Maybe Ast,
-        forBody :: Ast
+  | ALoop
+      { loopInit :: Maybe Ast,
+        loopCond :: Ast,
+        loopIncr :: Maybe Ast,
+        loopBody :: Ast
       }
   | AForIn
       { forInVar :: String,
