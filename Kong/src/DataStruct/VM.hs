@@ -2,30 +2,40 @@
 
 module DataStruct.VM
   ( VMState(..)
-  , Env
+  , ExecError(..)
+  , ExecEnv
   , Heap
   , Stack
   , HeapAddr
   , initVMState
-  , MemoryCell
   ) where
 
 import qualified Data.Vector as V
 import qualified Data.Map.Strict as M
 import DataStruct.Bytecode.Value (Value, Instr)
+import Control.Exception
 
 -- Types de base de la VM
-data MemoryCell = THEAP | TSTACK deriving (Show, Eq)
-type Env = M.Map String (Value, MemoryCell)
+type ExecEnv = M.Map String Value
 type HeapAddr = Int
 type Heap = V.Vector Value
 type Stack = [Value]
 type Code = V.Vector Instr
 
+data ExecError = Err Int
+
+instance Show ExecError where
+    show (Err 0) = "Error: Impossible instruction or wrong arguments"
+    show (Err 1) = "Error: Ending code without a return value or jumping out of range"
+    show (Err 2) = "Error: Impossible operation - division by zero"
+    show _ = "Unknow error"
+
+instance Exception ExecError
+
 -- État complet de la VM Kong
 data VMState = VMState
   { stack :: Stack
-  , env :: Env
+  , env :: ExecEnv
   , heap :: Heap
   , code :: Code
   , ip :: Int  -- Instruction Pointer
