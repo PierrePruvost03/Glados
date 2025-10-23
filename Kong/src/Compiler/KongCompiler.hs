@@ -93,10 +93,12 @@ compileIf :: Ast -> Env -> Either CompilerError [Instr]
 compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
   concat <$> sequence
   ([ compileExpr cond env
-    , Right [JumpIfFalse (length (compileAst thenBranch env) + 1)]
-    , compileAst thenBranch env
+    , Right [JumpIfFalse (bodyLength + 1)]
+    , compiledThen
     ] <> f elseBranch)
     where
+      compiledThen = compileAst thenBranch env
+      bodyLength = length compiledThen
       f (Just a) = [compileAst a env]
       f Nothing = mempty
 compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
