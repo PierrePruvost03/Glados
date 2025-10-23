@@ -8,6 +8,7 @@ module DataStruct.VM
   , Stack
   , HeapAddr
   , initVMState
+  , baseState
   ) where
 
 import qualified Data.Vector as V
@@ -40,6 +41,9 @@ data VMState = VMState
   , code :: Code
   , ip :: Int  -- Instruction Pointer
   } deriving (Show)
+
+baseState :: [Instr] -> VMState
+baseState code = VMState {stack = [], env = M.empty, heap = V.empty, code = V.fromList code, ip = 0}
 
 -- Initialisation d'un état VM vide
 initVMState :: [Instr] -> VMState

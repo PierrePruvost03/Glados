@@ -1,7 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module VM.Execution
-    (
+    ( exec,
+      makeIntValue
     ) where
 
 import DataStruct.VM (VMState(..), ExecError(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
