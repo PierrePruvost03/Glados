@@ -3,7 +3,9 @@
 module Compiler.KongCompiler
   ( compile
   , compileAst
+  , compileProgram
   , CompilerError(..)
+  , ProgramError(..)
   ) where
 
 import DataStruct.Ast
@@ -20,6 +22,30 @@ data CompilerError
   | UnknownFunction String
   | InvalidArguments String
   deriving (Show, Eq)
+
+data ProgramError = ProgramError
+  { peFile :: String
+  , peAst :: Ast
+  , peError :: CompilerError
+  } deriving (Show, Eq)
+
+compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
+compileProgram = resultsToEither . map compilePair . expand
+
+expand :: [(String, [Ast])] -> [(String, Ast)]
+expand = concatMap (\(f, as) -> map ((,) f) as)
+
+compilePair :: (String, Ast) -> Either ProgramError [Instr]
+compilePair (f, a) = either (Left . ProgramError f a) Right (compile a)
+
+resultsToEither :: [Either ProgramError [Instr]] -> Either [ProgramError] [Instr]
+resultsToEither = foldr step (Right [])
+
+step :: Either ProgramError [Instr] -> Either [ProgramError] [Instr] -> Either [ProgramError] [Instr]
+step (Left e) (Left es) = Left (e : es)
+step (Left e) (Right _) = Left [e]
+step (Right _) (Left es) = Left es
+step (Right is) (Right js) = Right (is ++ js)
 
 compile :: Ast -> Either CompilerError [Instr]
 compile ast = compileAst ast M.empty
