@@ -213,8 +213,8 @@ checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case 
     Nothing -> throwIO $ InvalidHeapAccess
 checkInstrution s@(VMState {stack, heap, ip}) Alloc =
     exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1}
-checkInstrution s@(VMState {stack = (VRef addr) : v : xs, heap, ip}) StoreRef =
-    exec $ s {stack = xs, heap = heap V.// [(addr, v)], ip = ip + 1}
+checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRef =
+    exec $ s {stack = ref:xs, heap = heap V.// [(addr, v)], ip = ip + 1}
 
 
 -- checkInstrution s@(VMState {stack, env, ip})

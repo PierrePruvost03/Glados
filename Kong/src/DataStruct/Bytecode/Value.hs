@@ -73,7 +73,7 @@ data Instr
     -- Heap
     | Alloc
     | LoadRef
-    | StoreRef
+    | StoreRef              -- stack state (addr : value : xs)
     deriving (Eq, Show)
 
 instance Binary Instr where
