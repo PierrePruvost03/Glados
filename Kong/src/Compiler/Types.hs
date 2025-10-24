@@ -1,7 +1,8 @@
 module Compiler.Types
   ( CompilerError(..)
   , ProgramError(..)
-  , CompilerEnv
+  , CompilerEnv (..)
+  , emptyEnv
   , insertTypeAlias
   , resolveType
   ) where
@@ -9,7 +10,13 @@ module Compiler.Types
 import DataStruct.Ast (Ast (..), Type (..))
 import qualified Data.Map as M
 
-type CompilerEnv = M.Map String Type
+data CompilerEnv = CompilerEnv
+  { typeAliases :: M.Map String Type
+  , structDefs  :: M.Map String [(Type, String)]
+  }
+
+emptyEnv :: CompilerEnv
+emptyEnv = CompilerEnv M.empty M.empty
 
 data CompilerError
   = UnsupportedAst String
@@ -25,13 +32,15 @@ data ProgramError = ProgramError
   , peError :: CompilerError
   } deriving (Show)
 
+
 insertTypeAlias :: CompilerEnv -> Ast -> CompilerEnv
-insertTypeAlias env (ATypeAlias name ty) = M.insert name ty env
+insertTypeAlias env (ATypeAlias name ty) = env { typeAliases = M.insert name ty (typeAliases env) }
+insertTypeAlias env (AStruktDef name fields) = env { structDefs = M.insert name fields (structDefs env) }
 insertTypeAlias env _ = env
 
 resolveType :: CompilerEnv -> Type -> Type
 resolveType env t@(TCustom name) =
-  case M.lookup name env of
+  case M.lookup name (typeAliases env) of
     Just realTy -> resolveType env realTy
     Nothing -> t
 resolveType env (TKonst ty) = TKonst (resolveType env ty)

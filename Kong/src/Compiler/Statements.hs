@@ -9,7 +9,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import qualified Data.Vector as V
-import Compiler.Types (CompilerError(..), CompilerEnv, resolveType)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
 import Compiler.Expr (compileExpr)
 import qualified Data.Map as M
 
@@ -33,27 +33,31 @@ compileAst (AReturn expr) env =
   fmap (\(instrs, _) -> (instrs ++ [Ret], env)) (compileAst expr env)
 compileAst aIf@AIf{} env =
   fmap (\instrs -> (instrs, env)) (compileIf aIf env)
+compileAst (AStruktDef name fdls) env =
+  Right ([], env { structDefs = M.insert name fdls (structDefs env) })
 compileAst ast _ = Left $ UnsupportedAst (show ast)
 
 registerFunction :: CompilerEnv -> String -> [Ast] -> ([Instr], CompilerEnv) -> ([Instr], CompilerEnv)
 registerFunction env name params (bodyCode, _) =
-  ([Push (VFunction (extractParamNames params) (V.fromList (bodyCode ++ [Ret]))), SetVar name], M.insert name (TKonst TInt) env)
+  ( [Push (VFunction (extractParamNames params) (V.fromList (bodyCode ++ [Ret]))), SetVar name]
+  , env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) }
+  )
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
 declareDefault env t name
-  | isKonst t' = ([Push (defaultValue t'), SetVar name], M.insert name t' env)
-  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], M.insert name t' env)
+  | isKonst t' = ([Push (defaultValue t'), SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
   where t' = resolveType env t
 
 declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
 declareWithValue env t name exprCode
-  | isKonst t' = (exprCode ++ [SetVar name], M.insert name t' env)
-  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], M.insert name t' env)
+  | isKonst t' = (exprCode ++ [SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
   where t' = resolveType env t
 
 symbolInstrs :: CompilerEnv -> String -> [Instr]
 symbolInstrs env symbol
-  | Just t <- M.lookup symbol env
+  | Just t <- M.lookup symbol (typeAliases env)
   , not (isKonst t) = [PushEnv symbol, LoadRef]
   | otherwise = [PushEnv symbol]
 

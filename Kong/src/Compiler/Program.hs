@@ -5,10 +5,9 @@ module Compiler.Program
   , compileWithEnv
   ) where
 
-import qualified Data.Map as M
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr)
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv, insertTypeAlias)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv, emptyEnv, insertTypeAlias)
 import Compiler.Statements (compileAst)
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
@@ -35,4 +34,4 @@ compileWithEnv :: CompilerEnv -> Ast -> Either CompilerError [Instr]
 compileWithEnv env ast = fst <$> compileAst ast env
 
 buildAliasEnv :: [Ast] -> CompilerEnv
-buildAliasEnv = foldl insertTypeAlias M.empty
+buildAliasEnv = foldl insertTypeAlias emptyEnv

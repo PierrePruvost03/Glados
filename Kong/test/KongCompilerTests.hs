@@ -8,7 +8,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (Op(..))
-import Compiler.Types (CompilerError(..))
+import Compiler.Types (CompilerError(..), emptyEnv)
 import qualified Data.Vector as V
 import qualified Data.Map as M
 
@@ -18,13 +18,13 @@ testCompileInteger =
     ( assertEqual
         "should compile integer value to Push VInt instruction"
         (Right [Push (VNumber (VInt 42))])
-        (compileWithEnv M.empty (AExpress (AValue (ANumber (AInteger 42)))))
+        (compileWithEnv emptyEnv (AExpress (AValue (ANumber (AInteger 42)))))
     )
 
 testCompileFloat :: Test
 testCompileFloat =
   TestCase $ do
-    let result = compileWithEnv M.empty (AExpress (AValue (ANumber (AFloat 3.14))))
+    let result = compileWithEnv emptyEnv (AExpress (AValue (ANumber (AFloat 3.14))))
     case result of
       Right [Push (VNumber (VFloat f))] -> assertBool "Should compile float value" (abs (f - 3.14) < 0.001)
       Right other -> assertFailure $ "Unexpected result: " ++ show other
@@ -36,7 +36,7 @@ testCompileBool =
     ( assertEqual
         "should compile boolean value to Push VBool instruction"
         (Right [Push (VNumber (VBool True))])
-        (compileWithEnv M.empty (AExpress (AValue (ANumber (ABool True)))))
+        (compileWithEnv emptyEnv (AExpress (AValue (ANumber (ABool True)))))
     )
 
 testCompileString :: Test
@@ -45,7 +45,7 @@ testCompileString =
     ( assertEqual
         "should compile string value to Push VString instruction"
         (Right [Push (VList (V.fromList [VNumber (VChar 'h'), VNumber (VChar 'e'), VNumber (VChar 'l'), VNumber (VChar 'l'), VNumber (VChar 'o')]) False)])
-        (compileWithEnv M.empty (AExpress (AValue (AString "hello"))))
+        (compileWithEnv emptyEnv (AExpress (AValue (AString "hello"))))
     )
 
 testCompileArray :: Test
@@ -54,7 +54,7 @@ testCompileArray =
     ( assertEqual
         "should compile array literal to CreateList"
         (Right [Push (VNumber (VInt 1)), Push (VNumber (VInt 2)), Push (VNumber (VInt 3)), CreateList 3])
-        (compileWithEnv M.empty (AExpress (AValue (AArray [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2)), AValue (ANumber (AInteger 3))]))))
+        (compileWithEnv emptyEnv (AExpress (AValue (AArray [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2)), AValue (ANumber (AInteger 3))]))))
     )
 
 testCompileVector :: Test
@@ -63,7 +63,7 @@ testCompileVector =
     ( assertEqual
         "should compile vector literal to CreateList"
         (Right [Push (VNumber (VInt 5)), Push (VNumber (VInt 6)), CreateList 2])
-        (compileWithEnv M.empty (AExpress (AValue (AVector [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 6))]))))
+        (compileWithEnv emptyEnv (AExpress (AValue (AVector [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 6))]))))
     )
 
 testCompileTuple :: Test
@@ -72,7 +72,7 @@ testCompileTuple =
     ( assertEqual
         "should compile tuple literal to CreateList"
         (Right [Push (VNumber (VInt 7)), Push (VNumber (VInt 8)), CreateList 2])
-        (compileWithEnv M.empty (AExpress (AValue (ATuple [AValue (ANumber (AInteger 7)), AValue (ANumber (AInteger 8))]))))
+        (compileWithEnv emptyEnv (AExpress (AValue (ATuple [AValue (ANumber (AInteger 7)), AValue (ANumber (AInteger 8))]))))
     )
 
 testCompileStruct :: Test
@@ -81,7 +81,7 @@ testCompileStruct =
     ( assertEqual
         "should compile struct literal to CreateStruct"
         (Right [Push (VNumber (VInt 42)), Push (VList (V.fromList [VNumber (VChar 'a')]) False), CreateStruct ["name", "age"]])
-        (compileWithEnv M.empty (AExpress (AValue (AStruct [ ("name", AValue (AString "a"))
+        (compileWithEnv emptyEnv (AExpress (AValue (AStruct [ ("name", AValue (AString "a"))
                                            , ("age", AValue (ANumber (AInteger 42)))
                                            ]))))
     )
@@ -104,7 +104,7 @@ testStructWithHeapString =
       , StoreRef
       , SetVar "a"
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
         [ AVarDecl TString "x" (Just (AValue (AString "pipi")))
         , AVarDecl
@@ -142,7 +142,7 @@ testArrayDeclarationAndAccess =
       , Push (VNumber (VInt 1))
       , GetList
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
                 [ AVarDecl (TArray TInt (AValue (ANumber (AInteger 3)))) "arr"
           (Just (AValue (AArray [ AValue (ANumber (AInteger 1))
@@ -175,7 +175,7 @@ testArrayReassignment =
       , PushEnv "arr"
       , StoreRef
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
                 [ AVarDecl (TArray TInt (AValue (ANumber (AInteger 3)))) "arr"
           (Just (AValue (AArray [ AValue (ANumber (AInteger 1))
@@ -209,7 +209,7 @@ testStructDeclarationAndAccess =
       , LoadRef
       , GetStruct "name"
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
         [ AVarDecl (TStruct "Person") "person"
           (Just (AValue (AStruct [ ("name", AValue (AString "Ada"))
@@ -239,7 +239,7 @@ testStructReassignment =
       , PushEnv "person"
       , StoreRef
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
         [ AVarDecl (TStruct "Person") "person"
           (Just (AValue (AStruct [ ("name", AValue (AString "Ada"))
@@ -272,7 +272,7 @@ testVectorDeclarationAndAccess =
       , Push (VNumber (VInt 0))
       , GetList
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
                 [ AVarDecl (TVector TInt (AValue (ANumber (AInteger 2)))) "vec"
           (Just (AValue (AVector [ AValue (ANumber (AInteger 10))
@@ -301,7 +301,7 @@ testTupleDeclarationAndAccess =
       , Push (VNumber (VInt 0))
       , GetList
       ])
-    ( compileWithEnv M.empty
+    ( compileWithEnv emptyEnv
       ( ABlock
         [ AVarDecl (TTuple [TInt, TInt]) "pair"
           (Just (AValue (ATuple [ AValue (ANumber (AInteger 5))
@@ -319,7 +319,7 @@ testCompileChar =
     ( assertEqual
         "should compile char value to Push VChar instruction"
         (Right [Push (VNumber (VChar 'a'))])
-        (compileWithEnv M.empty (AExpress (AValue (ANumber (AChar 'a')))))
+        (compileWithEnv emptyEnv (AExpress (AValue (ANumber (AChar 'a')))))
     )
 
 testCompileVarDecl :: Test
@@ -328,7 +328,7 @@ testCompileVarDecl =
   ( assertEqual
     "should compile mutable variable declaration to heap-backed storage"
     (Right [Push (VNumber (VInt 0)), Alloc, StoreRef, SetVar "x"])
-    (compileWithEnv M.empty (AVarDecl TInt "x" Nothing))
+    (compileWithEnv emptyEnv (AVarDecl TInt "x" Nothing))
   )
 
 testCompileVarDeclWithValue :: Test
@@ -337,7 +337,7 @@ testCompileVarDeclWithValue =
   ( assertEqual
     "should compile mutable variable declaration with value to heap"
     (Right [Push (VNumber (VInt 42)), Alloc, StoreRef, SetVar "x"])
-    (compileWithEnv M.empty (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
+    (compileWithEnv emptyEnv (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
   )
 
 testCompileVarCall :: Test
@@ -346,7 +346,7 @@ testCompileVarCall =
     ( assertEqual
         "should compile variable reference to PushEnv"
         (Right [PushEnv "x"])
-        (compileWithEnv M.empty (AExpress (AValue (AVarCall "x"))))
+        (compileWithEnv emptyEnv (AExpress (AValue (AVarCall "x"))))
     )
 
 testCompileAttribution :: Test
@@ -354,7 +354,7 @@ testCompileAttribution =
   TestCase
     ( assertBool
         "should fail attribution for undeclared variable"
-        ( case compileWithEnv M.empty (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))) of
+        ( case compileWithEnv emptyEnv (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))) of
             Left (IllegalAssignment msg) -> "undeclared variable" `isInfixOf` msg
             _ -> False
         )
@@ -366,7 +366,7 @@ testCompileFunctionCall =
     ( assertEqual
         "should compile function call with arguments in reverse order"
         (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), PushEnv "myFunc", Call])
-        (compileWithEnv M.empty (AExpress (ACall "myFunc" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (compileWithEnv emptyEnv (AExpress (ACall "myFunc" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileBuiltinAdd :: Test
@@ -375,7 +375,7 @@ testCompileBuiltinAdd =
     ( assertEqual
         "should compile builtin addition operation"
         (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), DoOp Add])
-        (compileWithEnv M.empty (AExpress (ACall "+" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (compileWithEnv emptyEnv (AExpress (ACall "+" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileBuiltinSub :: Test
@@ -384,7 +384,7 @@ testCompileBuiltinSub =
     ( assertEqual
         "should compile builtin subtraction operation"
         (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 5)), DoOp Sub])
-        (compileWithEnv M.empty (AExpress (ACall "-" [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 3))])))
+        (compileWithEnv emptyEnv (AExpress (ACall "-" [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 3))])))
     )
 
 testCompileBuiltinEqual :: Test
@@ -393,7 +393,7 @@ testCompileBuiltinEqual =
     ( assertEqual
         "should compile builtin equality operation"
         (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), DoOp Equal])
-        (compileWithEnv M.empty (AExpress (ACall "==" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (compileWithEnv emptyEnv (AExpress (ACall "==" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileSymbol :: Test
@@ -402,7 +402,7 @@ testCompileSymbol =
     ( assertEqual
         "should compile symbol to PushEnv"
         (Right [PushEnv "mySymbol"])
-        (compileWithEnv M.empty (ASymbol "mySymbol"))
+        (compileWithEnv emptyEnv (ASymbol "mySymbol"))
     )
 
 testCompileReturn :: Test
@@ -411,7 +411,7 @@ testCompileReturn =
     ( assertEqual
         "should compile return statement"
         (Right [Push (VNumber (VInt 42)), Ret])
-        (compileWithEnv M.empty (AReturn (AExpress (AValue (ANumber (AInteger 42))))))
+        (compileWithEnv emptyEnv (AReturn (AExpress (AValue (ANumber (AInteger 42))))))
     )
 
 testCompileBlock :: Test
@@ -420,7 +420,7 @@ testCompileBlock =
     ( assertEqual
         "should compile block of statements"
         (Right [Push (VNumber (VInt 5)), Alloc, StoreRef, SetVar "x", PushEnv "x", LoadRef])
-        (compileWithEnv M.empty (ABlock [
+        (compileWithEnv emptyEnv (ABlock [
           AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 5)))),
           AExpress (AValue (AVarCall "x"))
         ]))
@@ -431,7 +431,7 @@ testUnsupportedAst =
   TestCase
     ( assertBool
         "should fail with UnsupportedAst error"
-        ( case compileWithEnv M.empty (AInclude "someModule" ["item1", "item2"]) of
+        ( case compileWithEnv emptyEnv (AInclude "someModule" ["item1", "item2"]) of
             Left (UnsupportedAst msg) -> "AInclude" `isInfixOf` msg
             _ -> False
         )

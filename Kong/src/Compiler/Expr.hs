@@ -9,7 +9,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
-import Compiler.Types (CompilerError(..), CompilerEnv, resolveType)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 
@@ -19,7 +19,7 @@ isKonst _ = False
 
 compileExpr :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
 compileExpr (AAttribution var rhs) env =
-  assignTarget (M.lookup var env)
+  assignTarget (M.lookup var (typeAliases env))
   where
     assignTarget (Just t)
       | isKonst (resolveType env t) = Left $ IllegalAssignment var
@@ -46,7 +46,7 @@ compileValue (AArray exprs) env = compileListLiteral exprs env
 compileValue (AVector exprs) env = compileListLiteral exprs env
 compileValue (AStruct structFields) env = compileStructLiteral structFields env
 compileValue (AVarCall vname) env
-  | Just t <- M.lookup vname env
+  | Just t <- M.lookup vname (typeAliases env)
   , not (isKonst (resolveType env t)) = Right [PushEnv vname, LoadRef]
   | otherwise = Right [PushEnv vname]
 
@@ -61,7 +61,7 @@ compileAccess (AStructAccess structName fieldPath) env =
   Right (base structName ++ map GetStruct fieldPath)
   where
     base name
-      | Just t <- M.lookup name env
+      | Just t <- M.lookup name (typeAliases env)
       , not (isKonst t) = [PushEnv name, LoadRef]
       | otherwise = [PushEnv name]
 
@@ -90,6 +90,6 @@ compileIndexedAccess name idx env =
   where
     assemble idxCode = base name ++ idxCode ++ [GetList]
     base targetName
-      | Just t <- M.lookup targetName env
+      | Just t <- M.lookup targetName (typeAliases env)
       , not (isKonst t) = [PushEnv targetName, LoadRef]
       | otherwise = [PushEnv targetName]
