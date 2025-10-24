@@ -9,7 +9,7 @@ data Number
   | VBool Bool
   | VChar Char
   | VFloat Double
-  deriving (Eq, Show)
+  deriving (Eq, Show, Ord)
 
 instance Binary Number where
     -- writing
