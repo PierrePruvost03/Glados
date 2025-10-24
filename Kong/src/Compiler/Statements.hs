@@ -9,7 +9,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import qualified Data.Vector as V
-import Compiler.Types (CompilerError(..), CompilerEnv)
+import Compiler.Types (CompilerError(..), CompilerEnv, resolveType)
 import Compiler.Expr (compileExpr)
 import qualified Data.Map as M
 
@@ -41,13 +41,15 @@ registerFunction env name params (bodyCode, _) =
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
 declareDefault env t name
-  | isKonst t = ([Push (defaultValue t), SetVar name], M.insert name t env)
-  | otherwise = ([Push (defaultValue t), Alloc, StoreRef, SetVar name], M.insert name t env)
+  | isKonst t' = ([Push (defaultValue t'), SetVar name], M.insert name t' env)
+  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], M.insert name t' env)
+  where t' = resolveType env t
 
 declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
 declareWithValue env t name exprCode
-  | isKonst t = (exprCode ++ [SetVar name], M.insert name t env)
-  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], M.insert name t env)
+  | isKonst t' = (exprCode ++ [SetVar name], M.insert name t' env)
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], M.insert name t' env)
+  where t' = resolveType env t
 
 symbolInstrs :: CompilerEnv -> String -> [Instr]
 symbolInstrs env symbol

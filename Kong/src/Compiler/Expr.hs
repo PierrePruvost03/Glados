@@ -9,7 +9,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
-import Compiler.Types (CompilerError(..), CompilerEnv)
+import Compiler.Types (CompilerError(..), CompilerEnv, resolveType)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 
@@ -22,7 +22,7 @@ compileExpr (AAttribution var rhs) env =
   assignTarget (M.lookup var env)
   where
     assignTarget (Just t)
-      | isKonst t = Left $ IllegalAssignment var
+      | isKonst (resolveType env t) = Left $ IllegalAssignment var
     assignTarget (Just _) =
       compileExpr rhs env >>= \rhsCode ->
         Right (rhsCode ++ [PushEnv var, StoreRef])
@@ -47,7 +47,7 @@ compileValue (AVector exprs) env = compileListLiteral exprs env
 compileValue (AStruct structFields) env = compileStructLiteral structFields env
 compileValue (AVarCall vname) env
   | Just t <- M.lookup vname env
-  , not (isKonst t) = Right [PushEnv vname, LoadRef]
+  , not (isKonst (resolveType env t)) = Right [PushEnv vname, LoadRef]
   | otherwise = Right [PushEnv vname]
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
