@@ -2,14 +2,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module ExecuteVM (executeVM) where
 
-import VM.Execution (exec, makeIntValue)
+import VM.Execution (exec)
+import VM.Operations (makeIntValue)
 import DataStruct.Bytecode.Value (Instr)
 import Data.Binary (decodeFile)
 import DataStruct.VM (VMState(..), baseState)
 import VM.Errors (ExecError(..))
 import Control.Exception
 import System.IO
--- import GHC.Exception.Type (isDoesNotExistError)
 
 executeVM :: String -> IO Int
 executeVM file = (((decodeFile file) :: IO [Instr]) >>= \instr -> exec (baseState instr) >>= \case
