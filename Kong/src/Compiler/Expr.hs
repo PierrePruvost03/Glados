@@ -11,6 +11,7 @@ import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import Compiler.Types (CompilerError(..), CompilerEnv)
 import qualified Data.Map as M
+import qualified Data.Vector as V
 
 isKonst :: Type -> Bool
 isKonst (TKonst _) = True
@@ -38,26 +39,57 @@ compileCall funcName
 
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
 compileValue (ANumber number) _ = Right [Push (VNumber (compileNumber number))]
-compileValue (AString s) _ = Right (map (Push . VNumber . VChar) s ++ [CreateList (length s)])
+compileValue (AString s) _ =
+  Right [Push (VList (V.fromList (map (VNumber . VChar) s)) False)]
+compileValue (ATuple exprs) env = compileListLiteral exprs env
+compileValue (AArray exprs) env = compileListLiteral exprs env
+compileValue (AVector exprs) env = compileListLiteral exprs env
+compileValue (AStruct structFields) env = compileStructLiteral structFields env
 compileValue (AVarCall vname) env
   | Just t <- M.lookup vname env
   , not (isKonst t) = Right [PushEnv vname, LoadRef]
   | otherwise = Right [PushEnv vname]
-compileValue val _ = Left $ UnsupportedAst ("Unsupported value: " ++ show val)
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
 compileAccess (AArrayAccess arrName idx) env =
-  compileExpr idx env >>= Right . assemble arrName
+  compileIndexedAccess arrName idx env
+compileAccess (AVectorAccess vecName idx) env =
+  compileIndexedAccess vecName idx env
+compileAccess (ATupleAccess tupleName idx) env =
+  compileIndexedAccess tupleName idx env
+compileAccess (AStructAccess structName fieldPath) env =
+  Right (base structName ++ map GetStruct fieldPath)
   where
-    assemble name idxCode = base name ++ idxCode ++ [GetList]
     base name
       | Just t <- M.lookup name env
       , not (isKonst t) = [PushEnv name, LoadRef]
       | otherwise = [PushEnv name]
-compileAccess access _ = Left $ UnsupportedAst ("Unsupported access: " ++ show access)
 
 compileNumber :: AstNumber -> Number
 compileNumber (AInteger n) = VInt n
 compileNumber (AFloat f) = VFloat (realToFrac f)
 compileNumber (ABool b) = VBool b
 compileNumber (AChar c) = VChar c
+
+compileListLiteral :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
+compileListLiteral exprs env =
+  fmap (\compiled -> concat compiled ++ [CreateList (length exprs)])
+       (mapM (`compileExpr` env) exprs)
+
+compileStructLiteral :: [(String, AExpression)] -> CompilerEnv -> Either CompilerError [Instr]
+compileStructLiteral fieldPairs env =
+  fmap (\compiled -> concat compiled ++ [CreateStruct fieldNames])
+       (mapM compileField (reverse fieldPairs))
+  where
+    compileField (_, expression) = compileExpr expression env
+    fieldNames = map fst fieldPairs
+
+compileIndexedAccess :: String -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
+compileIndexedAccess name idx env =
+  compileExpr idx env >>= Right . assemble
+  where
+    assemble idxCode = base name ++ idxCode ++ [GetList]
+    base targetName
+      | Just t <- M.lookup targetName env
+      , not (isKonst t) = [PushEnv targetName, LoadRef]
+      | otherwise = [PushEnv targetName]
