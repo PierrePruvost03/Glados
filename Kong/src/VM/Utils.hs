@@ -31,7 +31,7 @@ makeBoolValue (VNumber (VChar _)) = True
 makeBoolValue (VNumber (VFloat n))
     | n > 0 = True
     | otherwise = False
-makeBoolValue (VList (list) _) = null list
+makeBoolValue (VList (list)) = null list
 -- makeBoolValue VStruct String (M.Map String HeapAddr)
 -- makeBoolValue VFunction [String] [Instr] Env
 -- makeBoolValue VBuiltinOp Op

@@ -6,7 +6,9 @@ import Test.HUnit
 import Compiler.KongCompiler
 import DataStruct.Ast
 import DataStruct.VM
-import DataStruct.Bytecode
+import DataStruct.Bytecode.Value
+import DataStruct.Bytecode.Number
+import DataStruct.Bytecode.Op
 
 testCompileInteger :: Test
 testCompileInteger =
@@ -40,7 +42,7 @@ testCompileString =
   TestCase
     ( assertEqual
         "should compile string value to Push VString instruction"
-        (Right [Push (VString "hello")])
+        (Right [Push (VList ("hello"))])
         (compile (AExpress (AValue (AString "hello"))))
     )
 
@@ -49,7 +51,7 @@ testCompileChar =
   TestCase
     ( assertEqual
         "should compile char value to Push VChar instruction"
-        (Right [Push (VChar 'a')])
+        (Right [Push (VNumber (VChar 'a'))])
         (compile (AExpress (AValue (ANumber (AChar 'a')))))
     )
 

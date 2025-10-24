@@ -28,7 +28,7 @@ executeSyscall (Print n) s@(VMState {stack, ip}) = case createList stack n of
         f (x:xs) = print x >> f xs
 
 -- Open
-executeSyscall Open s@(VMState {stack = (VList file _) : xs, ip}) =
+executeSyscall Open s@(VMState {stack = (VList file) : xs, ip}) =
     catch
         (openFile (map toChar (V.toList file)) ReadWriteMode True >>= \((fd), _) -> pure (fromIntegral (fdFD fd)))
         (\(_ :: IOException) -> pure (-1)) >>=
@@ -58,6 +58,6 @@ executeSyscall Read s@(VMState {stack = fd : n : xs, ip}) =
         >>= \bytesRead -> peekCStringLen (castPtr ptr, bytesRead))
     (\(_ :: IOException) -> pure "")
   >>= \str ->
-      pure (s {stack = VList (V.fromList (map (\c -> VNumber (VChar c)) str)) False : xs, ip = ip + 1})
+      pure (s {stack = VList (V.fromList (map (\c -> VNumber (VChar c)) str)) : xs, ip = ip + 1})
   where
     len = (makeIntValue n)

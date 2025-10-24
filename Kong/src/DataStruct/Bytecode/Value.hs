@@ -13,8 +13,8 @@ type HeapAddr = Int
 
 data Value
   = VNumber Number
-  | VList (V.Vector Value) Bool
-  | VStruct (M.Map String Value) Bool
+  | VList (V.Vector Value)
+  | VStruct (M.Map String Value)
   | VFunction [String] (V.Vector Instr)
   | VBuiltinOp Op
   | VRef HeapAddr
@@ -25,8 +25,8 @@ data Value
 instance Binary Value where
     -- writing
     put (VNumber v) = put (0 :: Word8) <> put v
-    put (VList v k) = put (2 :: Word8) <> putList (V.toList v) <> put k
-    put (VStruct v k) = put (3 :: Word8) <> put v <> put k
+    put (VList v) = put (2 :: Word8) <> putList (V.toList v)
+    put (VStruct v) = put (3 :: Word8) <> put v
     put (VFunction a i) = put (4 :: Word8) <> putManyMany a <> putList (V.toList i)
     put (VBuiltinOp v) = put (5 :: Word8) <> put v
     put (VRef v) = put (6 :: Word8) <> put v
@@ -34,8 +34,8 @@ instance Binary Value where
     -- reading
     get = (get :: Get Word8) >>= \case
         0 -> construct VNumber
-        2 -> VList <$> (V.fromList <$> getList (get :: Get Value)) <*> (get :: Get Bool)
-        3 -> VStruct <$> (get :: Get (M.Map String Value)) <*> (get :: Get Bool)
+        2 -> VList <$> (V.fromList <$> getList (get :: Get Value))
+        3 -> VStruct <$> (get :: Get (M.Map String Value))
         4 -> VFunction <$> getList (getList (get :: Get Char)) <*> (V.fromList <$> getList (get :: Get Instr))
         5 -> construct VBuiltinOp
         6 -> construct VRef

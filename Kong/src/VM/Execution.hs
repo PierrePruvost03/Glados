@@ -53,23 +53,23 @@ checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
     exec $ s {env = M.insert n x env, stack = xs, ip = ip + 1}
 
 -- List
-checkInstrution s@(VMState {stack = (VList li c) : index : value :xs, ip}) SetList =
-    exec $ s {stack = VList (li V.// [(makeIntValue index, value)]) c : xs, ip = ip + 1}
-checkInstrution s@(VMState {stack = (VList li _) : index : xs, ip}) GetList = case li V.!? intIndex of
+checkInstrution s@(VMState {stack = (VList li) : index : value :xs, ip}) SetList =
+    exec $ s {stack = VList (li V.// [(makeIntValue index, value)]) : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = (VList li) : index : xs, ip}) GetList = case li V.!? intIndex of
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ AccessOutOfRange intIndex
     where intIndex = makeIntValue index
 checkInstrution s@(VMState {stack, ip}) (CreateList n) = case createList stack n of
-    (values, xs) -> exec $ s {stack = VList (V.fromList values) False : xs, ip = ip + 1}
+    (values, xs) -> exec $ s {stack = VList (V.fromList values) : xs, ip = ip + 1}
 
 -- Struct
-checkInstrution s@(VMState {stack = VStruct struct c : value : xs, ip}) (SetStruct field) =
-    exec $ s {stack = VStruct (M.insert field value struct) c : xs, ip = ip + 1}
-checkInstrution s@(VMState {stack = VStruct struct _ : xs, ip}) (GetStruct field) = case struct M.!? field of
+checkInstrution s@(VMState {stack = VStruct struct : value : xs, ip}) (SetStruct field) =
+    exec $ s {stack = VStruct (M.insert field value struct) : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = VStruct struct : xs, ip}) (GetStruct field) = case struct M.!? field of
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ InvalidStructAccess field
 checkInstrution s@(VMState {stack, ip}) (CreateStruct l) = case createStruct stack l of
-    (values, xs) -> exec $ s {stack = VStruct (M.fromList values) False : xs, ip = ip + 1}
+    (values, xs) -> exec $ s {stack = VStruct (M.fromList values) : xs, ip = ip + 1}
 
 
 -- Heap Management
