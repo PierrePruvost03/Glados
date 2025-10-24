@@ -91,17 +91,17 @@ compileAst ast env = case ast of
 
 compileIf :: Ast -> Env -> Either CompilerError [Instr]
 compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
-  concat <$> sequence
-  ([ compileExpr cond env
-    , Right [JumpIfFalse (bodyLength + 1)]
-    , compiledThen
-    ] <> f elseBranch)
-    where
-      compiledThen = compileAst thenBranch env
-      bodyLength = length compiledThen
-      f (Just a) = [compileAst a env]
-      f Nothing = mempty
+  compileExpr cond env >>= \compiledCond ->
+    compileAst thenBranch env >>= \compiledThen ->
+      Right [JumpIfFalse (length compiledThen + 2)] >>= \condJump ->
+        f elseBranch >>= \compiledElse ->
+          Right [Jump (length compiledElse + 1)] >>= \thenJump ->
+            Right (compiledCond <> condJump <> compiledThen <> thenJump <> compiledElse)
+  where
+    f (Just a) = compileAst a env
+    f Nothing = Right []
 compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
+
 
 compileLoop :: Ast -> Env -> Either CompilerError [Instr]
 compileLoop (ALoop Nothing cond (Just incr) body) env =
