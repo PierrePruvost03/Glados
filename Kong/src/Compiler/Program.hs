@@ -2,6 +2,7 @@ module Compiler.Program
   ( compileProgram
   , resultsToEither
   , expand
+  , compile
   ) where
 
 import qualified Data.Map as M

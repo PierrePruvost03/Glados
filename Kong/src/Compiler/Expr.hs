@@ -36,12 +36,12 @@ compileValue val _env = case val of
   ANumber (AFloat f) -> Right [Push (VNumber (VFloat (realToFrac f)))]
   ANumber (ABool b) -> Right [Push (VNumber (VBool b))]
   ANumber (AChar c) -> Right [Push (VNumber (VChar c))]
-  AString s -> Right [Push (VString s)]
+  AString s -> Right $ map (Push . VNumber . VChar) s ++ [CreateList (length s)]
   AVarCall vname -> Right [PushEnv vname]
   _ -> Left $ UnsupportedAst ("Unsupported value: " ++ show val)
 
 compileAccess :: AstAccess -> Env -> Either CompilerError [Instr]
 compileAccess access env = case access of
   AArrayAccess arrName idx ->
-    fmap (([PushEnv arrName] ++) . (++ [ArrayGet])) (compileExpr idx env)
+    fmap (([PushEnv arrName] ++) . (++ [GetList])) (compileExpr idx env)
   _ -> Left $ UnsupportedAst ("Unsupported access: " ++ show access)

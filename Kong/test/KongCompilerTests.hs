@@ -3,17 +3,19 @@ module KongCompilerTests (kongCompilerTests) where
 import Data.List (isInfixOf)
 import Test.HUnit
 
-import Compiler.KongCompiler
+import Compiler.Program (compile)
 import DataStruct.Ast
-import DataStruct.VM
-import DataStruct.Bytecode
+import DataStruct.Bytecode.Value (Instr(..), Value(..))
+import DataStruct.Bytecode.Number (Number(..))
+import DataStruct.Bytecode.Op (Op(..))
+import Compiler.Types (CompilerError(..))
 
 testCompileInteger :: Test
 testCompileInteger =
   TestCase
     ( assertEqual
         "should compile integer value to Push VInt instruction"
-        (Right [Push (VInt 42)])
+        (Right [Push (VNumber (VInt 42))])
         (compile (AExpress (AValue (ANumber (AInteger 42)))))
     )
 
@@ -22,7 +24,7 @@ testCompileFloat =
   TestCase $ do
     let result = compile (AExpress (AValue (ANumber (AFloat 3.14))))
     case result of
-      Right [Push (VFloat f)] -> assertBool "Should compile float value" (abs (f - 3.14) < 0.001)
+      Right [Push (VNumber (VFloat f))] -> assertBool "Should compile float value" (abs (f - 3.14) < 0.001)
       Right other -> assertFailure $ "Unexpected result: " ++ show other
       Left err -> assertFailure $ "Should not fail: " ++ show err
 
@@ -31,7 +33,7 @@ testCompileBool =
   TestCase
     ( assertEqual
         "should compile boolean value to Push VBool instruction"
-        (Right [Push (VBool True)])
+        (Right [Push (VNumber (VBool True))])
         (compile (AExpress (AValue (ANumber (ABool True)))))
     )
 
@@ -40,7 +42,7 @@ testCompileString =
   TestCase
     ( assertEqual
         "should compile string value to Push VString instruction"
-        (Right [Push (VString "hello")])
+        (Right [Push (VNumber (VChar 'h')), Push (VNumber (VChar 'e')), Push (VNumber (VChar 'l')), Push (VNumber (VChar 'l')), Push (VNumber (VChar 'o')), CreateList 5])
         (compile (AExpress (AValue (AString "hello"))))
     )
 
@@ -49,7 +51,7 @@ testCompileChar =
   TestCase
     ( assertEqual
         "should compile char value to Push VChar instruction"
-        (Right [Push (VChar 'a')])
+        (Right [Push (VNumber (VChar 'a'))])
         (compile (AExpress (AValue (ANumber (AChar 'a')))))
     )
 
@@ -58,7 +60,7 @@ testCompileVarDecl =
   TestCase
     ( assertEqual
         "should compile variable declaration to default value push and SetVar"
-        (Right [Push (VInt 0), SetVar "x"])
+        (Right [Push (VNumber (VInt 0)), SetVar "x"])
         (compile (AVarDecl TInt "x" Nothing))
     )
 
@@ -67,7 +69,7 @@ testCompileVarDeclWithValue =
   TestCase
     ( assertEqual
         "should compile variable declaration with value"
-        (Right [Push (VInt 42), SetVar "x"])
+        (Right [Push (VNumber (VInt 42)), SetVar "x"])
         (compile (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
     )
 
@@ -85,7 +87,7 @@ testCompileAttribution =
   TestCase
     ( assertEqual
         "should compile variable attribution"
-        (Right [Push (VInt 10), SetVar "x"])
+        (Right [Push (VNumber (VInt 10)), SetVar "x"])
         (compile (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))))
     )
 
@@ -94,7 +96,7 @@ testCompileFunctionCall =
   TestCase
     ( assertEqual
         "should compile function call with arguments in reverse order"
-        (Right [Push (VInt 2), Push (VInt 1), PushEnv "myFunc", Call])
+        (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), PushEnv "myFunc", Call])
         (compile (AExpress (ACall "myFunc" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
@@ -103,7 +105,7 @@ testCompileBuiltinAdd =
   TestCase
     ( assertEqual
         "should compile builtin addition operation"
-        (Right [Push (VInt 2), Push (VInt 1), DoOp Add])
+        (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), DoOp Add])
         (compile (AExpress (ACall "+" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
@@ -112,7 +114,7 @@ testCompileBuiltinSub =
   TestCase
     ( assertEqual
         "should compile builtin subtraction operation"
-        (Right [Push (VInt 3), Push (VInt 5), DoOp Sub])
+        (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 5)), DoOp Sub])
         (compile (AExpress (ACall "-" [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 3))])))
     )
 
@@ -121,7 +123,7 @@ testCompileBuiltinEqual =
   TestCase
     ( assertEqual
         "should compile builtin equality operation"
-        (Right [Push (VInt 2), Push (VInt 1), DoOp Equal])
+        (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), DoOp Equal])
         (compile (AExpress (ACall "==" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
@@ -139,7 +141,7 @@ testCompileReturn =
   TestCase
     ( assertEqual
         "should compile return statement"
-        (Right [Push (VInt 42), Ret])
+        (Right [Push (VNumber (VInt 42)), Ret])
         (compile (AReturn (AExpress (AValue (ANumber (AInteger 42))))))
     )
 
@@ -148,7 +150,7 @@ testCompileBlock =
   TestCase
     ( assertEqual
         "should compile block of statements"
-        (Right [Push (VInt 5), SetVar "x", PushEnv "x"])
+        (Right [Push (VNumber (VInt 5)), SetVar "x", PushEnv "x"])
         (compile (ABlock [
           AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 5)))),
           AExpress (AValue (AVarCall "x"))

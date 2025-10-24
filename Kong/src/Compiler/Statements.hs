@@ -54,7 +54,7 @@ defaultValue = \case
   TBool -> VNumber $ VBool False
   TChar -> VNumber $ VChar '\0'
   TFloat -> VNumber $ VFloat 0.0
-  TString -> VString ""
+  TString -> VList (V.fromList []) False
   TStrong t -> defaultValue t
   TKong t -> defaultValue t
   _ -> VEmpty
