@@ -18,7 +18,8 @@ expand :: [(String, [Ast])] -> [(String, Ast)]
 expand = concatMap (\(f, as) -> map ((,) f) as)
 
 compilePair :: (String, Ast) -> Either ProgramError [Instr]
-compilePair (f, a) = either (Left . ProgramError f a) Right (compile a)
+compilePair (f, a) =
+  either (Left . ProgramError f a) Right (compile a)
 
 resultsToEither :: [Either ProgramError [Instr]] -> Either [ProgramError] [Instr]
 resultsToEither = foldr step (Right [])
@@ -30,4 +31,4 @@ step (Right _) (Left es) = Left es
 step (Right is) (Right js) = Right (is ++ js)
 
 compile :: Ast -> Either CompilerError [Instr]
-compile ast = compileAst ast M.empty
+compile ast = fst <$> compileAst ast M.empty

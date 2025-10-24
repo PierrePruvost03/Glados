@@ -58,20 +58,20 @@ testCompileChar =
 testCompileVarDecl :: Test
 testCompileVarDecl =
   TestCase
-    ( assertEqual
-        "should compile variable declaration to default value push and SetVar"
-        (Right [Push (VNumber (VInt 0)), SetVar "x"])
-        (compile (AVarDecl TInt "x" Nothing))
-    )
+  ( assertEqual
+    "should compile mutable variable declaration to heap-backed storage"
+    (Right [Push (VNumber (VInt 0)), Alloc, StoreRef, SetVar "x"])
+    (compile (AVarDecl TInt "x" Nothing))
+  )
 
 testCompileVarDeclWithValue :: Test
 testCompileVarDeclWithValue =
   TestCase
-    ( assertEqual
-        "should compile variable declaration with value"
-        (Right [Push (VNumber (VInt 42)), SetVar "x"])
-        (compile (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
-    )
+  ( assertEqual
+    "should compile mutable variable declaration with value to heap"
+    (Right [Push (VNumber (VInt 42)), Alloc, StoreRef, SetVar "x"])
+    (compile (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
+  )
 
 testCompileVarCall :: Test
 testCompileVarCall =
@@ -85,10 +85,12 @@ testCompileVarCall =
 testCompileAttribution :: Test
 testCompileAttribution =
   TestCase
-    ( assertEqual
-        "should compile variable attribution"
-        (Right [Push (VNumber (VInt 10)), SetVar "x"])
-        (compile (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))))
+    ( assertBool
+        "should fail attribution for undeclared variable"
+        ( case compile (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))) of
+            Left (IllegalAssignment msg) -> "undeclared variable" `isInfixOf` msg
+            _ -> False
+        )
     )
 
 testCompileFunctionCall :: Test
@@ -150,7 +152,7 @@ testCompileBlock =
   TestCase
     ( assertEqual
         "should compile block of statements"
-        (Right [Push (VNumber (VInt 5)), SetVar "x", PushEnv "x"])
+        (Right [Push (VNumber (VInt 5)), Alloc, StoreRef, SetVar "x", PushEnv "x", LoadRef])
         (compile (ABlock [
           AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 5)))),
           AExpress (AValue (AVarCall "x"))
