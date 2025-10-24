@@ -1,10 +1,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module VM.Execution
-    (
+    ( exec,
+      makeIntValue
     ) where
 
-import DataStruct.VM (VMState(..), ExecError(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
+import DataStruct.VM (VMState(..), ExecEnv, Heap, Stack, HeapAddr, initVMState)
 import DataStruct.Bytecode.Number
 import DataStruct.Bytecode.Op (Op(..), builtinOps, stringToOp, get, put)
 import DataStruct.Bytecode.Utils (construct, constructList, putManyMany, getMany, getList)
@@ -14,6 +15,7 @@ import qualified Data.Vector as V
 import qualified Data.Map as M
 import VM.EnvGestion (mergeEnv)
 import VM.Errors (ExecError (..))
+import Data.Char (digitToInt)
 
 makeBoolValue :: Value -> Bool
 makeBoolValue (VNumber (VBool value)) = value
@@ -25,16 +27,19 @@ makeBoolValue (VNumber (VChar _)) = True
 makeBoolValue (VNumber (VFloat n))
     | n > 0 = True
     | otherwise = False
-makeBoolValue (VString string) = null string
-makeBoolValue (VTuple (vector) _) = null vector
-makeBoolValue (VArray (vector) _) = null vector
-makeBoolValue (VVector (vector) _) = null vector
+makeBoolValue (VList (list) _) = null list
 -- makeBoolValue VStruct String (M.Map String HeapAddr)
 -- makeBoolValue VFunction [String] [Instr] Env
 -- makeBoolValue VBuiltinOp Op
 -- makeBoolValue VRef HeapAddr
 makeBoolValue VEmpty = False
 makeBoolValue _ = False
+
+makeIntValue :: Value -> Int
+makeIntValue (VNumber (VInt i)) = i
+makeIntValue (VNumber (VChar i)) = digitToInt i
+makeIntValue (VNumber (VBool i)) = fromEnum i
+makeIntValue _ = throw $ InvalidIntConversion
 
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
@@ -50,6 +55,21 @@ compareTypes (VInt a) (VInt b) = (VInt a, VInt b)
 compareTypes (VInt a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral a::Double
 compareTypes a (VInt b) = (a2, b2) where (b2, a2) = compareTypes (VInt b) a
 compareTypes (VFloat a) (VFloat b) = (VFloat a, VFloat b)
+
+createList :: Stack -> Int -> ([Value], Stack)
+createList stack n = f ([], stack) n
+    where
+        f r 0 = r
+        f (_, []) _ = throw $ InvalidStackAccess
+        f (l, (x:xs)) n = f (x : l, xs) (n - 1)
+
+createStruct :: Stack -> [String] -> ([(String , Value)], Stack)
+createStruct stack names = f ([], stack) names
+    where
+        f r [] = r
+        f (_, []) _ = throw $ InvalidStackAccess
+        f (l, vX:vXs) (nX:nXs) = f ((nX, vX):l, vXs) nXs
+
 
 addOp :: (Number, Number) -> IO Number
 addOp ((VBool a), (VBool b)) = pure $ VBool (a /= b)
@@ -73,10 +93,10 @@ mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
 mulOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 divOp :: (Number, Number) -> IO Number
-divOp (_, (VBool False)) = throw $ Err 2
-divOp (_, (VChar '\0')) = throw $ Err 2
-divOp (_, (VInt 0)) = throw $ Err 2
-divOp (_, (VFloat 0)) = throw $ Err 2
+divOp (_, (VBool False)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VChar '\0')) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VInt 0)) = throwIO $ ImpossibleDivsionByZero
+divOp (_, (VFloat 0)) = throwIO $ ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
 divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
@@ -86,12 +106,44 @@ divOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 equalOp :: (Number, Number) -> IO Number
 equalOp (a, b) = pure $ VBool (a == b)
 
+lessThanOp :: (Number, Number) -> IO Number
+lessThanOp (a, b) = pure $ VBool (a < b)
+
+greaterThanOp :: (Number, Number) -> IO Number
+greaterThanOp (a, b) = pure $ VBool (a > b)
+
+lessEqualOp :: (Number, Number) -> IO Number
+lessEqualOp (a, b) = pure $ VBool (a <= b)
+
+greaterEqualOp :: (Number, Number) -> IO Number
+greaterEqualOp (a, b) = pure $ VBool (a >= b)
+
+notEqualOp :: (Number, Number) -> IO Number
+notEqualOp (a, b) = pure $ VBool (a /= b)
+
+andOp :: (Number, Number) -> IO Number
+andOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) && makeBoolValue (VNumber b))
+
+orOp :: (Number, Number) -> IO Number
+orOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
+
+notOp :: Number -> IO Number
+notOp n = pure $ VBool (not (makeBoolValue (VNumber n)))
+
 applyOp :: VMState -> Op -> IO Number
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Add = addOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Sub = subOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Mul = mulOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Div = divOp $ compareTypes a b
 applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Equal = equalOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Lt = lessThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Gt = greaterThanOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Le = lessEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ge = greaterEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ne = notEqualOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) And = andOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Or = orOp $ compareTypes a b
+applyOp (VMState {stack = (VNumber a: _)}) Not = notOp a
 applyOp (VMState {stack = (v1: v2: _)}) _ = throwIO $ InvalidOpTypeError v1 v2
 applyOp _ _ = throwIO $ InvalidStackAccess
 
@@ -100,11 +152,20 @@ exec state@(VMState {code, ip}) = case code V.!? ip of
     Nothing -> throwIO $ ByteCodeOutOfRange
     Just instr -> checkInstrution state instr
 
+
+
 checkInstrution :: VMState -> Instr -> IO VMState
 checkInstrution s Ret = pure s
 checkInstrution s@(VMState {ip}) Nop = exec $ s {ip = ip + 1}
+
+-- Push
 checkInstrution state@(VMState {stack = xs, ip}) (Push value) =
     exec $ state {stack = value : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack, env, ip}) (PushEnv n) = case env M.!? n of
+    Just v -> exec $ s {stack = (v : stack), ip = ip + 1}
+    Nothing -> throwIO $ VarDoesNotExists n
+
+-- Jumps
 checkInstrution state@(VMState {ip}) (Jump n) = exec $ state {ip = ip + n}
 checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfFalse n)
     | not $ makeBoolValue x = exec $ state {stack = xs, ip = ip + n}
@@ -112,23 +173,49 @@ checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfFalse n)
 checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfTrue n)
     | makeBoolValue x = exec $ state {stack = xs, ip = ip + n}
     | otherwise = exec $ state {stack = xs, ip = ip + 1}
+
+-- Operations
 checkInstrution state@(VMState {stack = _ : _ : xs, ip}) (DoOp op) =
      applyOp state op >>= \x -> exec $ state {stack = VNumber x : xs, ip = ip + 1}
-checkInstrution s@(VMState {stack, env, ip}) (PushEnv n) = case env M.!? n of
-    Just v -> exec $ s {stack = (v : stack), ip = ip + 1}
-    Nothing -> throwIO $ VarDoesNotExists n
+
+-- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, ip}) Call =
     exec (s {code = code, stack = xs, env = mergeEnv env symbols, ip = 0}) >>=
         \(VMState {stack = (x:_)}) -> exec $ s {stack = x:xs, ip = ip + 1}
+
+-- Var
 checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
     exec $ s {env = M.insert n x env, stack = xs, ip = ip + 1}
-checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVector n i) = case env M.!? n of
-    Just (VVector v c) -> exec $ s {env = M.insert n (VVector (v V.// [(i, x)]) c) env, stack = xs, ip = ip + 1}
-    Nothing -> throwIO $ VarDoesNotExists n
-checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetArray n i) = case env M.!? n of
-    Just (VArray v c) -> exec $ s {env = M.insert n (VArray (v V.// [(i, x)]) c) env, stack = xs, ip = ip + 1}
-    Nothing -> throwIO $ VarDoesNotExists n
+
+-- List
+checkInstrution s@(VMState {stack = (VList li c) : index : value :xs, ip}) SetList =
+    exec $ s {stack = VList (li V.// [(makeIntValue index, value)]) c : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = (VList li _) : index : xs, ip}) GetList = case li V.!? intIndex of
+    Just v -> exec $ s {stack = v : xs, ip = ip + 1}
+    Nothing -> throwIO $ AccessOutOfRange intIndex
+    where intIndex = makeIntValue index
+checkInstrution s@(VMState {stack, ip}) (CreateList n) = case createList stack n of
+    (values, xs) -> exec $ s {stack = VList (V.fromList values) False : xs, ip = ip + 1}
+
+-- Struct
+checkInstrution s@(VMState {stack = VStruct struct c : value : xs, ip}) (SetStruct field) =
+    exec $ s {stack = VStruct (M.insert field value struct) c : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = VStruct struct _ : xs, ip}) (GetStruct field) = case struct M.!? field of
+    Just v -> exec $ s {stack = v : xs, ip = ip + 1}
+    Nothing -> throwIO $ InvalidStructAccess field
+checkInstrution s@(VMState {stack, ip}) (CreateStruct l) = case createStruct stack l of
+    (values, xs) -> exec $ s {stack = VStruct (M.fromList values) False : xs, ip = ip + 1}
 
 
+-- Heap Management
+checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case heap V.!? addr of
+    Just v -> exec $ s {stack = v : xs, ip = ip + 1}
+    Nothing -> throwIO $ InvalidHeapAccess
+checkInstrution s@(VMState {stack, heap, ip}) Alloc =
+    exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1}
+checkInstrution s@(VMState {stack = (VRef addr) : v : xs, heap, ip}) StoreRef =
+    exec $ s {stack = xs, heap = heap V.// [(addr, v)], ip = ip + 1}
 
+
+-- checkInstrution s@(VMState {stack, env, ip})
 checkInstrution _ _ = throw $ UnknowInstruction
