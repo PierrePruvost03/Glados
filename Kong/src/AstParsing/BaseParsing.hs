@@ -39,7 +39,7 @@ parseForIn =
   parseString symbolFor
     *> skip
     *> ( AForIn
-           <$> (parseName <|> fatal "For In" "missing variable")
+           <$> (parseName <|> fatal "For" "missing variable or condition")
            <* skip
            <* parseString symbolIn
            <*> ((AExpress <$> parseExpression) <|> fatal "For In" "invalid expression")
