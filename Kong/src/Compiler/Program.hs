@@ -15,7 +15,7 @@ compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram = resultsToEither . map compilePair . expand
 
 expand :: [(String, [Ast])] -> [(String, Ast)]
-expand = concatMap (\(f, as) -> map ((,) f) as)
+expand pairs = [(file, ast) | (file, asts) <- pairs, ast <- asts]
 
 compilePair :: (String, Ast) -> Either ProgramError [Instr]
 compilePair (f, a) =

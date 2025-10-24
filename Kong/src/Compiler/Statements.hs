@@ -1,5 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-
 module Compiler.Statements
   ( compileAst
   , compileIf
@@ -20,41 +18,42 @@ isKonst (TKonst _) = True
 isKonst _ = False
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-compileAst ast env =
-  case ast of
-    ABlock asts ->
-      compileBlock asts env
-    AFunkDef name params _ body ->
-      fmap (registerFunction name params) (compileAst (ABlock body) env)
-    AVarDecl t name Nothing ->
-      Right (declareDefault t name, M.insert name t env)
-    AVarDecl t name (Just initExpr) ->
-      fmap (declareWithValue t name) (compileExpr initExpr env)
-    AExpress expr ->
-      fmap (\instrs -> (instrs, env)) (compileExpr expr env)
-    ASymbol symbol ->
-      Right (symbolInstrs symbol, env)
-    AReturn expr ->
-      fmap (\(instrs, _) -> (instrs ++ [Ret], env)) (compileAst expr env)
-    a@AIf{} ->
-      fmap (\instrs -> (instrs, env)) (compileIf a env)
-    _ -> Left $ UnsupportedAst (show ast)
-  where
-    registerFunction name params (bodyCode, _) =
-      ([Push (VFunction (extractParamNames params) (V.fromList (bodyCode ++ [Ret]))), SetVar name], M.insert name (TKonst TInt) env)
-    declareDefault t name =
-      case isKonst t of
-        True -> [Push (defaultValue t), SetVar name]
-        False -> [Push (defaultValue t), Alloc, StoreRef, SetVar name]
-    declareWithValue t name exprCode =
-      ( case isKonst t of
-          True -> exprCode ++ [SetVar name]
-          False -> exprCode ++ [Alloc, StoreRef, SetVar name]
-      , M.insert name t env)
-    symbolInstrs symbol =
-      case M.lookup symbol env of
-        Just t | not (isKonst t) -> [PushEnv symbol, LoadRef]
-        _ -> [PushEnv symbol]
+compileAst (ABlock asts) env = compileBlock asts env
+compileAst (AFunkDef name params _ body) env =
+  fmap (registerFunction env name params) (compileAst (ABlock body) env)
+compileAst (AVarDecl t name Nothing) env =
+  Right (declareDefault env t name)
+compileAst (AVarDecl t name (Just initExpr)) env =
+  fmap (declareWithValue env t name) (compileExpr initExpr env)
+compileAst (AExpress expr) env =
+  fmap (\instrs -> (instrs, env)) (compileExpr expr env)
+compileAst (ASymbol symbol) env =
+  Right (symbolInstrs env symbol, env)
+compileAst (AReturn expr) env =
+  fmap (\(instrs, _) -> (instrs ++ [Ret], env)) (compileAst expr env)
+compileAst aIf@AIf{} env =
+  fmap (\instrs -> (instrs, env)) (compileIf aIf env)
+compileAst ast _ = Left $ UnsupportedAst (show ast)
+
+registerFunction :: CompilerEnv -> String -> [Ast] -> ([Instr], CompilerEnv) -> ([Instr], CompilerEnv)
+registerFunction env name params (bodyCode, _) =
+  ([Push (VFunction (extractParamNames params) (V.fromList (bodyCode ++ [Ret]))), SetVar name], M.insert name (TKonst TInt) env)
+
+declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
+declareDefault env t name
+  | isKonst t = ([Push (defaultValue t), SetVar name], M.insert name t env)
+  | otherwise = ([Push (defaultValue t), Alloc, StoreRef, SetVar name], M.insert name t env)
+
+declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
+declareWithValue env t name exprCode
+  | isKonst t = (exprCode ++ [SetVar name], M.insert name t env)
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], M.insert name t env)
+
+symbolInstrs :: CompilerEnv -> String -> [Instr]
+symbolInstrs env symbol
+  | Just t <- M.lookup symbol env
+  , not (isKonst t) = [PushEnv symbol, LoadRef]
+  | otherwise = [PushEnv symbol]
 
 compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileBlock asts env =
@@ -73,18 +72,12 @@ compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
   where
     assemble condCode thenCode elseCode =
       condCode ++ [JumpIfFalse (jumpOffset thenCode elseCode)] ++ thenCode ++ elseSegment elseCode
-    jumpOffset thenCode elseCode =
-      case elseCode of
-        [] -> length thenCode
-        _ -> length thenCode + 1
-    elseSegment elseCode =
-      case elseCode of
-        [] -> []
-        _ -> Jump (length elseCode) : elseCode
-    compileElse maybeBranch scope =
-      case maybeBranch of
-        Just branch -> compileAst branch scope
-        Nothing -> Right ([], scope)
+    jumpOffset thenCode [] = length thenCode
+    jumpOffset thenCode _ = length thenCode + 1
+    elseSegment [] = []
+    elseSegment elseCode = Jump (length elseCode) : elseCode
+    compileElse Nothing scope = Right ([], scope)
+    compileElse (Just branch) scope = compileAst branch scope
 compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
 
 extractParamNames :: [Ast] -> [String]
@@ -94,12 +87,11 @@ extractParamNames = foldr extractParam []
     extractParam _ acc = acc
 
 defaultValue :: Type -> Value
-defaultValue = \case
-  TInt -> VNumber $ VInt 0
-  TBool -> VNumber $ VBool False
-  TChar -> VNumber $ VChar '\0'
-  TFloat -> VNumber $ VFloat 0.0
-  TString -> VList (V.fromList []) False
-  TStrong t -> defaultValue t
-  TKong t -> defaultValue t
-  _ -> VEmpty
+defaultValue TInt = VNumber $ VInt 0
+defaultValue TBool = VNumber $ VBool False
+defaultValue TChar = VNumber $ VChar '\0'
+defaultValue TFloat = VNumber $ VFloat 0.0
+defaultValue TString = VList (V.fromList []) False
+defaultValue (TStrong t) = defaultValue t
+defaultValue (TKong t) = defaultValue t
+defaultValue _ = VEmpty
