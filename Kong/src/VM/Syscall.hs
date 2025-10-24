@@ -15,7 +15,6 @@ import System.IO (IOMode (..))
 import Foreign.C.String
 import Foreign.Ptr (castPtr)
 import Foreign.Marshal.Alloc
-import Debug.Trace
 
 executeSyscall :: Syscall -> VMState -> IO VMState
 -- Exit
@@ -56,8 +55,7 @@ executeSyscall Read s@(VMState {stack = fd : n : xs, ip}) =
   catch
     (allocaBytes len $ \ptr ->
         readRawBufferPtr "" (FD (fromIntegral (makeIntValue fd)) 0) ptr 0 (fromIntegral len)
-        >>= \bytesRead -> trace (show bytesRead) $
-            peekCStringLen (castPtr ptr, bytesRead))
+        >>= \bytesRead -> peekCStringLen (castPtr ptr, bytesRead))
     (\(_ :: IOException) -> pure "")
   >>= \str ->
       pure (s {stack = VList (V.fromList (map (\c -> VNumber (VChar c)) str)) False : xs, ip = ip + 1})
