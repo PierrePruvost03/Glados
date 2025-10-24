@@ -180,11 +180,18 @@ parseBetween c = parseChar c *> parseUntilChar c <* parseChar c
 parseInt :: Parser Int
 parseInt = read <$> ((parseChar '-' >> ('-' :) <$> some (parseAnyChar ['0' .. '9'])) <|> some (parseAnyChar ['0' .. '9']))
 
-parseFloatString :: Parser String
-parseFloatString =
+parsePositiveFloatString :: Parser String
+parsePositiveFloatString =
   (<>)
     <$> some (parseAnyChar ['0' .. '9'])
-    <*> ((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9']))
+    <*> (((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9'])) <|> (skipChars "." *> pure ".0"))
+
+
+
+parseFloatString :: Parser String
+parseFloatString =
+    ((:) <$> parseChar '-' <*> parsePositiveFloatString)
+    <|> parsePositiveFloatString
 
 parseFloat :: Parser Float
 parseFloat = read <$> parseFloatString
