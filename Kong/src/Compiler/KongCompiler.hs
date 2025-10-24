@@ -102,20 +102,18 @@ compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
     f Nothing = Right []
 compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
 
-
 compileLoop :: Ast -> Env -> Either CompilerError [Instr]
-compileLoop (ALoop Nothing cond (Just incr) body) env =
-  concat <$> sequence
-  [compileAst cond env
-    , Right [JumpIfFalse loopLength]
-    , compiledBody
-    , compiledIncr
-    , Right [Jump (- loopLength)]
-  ]
-    where
-      compiledBody = compileAst body env
-      compiledIncr = compileAst incr env
-      loopLength = length compiledBody + length compiledIncr + 2
+compileLoop (ALoop init cond incr body) env = 
+  f init >>= \compiledInit ->
+    compileAst cond env >>= \compiledCond ->
+      f incr >>= \compiledIncr ->
+        compileAst body env >>= \compiledBody ->
+          Right [JumpIfFalse (length compiledBody + length compiledIncr + 2)] >>= \bodyJump ->
+            Right [Jump (- (length compiledBody + length compiledIncr + 2))] >>= \jumpBack ->
+            Right (compiledInit <> compiledCond <> bodyJump <> compiledBody <> compiledIncr <> jumpBack)
+  where
+    f (Just a) = compileAst a env
+    f Nothing = Right []
 compileLoop _ _ = Left $ UnsupportedAst "Loop not supported"
 
 compileExpr :: AExpression -> Env -> Either CompilerError [Instr]
