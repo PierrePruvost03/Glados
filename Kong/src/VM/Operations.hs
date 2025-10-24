@@ -1,40 +1,14 @@
 module VM.Operations (
     applyOp,
-    makeBoolValue,
-    makeIntValue
 ) where
 
-import Data.Char (digitToInt)
 import DataStruct.Bytecode.Value (Value(..))
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.VM (VMState(..))
 import VM.Errors (ExecError(..))
 import Control.Exception
-
-makeBoolValue :: Value -> Bool
-makeBoolValue (VNumber (VBool value)) = value
-makeBoolValue (VNumber (VInt n))
-    | n > 0 = True
-    | otherwise = False
-makeBoolValue (VNumber (VChar '\0')) = False
-makeBoolValue (VNumber (VChar _)) = True
-makeBoolValue (VNumber (VFloat n))
-    | n > 0 = True
-    | otherwise = False
-makeBoolValue (VList (list) _) = null list
--- makeBoolValue VStruct String (M.Map String HeapAddr)
--- makeBoolValue VFunction [String] [Instr] Env
--- makeBoolValue VBuiltinOp Op
--- makeBoolValue VRef HeapAddr
-makeBoolValue VEmpty = False
-makeBoolValue _ = False
-
-makeIntValue :: Value -> Int
-makeIntValue (VNumber (VInt i)) = i
-makeIntValue (VNumber (VChar i)) = digitToInt i
-makeIntValue (VNumber (VBool i)) = fromEnum i
-makeIntValue _ = throw $ InvalidIntConversion
+import VM.Utils (makeBoolValue)
 
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
@@ -51,78 +25,91 @@ compareTypes (VInt a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral
 compareTypes a (VInt b) = (a2, b2) where (b2, a2) = compareTypes (VInt b) a
 compareTypes (VFloat a) (VFloat b) = (VFloat a, VFloat b)
 
-addOp :: (Number, Number) -> IO Number
-addOp ((VBool a), (VBool b)) = pure $ VBool (a /= b)
-addOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
-addOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
-addOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
-addOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
+addOp :: (Number, Number) -> Number
+addOp ((VBool a), (VBool b)) = VBool (a /= b)
+addOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
+addOp ((VInt a), (VInt b)) = VInt (a + b)
+addOp ((VFloat a), (VFloat b)) = VFloat (a + b)
+addOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
-subOp :: (Number, Number) -> IO Number
-subOp ((VBool a), (VBool b)) = pure $ VBool (a == b)
-subOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) - (fromEnum b))::Char)
-subOp ((VInt a), (VInt b)) = pure $ VInt (a - b)
-subOp ((VFloat a), (VFloat b)) = pure $ VFloat (a - b)
-subOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
+subOp :: (Number, Number) -> Number
+subOp ((VBool a), (VBool b)) = VBool (a == b)
+subOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) - (fromEnum b))::Char)
+subOp ((VInt a), (VInt b)) = VInt (a - b)
+subOp ((VFloat a), (VFloat b)) = VFloat (a - b)
+subOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
-mulOp :: (Number, Number) -> IO Number
-mulOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
-mulOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) * (fromEnum b))::Char)
-mulOp ((VInt a), (VInt b)) = pure $ VInt (a * b)
-mulOp ((VFloat a), (VFloat b)) = pure $ VFloat (a * b)
-mulOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
+mulOp :: (Number, Number) -> Number
+mulOp ((VBool a), (VBool b)) = VBool (a && b)
+mulOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) * (fromEnum b))::Char)
+mulOp ((VInt a), (VInt b)) = VInt (a * b)
+mulOp ((VFloat a), (VFloat b)) = VFloat (a * b)
+mulOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
-divOp :: (Number, Number) -> IO Number
-divOp (_, (VBool False)) = throwIO $ ImpossibleDivsionByZero
-divOp (_, (VChar '\0')) = throwIO $ ImpossibleDivsionByZero
-divOp (_, (VInt 0)) = throwIO $ ImpossibleDivsionByZero
-divOp (_, (VFloat 0)) = throwIO $ ImpossibleDivsionByZero
-divOp ((VBool a), (VBool b)) = pure $ VBool (a && b)
-divOp ((VChar a), (VChar b)) = pure $ VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
-divOp ((VInt a), (VInt b)) = pure $ VInt (a + b)
-divOp ((VFloat a), (VFloat b)) = pure $ VFloat (a + b)
-divOp (v1, v2) = throwIO $ InvalidOpTypeError (VNumber v1) (VNumber v2)
+divOp :: (Number, Number) -> Number
+divOp (_, (VBool False)) = throw $ ImpossibleDivsionByZero
+divOp (_, (VChar '\0')) = throw $ ImpossibleDivsionByZero
+divOp (_, (VInt 0)) = throw $ ImpossibleDivsionByZero
+divOp (_, (VFloat 0)) = throw $ ImpossibleDivsionByZero
+divOp ((VBool a), (VBool b)) = VBool (a && b)
+divOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
+divOp ((VInt a), (VInt b)) = VInt (a + b)
+divOp ((VFloat a), (VFloat b)) = VFloat (a + b)
+divOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
-equalOp :: (Number, Number) -> IO Number
-equalOp (a, b) = pure $ VBool (a == b)
+equalOp :: (Number, Number) -> Number
+equalOp (a, b) = VBool (a == b)
 
-lessThanOp :: (Number, Number) -> IO Number
-lessThanOp (a, b) = pure $ VBool (a < b)
+lessThanOp :: (Number, Number) -> Number
+lessThanOp (a, b) = VBool (a < b)
 
-greaterThanOp :: (Number, Number) -> IO Number
-greaterThanOp (a, b) = pure $ VBool (a > b)
+greaterThanOp :: (Number, Number) -> Number
+greaterThanOp (a, b) = VBool (a > b)
 
-lessEqualOp :: (Number, Number) -> IO Number
-lessEqualOp (a, b) = pure $ VBool (a <= b)
+lessEqualOp :: (Number, Number) -> Number
+lessEqualOp (a, b) = VBool (a <= b)
 
-greaterEqualOp :: (Number, Number) -> IO Number
-greaterEqualOp (a, b) = pure $ VBool (a >= b)
+greaterEqualOp :: (Number, Number) -> Number
+greaterEqualOp (a, b) = VBool (a >= b)
 
-notEqualOp :: (Number, Number) -> IO Number
-notEqualOp (a, b) = pure $ VBool (a /= b)
+notEqualOp :: (Number, Number) -> Number
+notEqualOp (a, b) = VBool (a /= b)
 
-andOp :: (Number, Number) -> IO Number
-andOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) && makeBoolValue (VNumber b))
+andOp :: (Number, Number) -> Number
+andOp (a, b) = VBool (makeBoolValue (VNumber a) && makeBoolValue (VNumber b))
 
-orOp :: (Number, Number) -> IO Number
-orOp (a, b) = pure $ VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
+orOp :: (Number, Number) -> Number
+orOp (a, b) = VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
 
-notOp :: Number -> IO Number
-notOp n = pure $ VBool (not (makeBoolValue (VNumber n)))
+notOp :: Number -> Number
+notOp n = VBool (not (makeBoolValue (VNumber n)))
 
-applyOp :: VMState -> Op -> IO Number
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Add = addOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Sub = subOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Mul = mulOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Div = divOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Equal = equalOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Lt = lessThanOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Gt = greaterThanOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Le = lessEqualOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ge = greaterEqualOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Ne = notEqualOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) And = andOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: VNumber b: _)}) Or = orOp $ compareTypes a b
-applyOp (VMState {stack = (VNumber a: _)}) Not = notOp a
-applyOp (VMState {stack = (v1: v2: _)}) _ = throwIO $ InvalidOpTypeError v1 v2
-applyOp _ _ = throwIO $ InvalidStackAccess
+applyOp :: VMState -> Op -> VMState
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Add =
+     s {stack = VNumber (addOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Sub =
+    s {stack = VNumber (subOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Mul =
+     s {stack =  VNumber (mulOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Div =
+     s {stack = VNumber (divOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Equal =
+     s {stack = VNumber (equalOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Lt =
+     s {stack = VNumber (lessThanOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Gt =
+     s {stack = VNumber (greaterThanOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Le =
+     s {stack = VNumber (lessEqualOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Ge =
+     s {stack = VNumber (greaterEqualOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Ne =
+     s {stack = VNumber (notEqualOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) And =
+     s {stack = VNumber (andOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Or =
+     s {stack = VNumber (orOp $ compareTypes a b) : xs}
+applyOp s@(VMState {stack = (VNumber a: xs)}) Not =
+     s {stack = VNumber (notOp a) : xs}
+applyOp (VMState {stack = (v1: v2: _)}) _ = throw $ InvalidOpTypeError v1 v2
+applyOp _ _ = throw $ InvalidStackAccess

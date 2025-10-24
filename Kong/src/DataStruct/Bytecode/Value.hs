@@ -7,8 +7,8 @@ import DataStruct.Bytecode.Number (Number(..))
 import Data.Binary
 import DataStruct.Bytecode.Utils (putManyMany, construct, constructList, getList)
 import DataStruct.Bytecode.Op (Op(..))
+import DataStruct.Bytecode.Syscall
 
-type Env = M.Map String Value
 type HeapAddr = Int
 
 data Value
@@ -73,7 +73,9 @@ data Instr
     -- Heap
     | Alloc
     | LoadRef
-    | StoreRef              -- stack state (addr : value : xs)
+    | StoreRef        -- stack state (addr : value : xs)
+
+    | Syscall Syscall
     deriving (Eq, Show)
 
 instance Binary Instr where
@@ -97,6 +99,7 @@ instance Binary Instr where
     put Alloc = put (16 :: Word8)
     put LoadRef = put (17 :: Word8)
     put StoreRef = put (18 :: Word8)
+    put (Syscall s) = put (19 :: Word8) <> put s
 
     get = (get :: Get Word8) >>= \case
         0 -> construct Push
@@ -118,36 +121,5 @@ instance Binary Instr where
         16 -> return Alloc
         17 -> return LoadRef
         18 -> return StoreRef
+        19 -> construct Syscall
         _ -> fail "Unknow Insrtuction"
-
-
-
-
--- Int p = 5;
-
--- Funk c(Int x) -> Int {
---     Int d = 5; //  p = 5, c [] , x
---     Int d = 3;
---     p = 3;
---     Return d; // p = 5, c [] d = 5
--- }
-
--- PushEnv x
-
--- Funk a(Int x) -> Int {
---     // pushEnv x
---     Int c = 4; // p = 5, x, a [],c []
-
---     Funk b(Int y) -> Int {
---         Return y + c; //
---     }
---     p = p + 4
---     c = c + 1;
-
---     Int d = 5;
---     Return b(4);
--- }
-
-
--- Push "Main"
--- Call

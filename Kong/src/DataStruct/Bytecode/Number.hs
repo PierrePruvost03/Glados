@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module DataStruct.Bytecode.Number where
+module DataStruct.Bytecode.Number (Number(..), put, get) where
 
 import DataStruct.Bytecode.Utils (construct)
 import Data.Binary

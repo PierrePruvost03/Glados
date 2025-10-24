@@ -3,7 +3,7 @@
 module ExecuteVM (executeVM) where
 
 import VM.Execution (exec)
-import VM.Operations (makeIntValue)
+import VM.Utils (makeIntValue)
 import DataStruct.Bytecode.Value (Instr)
 import Data.Binary (decodeFile)
 import DataStruct.VM (VMState(..), baseState)
@@ -16,7 +16,9 @@ executeVM file = (((decodeFile file) :: IO [Instr]) >>= \instr -> exec (baseStat
         (VMState {stack = x : _}) -> pure (makeIntValue x)
         _ -> throwIO $ InvalidStackAccess
     ) `catches`  [
-        Handler (\(ex :: ExecError) -> hPutStrLn stderr (show ex) >> pure 1),
+        Handler (\(ex :: ExecError) -> case ex of
+            ExitException n -> pure n
+            _ -> hPutStrLn stderr (show ex) >> pure 1),
         Handler (\(_ :: ErrorCall) -> hPutStrLn stderr
             "Failed to decode binary file" >> pure 1),
         Handler (\(_ :: IOException) -> hPutStrLn stderr (

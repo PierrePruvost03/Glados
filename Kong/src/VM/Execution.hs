@@ -1,29 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
-module VM.Execution (exec) where
+module VM.Execution (exec, createList) where
 
-import DataStruct.VM (VMState(..), Stack)
+import DataStruct.VM (VMState(..))
 import DataStruct.Bytecode.Value
 import Control.Exception
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import VM.EnvGestion (mergeEnv)
 import VM.Errors (ExecError (..))
-import VM.Operations (applyOp, makeIntValue, makeBoolValue)
-
-createList :: Stack -> Int -> ([Value], Stack)
-createList stack n = f ([], stack) n
-    where
-        f r 0 = r
-        f (_, []) _ = throw $ InvalidStackAccess
-        f (l, (x:xs)) it = f (x : l, xs) (it - 1)
-
-createStruct :: Stack -> [String] -> ([(String , Value)], Stack)
-createStruct stack names = f ([], stack) names
-    where
-        f r [] = r
-        f (_, []) _ = throw $ InvalidStackAccess
-        f (l, vX:vXs) (nX:nXs) = f ((nX, vX):l, vXs) nXs
+import VM.Operations (applyOp)
+import VM.Syscall (executeSyscall)
+import VM.Utils
 
 exec :: VMState -> IO VMState
 exec state@(VMState {code, ip}) = case code V.!? ip of
@@ -52,8 +40,8 @@ checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfTrue n)
     | otherwise = exec $ state {stack = xs, ip = ip + 1}
 
 -- Operations
-checkInstrution state@(VMState {stack = _ : _ : xs, ip}) (DoOp op) =
-     applyOp state op >>= \x -> exec $ state {stack = VNumber x : xs, ip = ip + 1}
+checkInstrution state@(VMState {ip}) (DoOp op) = case applyOp state op of
+    newState -> exec $ newState {ip = ip + 1}
 
 -- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, ip}) Call =
@@ -93,6 +81,8 @@ checkInstrution s@(VMState {stack, heap, ip}) Alloc =
 checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRef =
     exec $ s {stack = ref:xs, heap = heap V.// [(addr, v)], ip = ip + 1}
 
+-- Syscall
+checkInstrution s (Syscall call) = executeSyscall call s
 
 -- checkInstrution s@(VMState {stack, env, ip})
 checkInstrution _ _ = throw $ UnknowInstruction
