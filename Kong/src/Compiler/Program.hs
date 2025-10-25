@@ -16,7 +16,7 @@ compileProgram fas =
 
 ensureMain :: [Instr] -> Either [ProgramError] [Instr]
 ensureMain instrs
-  | hasMain instrs = Right (instrs ++ [PushEnv "main", Call])
+  | hasMain instrs = Right (instrs ++ [PushEnv "main", Call, Ret])
   | otherwise = Left [ProgramError "<global>" (ABlock []) (MissingMainFunction "No 'main' function found.")]
 
 hasMain :: [Instr] -> Bool
