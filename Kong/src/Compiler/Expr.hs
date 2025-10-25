@@ -40,7 +40,7 @@ compileCall funcName
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
 compileValue (ANumber number) _ = Right [Push (VNumber (compileNumber number))]
 compileValue (AString s) _ =
-  Right [Push (VList (V.fromList (map (VNumber . VChar) s)) False)]
+  Right [Push (VList (V.fromList (map (VNumber . VChar) s)))]
 compileValue (ATuple exprs) env = compileListLiteral exprs env
 compileValue (AArray exprs) env = compileListLiteral exprs env
 compileValue (AVector exprs) env = compileListLiteral exprs env

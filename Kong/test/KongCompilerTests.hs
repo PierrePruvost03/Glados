@@ -2,7 +2,6 @@ module KongCompilerTests (kongCompilerTests) where
 
 import Data.List (isInfixOf)
 import Test.HUnit
-
 import Compiler.Program (compileWithEnv)
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
@@ -44,7 +43,7 @@ testCompileString =
   TestCase
     ( assertEqual
         "should compile string value to Push VString instruction"
-        (Right [Push (VList (V.fromList [VNumber (VChar 'h'), VNumber (VChar 'e'), VNumber (VChar 'l'), VNumber (VChar 'l'), VNumber (VChar 'o')]) False)])
+        (Right [Push (VList (V.fromList [VNumber (VChar 'h'), VNumber (VChar 'e'), VNumber (VChar 'l'), VNumber (VChar 'l'), VNumber (VChar 'o')]))])
         (compileWithEnv emptyEnv (AExpress (AValue (AString "hello"))))
     )
 
@@ -80,7 +79,7 @@ testCompileStruct =
   TestCase
     ( assertEqual
         "should compile struct literal to CreateStruct"
-        (Right [Push (VNumber (VInt 42)), Push (VList (V.fromList [VNumber (VChar 'a')]) False), CreateStruct ["name", "age"]])
+        (Right [Push (VNumber (VInt 42)), Push (VList (V.fromList [VNumber (VChar 'a')])), CreateStruct ["name", "age"]])
         (compileWithEnv emptyEnv (AExpress (AValue (AStruct [ ("name", AValue (AString "a"))
                                            , ("age", AValue (ANumber (AInteger 42)))
                                            ]))))
@@ -92,7 +91,7 @@ testStructWithHeapString =
   ( assertEqual
     "should heapify string then load it when used in struct"
     (Right
-      [ Push (VList (V.fromList [VNumber (VChar 'p'), VNumber (VChar 'i'), VNumber (VChar 'p'), VNumber (VChar 'i')]) False)
+      [ Push (VList (V.fromList [VNumber (VChar 'p'), VNumber (VChar 'i'), VNumber (VChar 'p'), VNumber (VChar 'i')]))
       , Alloc
       , StoreRef
       , SetVar "x"
@@ -200,7 +199,7 @@ testStructDeclarationAndAccess =
     "should compile struct declaration and access"
     (Right
       [ Push (VNumber (VInt 30))
-      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')]) False)
+      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')]))
       , CreateStruct ["name", "age"]
       , Alloc
       , StoreRef
@@ -228,13 +227,13 @@ testStructReassignment =
     "should compile struct reassignment"
     (Right
       [ Push (VNumber (VInt 30))
-      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')]) False)
+      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')]))
       , CreateStruct ["name", "age"]
       , Alloc
       , StoreRef
       , SetVar "person"
       , Push (VNumber (VInt 31))
-      , Push (VList (V.fromList [VNumber (VChar 'B'), VNumber (VChar 'o'), VNumber (VChar 'b')]) False)
+      , Push (VList (V.fromList [VNumber (VChar 'B'), VNumber (VChar 'o'), VNumber (VChar 'b')]))
       , CreateStruct ["name", "age"]
       , PushEnv "person"
       , StoreRef
