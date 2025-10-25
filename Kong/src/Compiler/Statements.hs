@@ -88,7 +88,7 @@ compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
   where
     assemble condCode thenCode elseCode =
       condCode ++ [JumpIfFalse (jumpOffset thenCode elseCode)] ++ thenCode ++ elseSegment elseCode
-    jumpOffset thenCode [] = length thenCode
+    jumpOffset thenCode [] = length thenCode + 1
     jumpOffset thenCode _ = length thenCode + 1
     elseSegment [] = []
     elseSegment elseCode = Jump (length elseCode) : elseCode

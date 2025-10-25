@@ -35,13 +35,13 @@ compileExpr (ACall funcName args) env = fmap (concat . (++ [compileCall funcName
 
 compilePrintCall :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
 compilePrintCall [AValue (AString s)] _ =
-  Right [Push (VList (V.fromList (map (VNumber . VChar) s))), Syscall (Print (length s))]
+  Right [Push (VList (V.fromList (map (VNumber . VChar) s))), Syscall (Print 1)]
 compilePrintCall [AValue (ATuple xs)] env =
-  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print 1)])
 compilePrintCall [AValue (AArray xs)] env =
-  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print 1)])
 compilePrintCall [AValue (AVector xs)] env =
-  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print 1)])
 compilePrintCall [arg] env =
   compileExpr arg env >>= \instrs -> Right (instrs ++ [Syscall (Print 1)])
 compilePrintCall args env =
