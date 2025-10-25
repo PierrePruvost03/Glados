@@ -3,6 +3,7 @@ module Compiler.Statements
   , compileIf
   , extractParamNames
   , defaultValue
+  , extractGlobalNames
   ) where
 
 import DataStruct.Ast
@@ -12,6 +13,7 @@ import qualified Data.Vector as V
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
 import Compiler.Expr (compileExpr)
 import qualified Data.Map as M
+import qualified Data.List as L
 
 isKonst :: Type -> Bool
 isKonst (TKonst _) = True
@@ -39,12 +41,17 @@ compileAst ast _ = Left $ UnsupportedAst (show ast)
 
 registerFunction :: CompilerEnv -> String -> [Ast] -> ([Instr], CompilerEnv) -> ([Instr], CompilerEnv)
 registerFunction env name params (bodyCode, _) =
-  ( [Push (VFunction paramNames (V.fromList (concatMap genParam paramNames ++ bodyCode))), SetVar name]
+  ( [Push (VFunction capturedNames (V.fromList (concatMap genParam paramNames ++ bodyCode))), SetVar name]
   , env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) }
   )
   where
     paramNames = extractParamNames params
+    globalNames = extractGlobalNames (typeAliases env)
+    capturedNames = L.nub (paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
+
+extractGlobalNames :: M.Map String a -> [String]
+extractGlobalNames = M.keys
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
 declareDefault env t name

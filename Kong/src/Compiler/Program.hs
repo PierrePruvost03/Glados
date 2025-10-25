@@ -7,12 +7,27 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv, emptyEnv, insertTypeAlias)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias)
 import Compiler.Statements (compileAst)
+import qualified Data.Map as M
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram fas =
-  resultsToEither (map (compilePairWithEnv (buildAliasEnv (concatMap snd fas))) (expand fas)) >>= ensureMain
+  selectResult allInstrs allErrs
+  where
+    (allInstrs, _, allErrs) = foldl compileInOrder ([], buildAliasEnv (concatMap snd fas), []) (expand fas)
+    compileInOrder (accInstrs, accEnv, accErrs) (file, ast) =
+      either
+        (\err -> (accInstrs, enrichEnvWithAst accEnv ast, accErrs ++ [err]))
+        (\instrs -> (accInstrs ++ instrs, enrichEnvWithAst accEnv ast, accErrs))
+        (compilePairWithEnv accEnv (file, ast))
+    selectResult instrs [] = ensureMain instrs
+    selectResult _ errs = Left errs
+
+enrichEnvWithAst :: CompilerEnv -> Ast -> CompilerEnv
+enrichEnvWithAst env (AFunkDef name _ _ _) = env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) }
+enrichEnvWithAst env (AVarDecl t name _) = env { typeAliases = M.insert name t (typeAliases env) }
+enrichEnvWithAst env _ = env
 
 ensureMain :: [Instr] -> Either [ProgramError] [Instr]
 ensureMain instrs
