@@ -13,14 +13,14 @@ createList stack n = f ([], stack) n
     where
         f r 0 = r
         f (_, []) _ = throw $ InvalidStackAccess
-        f (l, (x:xs)) it = f (x : l, xs) (it - 1)
+        f (l, (x:xs)) it = f (l <> [x], xs) (it - 1)
 
 createStruct :: Stack -> [String] -> ([(String , Value)], Stack)
 createStruct stack names = f ([], stack) names
     where
         f r [] = r
         f (_, []) _ = throw $ InvalidStackAccess
-        f (l, vX:vXs) (nX:nXs) = f ((nX, vX):l, vXs) nXs
+        f (l, vX:vXs) (nX:nXs) = f (l <> [(nX, vX)], vXs) nXs
 
 makeBoolValue :: Value -> Bool
 makeBoolValue (VNumber (VBool value)) = value

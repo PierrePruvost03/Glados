@@ -1,6 +1,7 @@
 module KongCompilerTests (kongCompilerTests) where
 
 import Data.List (isInfixOf)
+import qualified Data.Vector as V
 import Test.HUnit
 
 import Compiler.KongCompiler
@@ -14,8 +15,8 @@ testCompileInteger :: Test
 testCompileInteger =
   TestCase
     ( assertEqual
-        "should compile integer value to Push VInt instruction"
-        (Right [Push (VInt 42)])
+        "should compile integer value to Push (VNumber (VInt 42))"
+        (Right [Push (VNumber (VInt 42))])
         (compile (AExpress (AValue (ANumber (AInteger 42)))))
     )
 
@@ -24,7 +25,8 @@ testCompileFloat =
   TestCase $ do
     let result = compile (AExpress (AValue (ANumber (AFloat 3.14))))
     case result of
-      Right [Push (VFloat f)] -> assertBool "Should compile float value" (abs (f - 3.14) < 0.001)
+      Right [Push (VNumber (VFloat f))] ->
+        assertBool "Should compile float value" (abs (f - 3.14) < 0.001)
       Right other -> assertFailure $ "Unexpected result: " ++ show other
       Left err -> assertFailure $ "Should not fail: " ++ show err
 
@@ -32,8 +34,8 @@ testCompileBool :: Test
 testCompileBool =
   TestCase
     ( assertEqual
-        "should compile boolean value to Push VBool instruction"
-        (Right [Push (VBool True)])
+        "should compile boolean value to Push (VNumber (VBool True))"
+        (Right [Push (VNumber (VBool True))])
         (compile (AExpress (AValue (ANumber (ABool True)))))
     )
 
@@ -41,8 +43,8 @@ testCompileString :: Test
 testCompileString =
   TestCase
     ( assertEqual
-        "should compile string value to Push VString instruction"
-        (Right [Push (VList ("hello"))])
+        "should compile string value to Push (VList ...)"
+        (Right [Push (VList (V.fromList (map (VNumber . VChar) "hello")))])
         (compile (AExpress (AValue (AString "hello"))))
     )
 
@@ -50,7 +52,7 @@ testCompileChar :: Test
 testCompileChar =
   TestCase
     ( assertEqual
-        "should compile char value to Push VChar instruction"
+        "should compile char value to Push (VNumber (VChar 'a'))"
         (Right [Push (VNumber (VChar 'a'))])
         (compile (AExpress (AValue (ANumber (AChar 'a')))))
     )
@@ -60,7 +62,7 @@ testCompileVarDecl =
   TestCase
     ( assertEqual
         "should compile variable declaration to default value push and SetVar"
-        (Right [Push (VInt 0), SetVar "x"])
+        (Right [Push (VNumber (VInt 0)), SetVar "x"])
         (compile (AVarDecl TInt "x" Nothing))
     )
 
@@ -69,7 +71,7 @@ testCompileVarDeclWithValue =
   TestCase
     ( assertEqual
         "should compile variable declaration with value"
-        (Right [Push (VInt 42), SetVar "x"])
+        (Right [Push (VNumber (VInt 42)), SetVar "x"])
         (compile (AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 42))))))
     )
 
@@ -87,7 +89,7 @@ testCompileAttribution =
   TestCase
     ( assertEqual
         "should compile variable attribution"
-        (Right [Push (VInt 10), SetVar "x"])
+        (Right [Push (VNumber (VInt 10)), SetVar "x"])
         (compile (AExpress (AAttribution "x" (AValue (ANumber (AInteger 10))))))
     )
 
@@ -96,8 +98,14 @@ testCompileFunctionCall =
   TestCase
     ( assertEqual
         "should compile function call with arguments in reverse order"
-        (Right [Push (VInt 2), Push (VInt 1), PushEnv "myFunc", Call])
-        (compile (AExpress (ACall "myFunc" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (Right
+          [ Push (VNumber (VInt 2))
+          , Push (VNumber (VInt 1))
+          , PushEnv "myFunc"
+          , Call
+          ])
+        (compile (AExpress (ACall "myFunc"
+          [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileBuiltinAdd :: Test
@@ -105,8 +113,13 @@ testCompileBuiltinAdd =
   TestCase
     ( assertEqual
         "should compile builtin addition operation"
-        (Right [Push (VInt 2), Push (VInt 1), DoOp Add])
-        (compile (AExpress (ACall "+" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (Right
+          [ Push (VNumber (VInt 2))
+          , Push (VNumber (VInt 1))
+          , DoOp Add
+          ])
+        (compile (AExpress (ACall "+"
+          [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileBuiltinSub :: Test
@@ -114,8 +127,13 @@ testCompileBuiltinSub =
   TestCase
     ( assertEqual
         "should compile builtin subtraction operation"
-        (Right [Push (VInt 3), Push (VInt 5), DoOp Sub])
-        (compile (AExpress (ACall "-" [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 3))])))
+        (Right
+          [ Push (VNumber (VInt 3))
+          , Push (VNumber (VInt 5))
+          , DoOp Sub
+          ])
+        (compile (AExpress (ACall "-"
+          [AValue (ANumber (AInteger 5)), AValue (ANumber (AInteger 3))])))
     )
 
 testCompileBuiltinEqual :: Test
@@ -123,8 +141,13 @@ testCompileBuiltinEqual =
   TestCase
     ( assertEqual
         "should compile builtin equality operation"
-        (Right [Push (VInt 2), Push (VInt 1), DoOp Equal])
-        (compile (AExpress (ACall "==" [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
+        (Right
+          [ Push (VNumber (VInt 2))
+          , Push (VNumber (VInt 1))
+          , DoOp Equal
+          ])
+        (compile (AExpress (ACall "=="
+          [AValue (ANumber (AInteger 1)), AValue (ANumber (AInteger 2))])))
     )
 
 testCompileSymbol :: Test
@@ -141,7 +164,7 @@ testCompileReturn =
   TestCase
     ( assertEqual
         "should compile return statement"
-        (Right [Push (VInt 42), Ret])
+        (Right [Push (VNumber (VInt 42)), Ret])
         (compile (AReturn (AExpress (AValue (ANumber (AInteger 42))))))
     )
 
@@ -150,11 +173,15 @@ testCompileBlock =
   TestCase
     ( assertEqual
         "should compile block of statements"
-        (Right [Push (VInt 5), SetVar "x", PushEnv "x"])
-        (compile (ABlock [
-          AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 5)))),
-          AExpress (AValue (AVarCall "x"))
-        ]))
+        (Right
+          [ Push (VNumber (VInt 5))
+          , SetVar "x"
+          , PushEnv "x"
+          ])
+        (compile (ABlock
+          [ AVarDecl TInt "x" (Just (AValue (ANumber (AInteger 5))))
+          , AExpress (AValue (AVarCall "x"))
+          ]))
     )
 
 testUnsupportedAst :: Test
@@ -181,23 +208,22 @@ testUnsupportedValue =
 
 kongCompilerTests :: [Test]
 kongCompilerTests =
-  [
-    TestLabel "compile integer" testCompileInteger,
-    TestLabel "compile float" testCompileFloat,
-    TestLabel "compile boolean" testCompileBool,
-    TestLabel "compile string" testCompileString,
-    TestLabel "compile char" testCompileChar,
-    TestLabel "compile var declaration" testCompileVarDecl,
-    TestLabel "compile var declaration with value" testCompileVarDeclWithValue,
-    TestLabel "compile variable call" testCompileVarCall,
-    TestLabel "compile attribution" testCompileAttribution,
-    TestLabel "compile function call" testCompileFunctionCall,
-    TestLabel "compile builtin add" testCompileBuiltinAdd,
-    TestLabel "compile builtin sub" testCompileBuiltinSub,
-    TestLabel "compile builtin equal" testCompileBuiltinEqual,
-    TestLabel "compile symbol" testCompileSymbol,
-    TestLabel "compile return" testCompileReturn,
-    TestLabel "compile block" testCompileBlock,
-    TestLabel "unsupported ast" testUnsupportedAst,
-    TestLabel "unsupported value" testUnsupportedValue
+  [ TestLabel "compile integer" testCompileInteger
+  , TestLabel "compile float" testCompileFloat
+  , TestLabel "compile boolean" testCompileBool
+  , TestLabel "compile string" testCompileString
+  , TestLabel "compile char" testCompileChar
+  , TestLabel "compile var declaration" testCompileVarDecl
+  , TestLabel "compile var declaration with value" testCompileVarDeclWithValue
+  , TestLabel "compile variable call" testCompileVarCall
+  , TestLabel "compile attribution" testCompileAttribution
+  , TestLabel "compile function call" testCompileFunctionCall
+  , TestLabel "compile builtin add" testCompileBuiltinAdd
+  , TestLabel "compile builtin sub" testCompileBuiltinSub
+  , TestLabel "compile builtin equal" testCompileBuiltinEqual
+  , TestLabel "compile symbol" testCompileSymbol
+  , TestLabel "compile return" testCompileReturn
+  , TestLabel "compile block" testCompileBlock
+  , TestLabel "unsupported ast" testUnsupportedAst
+  , TestLabel "unsupported value" testUnsupportedValue
   ]
