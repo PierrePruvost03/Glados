@@ -44,9 +44,10 @@ checkInstrution state@(VMState {ip}) (DoOp op) = case applyOp state op of
     newState -> exec $ newState {ip = ip + 1}
 
 -- Call
-checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, ip}) Call =
+checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, heap, ip}) Call =
     exec (s {code = code, stack = xs, env = mergeEnv env symbols, ip = 0}) >>= \case
-        (VMState {stack = (x:_)}) -> exec $ s {stack = x:xs, ip = ip + 1}
+        (VMState {stack = (x:_), heap = r}) ->
+            exec $ s {stack = x:xs, heap = mergeHeaps heap r, ip = ip + 1}
         _ -> throwIO $ InvalidStackAccess
 -- Var
 checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
@@ -77,12 +78,12 @@ checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case 
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ InvalidHeapAccess
 checkInstrution s@(VMState {stack, heap, ip}) Alloc =
-    exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1}
+    exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1, heap = V.snoc heap VEmpty}
 checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRef =
     exec $ s {stack = ref:xs, heap = heap V.// [(addr, v)], ip = ip + 1}
 
 -- Syscall
 checkInstrution s (Syscall call) = executeSyscall call s
 
--- checkInstrution s@(VMState {stack, env, ip})
+-- Error
 checkInstrution _ _ = throw $ UnknowInstruction

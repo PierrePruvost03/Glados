@@ -61,3 +61,4 @@ executeSyscall Read s@(VMState {stack = fd : n : xs, ip}) =
       pure (s {stack = VList (V.fromList (map (\c -> VNumber (VChar c)) str)) : xs, ip = ip + 1})
   where
     len = (makeIntValue n)
+executeSyscall _ _ = throwIO $ UnknowSyscall
