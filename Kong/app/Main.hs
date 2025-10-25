@@ -9,7 +9,7 @@ import Compiler.Program (compileProgram)
 import DataStruct.VM (initVMState)
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
-import DataStruct.Bytecode.Value (Instr)
+import DataStruct.Bytecode.Value (Instr(..))
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -34,7 +34,9 @@ printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
 
 handleExec :: [Instr] -> IO ()
-handleExec instrs = exec (initVMState instrs) >>= printResult
+handleExec instrs = do
+    putStrLn $ "[Bytecode] " ++ show instrs --debug
+    exec (initVMState instrs) >>= printResult
 
 printResult :: Show a => a -> IO ()
 printResult result = putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitSuccess

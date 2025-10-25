@@ -24,6 +24,7 @@ data CompilerError
   | UnknownVariable String
   | UnknownFunction String
   | InvalidArguments String
+  | MissingMainFunction String
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
