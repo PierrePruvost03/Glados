@@ -16,7 +16,7 @@ main = getArgs >>= handleArgs
 
 handleArgs :: [String] -> IO ()
 handleArgs [file] = readFile file >>= handleParse
-handleArgs _ = hPutStrLn stderr "Usage: glados-kong <source-file>" >> exitFailure
+handleArgs _ = hPutStrLn stderr "Usage: glados <source-file>" >> exitFailure
 
 handleParse :: String -> IO ()
 handleParse content =
