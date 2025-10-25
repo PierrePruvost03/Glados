@@ -9,6 +9,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
+import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
 import qualified Data.Map as M
 import qualified Data.Vector as V
@@ -27,15 +28,35 @@ compileExpr (AAttribution var rhs) env =
       compileExpr rhs env >>= \rhsCode ->
         Right (rhsCode ++ [PushEnv var, StoreRef])
     assignTarget Nothing = Left $ IllegalAssignment ("undeclared variable " ++ var)
-compileExpr (ACall funcName args) env =
-  fmap (concat . (++ [compileCall funcName])) (mapM (`compileExpr` env) (reverse args))
 compileExpr (AValue astValue) env = compileValue astValue env
 compileExpr (AAccess access) env = compileAccess access env
+compileExpr (ACall "print" args) env = compilePrintCall args env
+compileExpr (ACall funcName args) env = fmap (concat . (++ [compileCall funcName])) (mapM (`compileExpr` env) (reverse args))
+
+compilePrintCall :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
+compilePrintCall [AValue (AString s)] _ =
+  Right [Push (VList (V.fromList (map (VNumber . VChar) s))), Syscall (Print (length s))]
+compilePrintCall [AValue (ATuple xs)] env =
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+compilePrintCall [AValue (AArray xs)] env =
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+compilePrintCall [AValue (AVector xs)] env =
+  compileListLiteral xs env >>= \instrs -> Right (instrs ++ [Syscall (Print (length xs))])
+compilePrintCall [arg] env =
+  compileExpr arg env >>= \instrs -> Right (instrs ++ [Syscall (Print 1)])
+compilePrintCall args env =
+  fmap (\instrs -> instrs ++ [Syscall (Print (length args))]) (fmap concat (mapM (`compileExpr` env) (reverse args)))
 
 compileCall :: String -> [Instr]
-compileCall funcName
-  | funcName `elem` builtinOps = [DoOp (stringToOp funcName)]
-  | otherwise = [PushEnv funcName, Call]
+compileCall "exit" = [Syscall Exit]
+compileCall "print" = [Syscall (Print 1)]
+compileCall "read" = [Syscall Read]
+compileCall "write" = [Syscall Write]
+compileCall "open" = [Syscall Open]
+compileCall "close" = [Syscall Close]
+compileCall name
+  | name `elem` builtinOps = [DoOp (stringToOp name)]
+  | otherwise = [PushEnv name, Call]
 
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
 compileValue (ANumber number) _ = Right [Push (VNumber (compileNumber number))]
