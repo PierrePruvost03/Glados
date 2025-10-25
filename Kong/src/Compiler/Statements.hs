@@ -20,7 +20,7 @@ isKonst _ = False
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst (ABlock asts) env = compileBlock asts env
 compileAst (AFunkDef name params _ body) env =
-  fmap (registerFunction env name params) (compileAst (ABlock body) env)
+  fmap (registerFunction env name params) (compileAst (ABlock body) (foldl (\e p -> case p of {AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e}) env params))
 compileAst (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAst (AVarDecl t name (Just initExpr)) env =
@@ -39,9 +39,12 @@ compileAst ast _ = Left $ UnsupportedAst (show ast)
 
 registerFunction :: CompilerEnv -> String -> [Ast] -> ([Instr], CompilerEnv) -> ([Instr], CompilerEnv)
 registerFunction env name params (bodyCode, _) =
-  ( [Push (VFunction (extractParamNames params) (V.fromList (bodyCode ++ [Ret]))), SetVar name]
+  ( [Push (VFunction paramNames (V.fromList (concatMap genParam paramNames ++ bodyCode))), SetVar name]
   , env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) }
   )
+  where
+    paramNames = extractParamNames params
+    genParam pname = [Alloc, StoreRef, SetVar pname]
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
 declareDefault env t name
@@ -89,6 +92,7 @@ compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
 extractParamNames :: [Ast] -> [String]
 extractParamNames = foldr extractParam []
   where
+    extractParam (AVarDecl _ name _) acc = name : acc
     extractParam (ASymbol name) acc = name : acc
     extractParam _ acc = acc
 
