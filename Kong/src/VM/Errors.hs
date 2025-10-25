@@ -11,6 +11,7 @@ data ExecError
     | InvalidStackAccess
     | InvalidHeapAccess
     | UnknowInstruction
+    | UnknowSyscall
     | InvalidIntConversion
     | InvalidCharConversion
     | InvalidStructAccess String
@@ -25,6 +26,7 @@ instance Show ExecError where
     show (InvalidStackAccess) = "Invalid Stack Access"
     show (InvalidHeapAccess) = "Invalid Heap Access"
     show (UnknowInstruction) = "Unknow instruction, this might be because of invalid stack value for existing instruction"
+    show (UnknowSyscall) = "Unknow syscall, this might be because of invalid stack value for existing syscall"
     show (InvalidIntConversion) = "Invalid Int Conversion, value cannot be computed as integer"
     show (InvalidCharConversion) = "Invalid Char Conversion, value cannot be computed as character"
     show (InvalidStructAccess s) = "Invalid struct access on field" <> show s

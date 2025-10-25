@@ -1,11 +1,12 @@
-module VM.Utils (createList, createStruct, makeIntValue, makeBoolValue) where
+module VM.Utils (createList, createStruct, makeIntValue, makeBoolValue, mergeHeaps) where
 
 import VM.Errors (ExecError (..))
-import DataStruct.VM (Stack)
+import DataStruct.VM (Stack, Heap)
 import DataStruct.Bytecode.Value (Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import Control.Exception
 import Data.Char
+import qualified Data.Vector as V
 
 createList :: Stack -> Int -> ([Value], Stack)
 createList stack n = f ([], stack) n
@@ -44,3 +45,6 @@ makeIntValue (VNumber (VInt i)) = i
 makeIntValue (VNumber (VChar i)) = digitToInt i
 makeIntValue (VNumber (VBool i)) = fromEnum i
 makeIntValue _ = throw $ InvalidIntConversion
+
+mergeHeaps :: Heap -> Heap -> Heap
+mergeHeaps base retured = V.force (V.slice 0 (length base) retured)
