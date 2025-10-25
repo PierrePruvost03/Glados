@@ -47,7 +47,7 @@ registerFunction env name params (bodyCode, _) =
   where
     paramNames = extractParamNames params
     globalNames = extractGlobalNames (typeAliases env)
-    capturedNames = L.nub (paramNames ++ globalNames)
+    capturedNames = L.nub (name : paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
 
 extractGlobalNames :: M.Map String a -> [String]
