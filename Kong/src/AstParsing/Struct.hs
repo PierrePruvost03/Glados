@@ -9,12 +9,12 @@ import AstParsing.Keywords.Keywords
 
 
 parseField :: Parser (Type, String)
-parseField = (,) <$> parseType <*> (skip *> parseName)
+parseField = (,) <$> parseType <*> (skip *> (parseName <|> fatal "Struct" "missing field's name"))
 
 parseStruct :: Parser Ast
 parseStruct = AStruktDef
-    <$> (parseString symbolStruct *> parseName)
-    <*> (skip *> parseChar symbolStructIn
-    *> many (skip *> parseField <* skip <* parseChar symbolStructSep <* skip)
+    <$> (parseString symbolStruct *> (parseName <|> fatal "Struct" "missing struct name"))
+    <*> (skip *> (parseChar symbolStructIn <|> fatal "Struct" ("missing char \"" <> [symbolStructIn] <> "\""))
+    *> many (skip *> parseField <* skip <* (parseChar symbolStructSep <|> fatal "Struct" ("missing char \"" <> [symbolStructSep] <> "\""))<* skip)
     <* parseChar symbolStructOut
     )

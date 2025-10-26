@@ -83,7 +83,7 @@ checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRe
     exec $ s {stack = ref:xs, heap = heap V.// [(addr, v)], ip = ip + 1}
 
 -- Syscall
-checkInstrution s (Syscall call) = executeSyscall call s
+checkInstrution s (Syscall call) = executeSyscall call s >>= exec
 
 -- Error
 checkInstrution _ _ = throw $ UnknowInstruction

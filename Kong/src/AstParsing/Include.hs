@@ -9,7 +9,7 @@ import AstParsing.Keywords.Keywords
 parseInclude :: Parser Ast
 parseInclude = AInclude <$>
     (skip *> parseString symbolInclude  *>
-        parseName)
+        (parseName <|> fatal "Include" "missing include name"))
         <*> ((skip *> parseString symbolIncludeIn
             *> parseManyWithSeparator (skip *> parseName <* skip) symbolIncludeSep
-             <* parseString symbolIncludeOut) <|> pure [])
+             <* (parseString symbolIncludeOut <|> fatal "Include" ("missing char \"" <> symbolIncludeOut <> "\""))) <|> pure [])

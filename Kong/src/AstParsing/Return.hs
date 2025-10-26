@@ -7,4 +7,4 @@ import AstParsing.Keywords.Keywords
 
 parseReturn :: Parser Ast
 parseReturn = parseString symbolReturn *>
-    (AReturn . AExpress <$> parseLineExpression)
+    ((AReturn . AExpress <$> parseLineExpression) <|> fatal "Return" "invalid expression")

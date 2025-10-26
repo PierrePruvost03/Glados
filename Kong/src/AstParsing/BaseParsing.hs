@@ -29,9 +29,9 @@ parseFor =
     *> parseChar symbolForIn
     *> ( ALoop
            <$> optional parseDeclaration
-           <*> (parseChar symbolForSep *> (AExpress <$> parseExpression))
+           <*> ((parseChar symbolForSep *> (AExpress <$> parseExpression)) <|> fatal "For" "invalid condition")
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
-           <*> (parseChar symbolForOut *> skip *> parseBody)
+           <*> ((parseChar symbolForOut <|> fatal "For" ("missing char \"" <> [symbolForOut] <> "\"")) *> skip *> (parseBody <|> fatal "For" "invalid body"))
        )
 
 parseForIn :: Parser Ast
@@ -39,11 +39,11 @@ parseForIn =
   parseString symbolFor
     *> skip
     *> ( AForIn
-           <$> parseName
+           <$> (parseName <|> fatal "For" "missing variable or condition")
            <* skip
            <* parseString symbolIn
-           <*> (AExpress <$> parseExpression)
-           <*> parseBody
+           <*> ((AExpress <$> parseExpression) <|> fatal "For In" "invalid expression")
+           <*> (parseBody <|> fatal "For In" "invalid body")
        )
 
 parseCond :: Parser Ast
@@ -53,9 +53,9 @@ parseCond =
 parseIf :: Parser Ast
 parseIf =
   AIf
-    <$> (skip *> parseString symbolIf *> parseCond)
-    <*> (skip *> parseBody)
-    <*> optional (parseString symbolElse *> skip *> (parseBody <|> parseIf))
+    <$> (skip *> parseString symbolIf *> (parseCond <|> fatal "If" "invalid condition"))
+    <*> ((skip *> parseBody) <|> fatal "If" "invalid code block")
+    <*> optional (parseString symbolElse *> skip *> (parseBody <|> parseIf <|> fatal "Else" "invalid else body"))
 
 parseFunction :: Parser Ast
 parseFunction =
@@ -64,10 +64,10 @@ parseFunction =
     <*> ( skip
             *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
             *> parseMultiple parseDeclaration
-            <* parseChar symbolFuncParamOut
+            <* (parseChar symbolFuncParamOut <|> fatal "Function" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
         )
-    <*> (skip *> parseString symbolFuncReturn *> parseType <* skip)
-    <*> (parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut)
+    <*> ((skip *> parseString symbolFuncReturn *> parseType <* skip) <|> fatal "Function" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
+    <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Function" "invalid body")
 
 parseAstBlockContent :: Parser Ast
 parseAstBlockContent =

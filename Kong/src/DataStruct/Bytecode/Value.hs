@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module DataStruct.Bytecode.Value (Value(..), Instr(..), put, get) where
+module DataStruct.Bytecode.Value (Value(..), Instr(..), put, get, Env, MemoryCell) where
 
 import qualified Data.Vector as V
 import qualified Data.Map as M
@@ -9,6 +9,8 @@ import DataStruct.Bytecode.Utils (putManyMany, construct, constructList, getList
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall
 
+data MemoryCell = THEAP | TSTACK deriving (Show, Eq)
+type Env = M.Map String (Value, MemoryCell)
 type HeapAddr = Int
 
 data Value
