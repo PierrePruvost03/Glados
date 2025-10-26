@@ -55,10 +55,10 @@ parseTraitFuncDef t = f <$> ((,,,)
     <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
     <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Method" "invalid body"))
     where
-        f (name, args, return, body) = AVarDecl
-            (TKonst (TFunc (t:(map getVarType args)) return))
+        f (name, args, ret, body) = AVarDecl
+            (TKonst (TFunc (t:(map getVarType args)) ret))
             ((show t) <> ('$':name))
-            (Just (AValue (ALambda (AVarDecl t symbolSelf Nothing : args) return body)))
+            (Just (AValue (ALambda (AVarDecl t symbolSelf Nothing : args) ret body)))
 
 parseTraitImpl :: Parser Ast
 parseTraitImpl = skip *> (
@@ -231,18 +231,32 @@ parseInfix =
     *> ( (\e1 n e2 -> ACall n (catMaybes [e1, Just e2]))
            <$> optional parseBasicExpression
            <* skip
-           <*> infixSymbol
+           <*> (AValue <$> AVarCall <$> infixSymbol)
            <* skip
            <*> parseExpression
        )
   where
     infixSymbol = parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix)
 
+parseMethodCall :: Parser AExpression
+parseMethodCall =
+    skip
+    *> ( AMethodCall
+                <$> ((parseChar symbolExpressionIn *> parseBasicExpression <* parseChar symbolExpressionOut) <|>
+                    parseValue
+                ) <* skip
+                <*>  (parseChar symbolCallMethod *> skip *> parseName <* skip)
+                <*> (parseChar symbolCallIn *> parseMultiple parseExpression <* parseChar symbolCallOut)
+        )
+    <* skip
+
 parseCall :: Parser AExpression
 parseCall =
   skip
     *> ( ACall
-             <$> parseName
+             <$> ((parseChar symbolExpressionIn *> parseBasicExpression <* parseChar symbolExpressionOut) <|>
+                 parseValue
+             )
              <* skip
              <*> (parseChar symbolCallIn *> parseMultiple parseExpression <* parseChar symbolCallOut)
        )
@@ -271,10 +285,11 @@ parseAccess =
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
-    *> ( parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut
-           <|> parseAccess
-           <|> parseCall
-           <|> parseValue
+    *> (    parseCall
+        <|> parseMethodCall
+        <|> (parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut)
+        <|> parseAccess
+        <|> parseValue
        )
     <* skip
 
@@ -282,7 +297,7 @@ parseExpression :: Parser AExpression
 parseExpression = parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
-parseLineExpression = parseExpression <* parseChar symbolEndOfExpression
+parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression
 
 
 
@@ -346,10 +361,10 @@ parseFunction =
     <*> ((skip *> parseString symbolFuncReturn *> parseType <* skip) <|> fatal "Function" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
     <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Function" "invalid body"))
     where
-        f (name, args, return, body) = AVarDecl
-            (TKonst (TFunc (map getVarType args) return))
+        f (name, args, ret, body) = AVarDecl
+            (TKonst (TFunc (map getVarType args) ret))
             name
-            (Just (AValue (ALambda args return body)))
+            (Just (AValue (ALambda args ret body)))
 
 
 

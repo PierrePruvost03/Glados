@@ -86,7 +86,12 @@ data AExpression
           value :: AExpression
         }
     | ACall
-        { callFunction :: String,
+        { callFunction :: AExpression,
+          callArgs :: [AExpression]
+        }
+    | AMethodCall
+        { calledVar :: AExpression,
+          calledMethod :: String,
           callArgs :: [AExpression]
         }
     deriving (Show, Eq)

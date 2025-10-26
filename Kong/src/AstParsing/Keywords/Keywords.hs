@@ -179,3 +179,6 @@ symbolSelf = "self"
 
 symbolSelfType :: String
 symbolSelfType = "Self"
+
+symbolCallMethod :: Char
+symbolCallMethod = '.'
