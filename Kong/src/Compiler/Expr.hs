@@ -175,7 +175,7 @@ compileNumber (AChar c) = VChar c
 compileListLiteral :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
 compileListLiteral exprs env =
   fmap (\compiled -> concat compiled ++ [CreateList (length exprs)])
-       (mapM (`compileExpr` env) exprs)
+       (mapM (`compileExpr` env) (reverse exprs))
 
 compileStructLiteral :: [(String, AExpression)] -> CompilerEnv -> Either CompilerError [Instr]
 compileStructLiteral fieldPairs env =
