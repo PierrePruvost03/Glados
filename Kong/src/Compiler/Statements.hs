@@ -19,10 +19,25 @@ isKonst :: Type -> Bool
 isKonst (TKonst _) = True
 isKonst _ = False
 
+checkReturnType :: Type -> Maybe Type -> Either CompilerError ()
+checkReturnType expected (Just actual)
+  | expected == actual = Right ()
+  | otherwise = Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
+checkReturnType _ Nothing = Left $ InvalidArguments "Unable to infer return type"
+
+getReturnExpr :: [Ast] -> Maybe Ast
+getReturnExpr [] = Nothing
+getReturnExpr (AReturn e : _) = Just e
+getReturnExpr (_ : xs) = getReturnExpr xs
+
+inferReturnType :: Maybe Ast -> CompilerEnv -> Maybe Type
+inferReturnType (Just (AExpress (AValue v))) env = inferType (AValue v) env
+inferReturnType _ _ = Nothing
+
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst (ABlock asts) env = compileBlock asts env
-compileAst (AFunkDef name params _ body) env =
-  fmap (registerFunction env name params) (compileAst (ABlock body) (foldl (\e p -> case p of {AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e}) env params))
+compileAst (AFunkDef name params retType body) env =
+  matchFunkDef (compileAst (ABlock body) (foldl (\e p -> case p of {AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e}) env params)) (getReturnExpr body) retType env name
 compileAst (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAst (AVarDecl t name (Just initExpr)) env =
@@ -49,6 +64,13 @@ registerFunction env name params (bodyCode, _) =
     globalNames = extractGlobalNames (typeAliases env)
     capturedNames = L.nub (name : paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
+
+matchFunkDef :: Either CompilerError ([Instr], CompilerEnv) -> Maybe Ast -> Type -> CompilerEnv -> String -> Either CompilerError ([Instr], CompilerEnv)
+matchFunkDef (Right (bodyInstrs, _)) retExpr retType env name =
+  case checkReturnType retType (inferReturnType retExpr env) of
+    Right () -> Right ([], env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) })
+    Left err -> Left err
+matchFunkDef (Left err) _ _ _ _ = Left err
 
 extractGlobalNames :: M.Map String a -> [String]
 extractGlobalNames = M.keys

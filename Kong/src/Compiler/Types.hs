@@ -9,6 +9,7 @@ module Compiler.Types
 
 import DataStruct.Ast (Ast (..), Type (..))
 import qualified Data.Map as M
+import Compiler.TypeError (TypeError(..), prettyTypeError)
 
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
@@ -53,3 +54,8 @@ resolveType env (TArray ty e) = TArray (resolveType env ty) e
 resolveType env (TVector ty e) = TVector (resolveType env ty) e
 resolveType env (TTuple tys) = TTuple (map (resolveType env) tys)
 resolveType _ t = t
+
+checkComparisonTypes :: Type -> Type -> Either TypeError ()
+checkComparisonTypes t1 t2
+  | t1 == t2 = Right ()
+  | otherwise = Left $ InvalidComparison (show t1) (show t2)
