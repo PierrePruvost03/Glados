@@ -6,7 +6,6 @@ module DataStruct.VM
   , Heap
   , Stack
   , HeapAddr
-  , initVMState
   , baseState
   ) where
 
@@ -28,17 +27,7 @@ data VMState = VMState
   , heap :: Heap
   , code :: Code
   , ip :: Int  -- Instruction Pointer
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 baseState :: [Instr] -> VMState
 baseState instr = VMState {stack = [], env = M.empty, heap = V.empty, code = V.fromList instr, ip = 0}
-
--- Initialisation d'un état VM vide
-initVMState :: [Instr] -> VMState
-initVMState instructions = VMState
-  { stack = []
-  , env = M.empty
-  , heap = V.empty
-  , code = V.fromList instructions
-  , ip = 0
-  }

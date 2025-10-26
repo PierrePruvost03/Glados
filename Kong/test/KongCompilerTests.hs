@@ -1,6 +1,7 @@
 module KongCompilerTests (kongCompilerTests) where
 
 import Data.List (isInfixOf)
+import qualified Data.Vector as V
 import Test.HUnit
 import Compiler.Program (compileWithEnv)
 import DataStruct.Ast
@@ -316,7 +317,7 @@ testCompileChar :: Test
 testCompileChar =
   TestCase
     ( assertEqual
-        "should compile char value to Push VChar instruction"
+        "should compile char value to Push (VNumber (VChar 'a'))"
         (Right [Push (VNumber (VChar 'a'))])
         (compileWithEnv emptyEnv (AExpress (AValue (ANumber (AChar 'a')))))
     )

@@ -4,9 +4,9 @@ import System.Environment (getArgs)
 import System.Exit (exitSuccess, exitFailure)
 import System.IO (hPutStrLn, stderr)
 import Parser (runParser)
+import DataStruct.VM (baseState)
 import AstParsing.BaseParsing (parseAst)
 import Compiler.Program (compileProgram)
-import DataStruct.VM (initVMState)
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..))
@@ -36,7 +36,7 @@ printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) 
 handleExec :: [Instr] -> IO ()
 handleExec instrs = do
     putStrLn $ "[Bytecode] " ++ show instrs --debug
-    exec (initVMState instrs) >>= printResult
+    exec (baseState instrs) >>= printResult
 
 printResult :: Show a => a -> IO ()
 printResult result = putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitSuccess

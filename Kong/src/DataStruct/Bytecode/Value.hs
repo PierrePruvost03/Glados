@@ -46,8 +46,8 @@ instance Binary Value where
 
 data Instr
     = Push Value
-    | PushEnv String
-    | Call
+    | PushEnv String -- push a the corresponding var in the stack
+    | Call           -- call a function -- stack state (function : arg1 : arg2 : xs)
     | Ret
     | Nop
 
