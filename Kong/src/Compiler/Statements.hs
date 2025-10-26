@@ -32,23 +32,21 @@ inferReturnType _ _ = Nothing
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst (ABlock asts) env = compileBlock asts env
-compileAst (AFunkDef name params retType body) env =
-  matchFunkDef
-  ( compileAst (ABlock body)
-    ( foldl
-      (\e p -> case p of { AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e })
-      ( env { typeAliases = M.insert name (TKonst (TTuple (extractParamTypes params ++ [resolveType env retType]))) (typeAliases env) }
-      )
-      params )
-  ) (getReturnExpr body) (resolveType env retType) env name params
+-- compileAst (AFunkDef name params retType body) env =
+--   matchFunkDef
+--   ( compileAst (ABlock body)
+--     ( foldl
+--       (\e p -> case p of { AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e })
+--       ( env { typeAliases = M.insert name (TKonst (TTuple (extractParamTypes params ++ [resolveType env retType]))) (typeAliases env) }
+--       )
+--       params )
+--   ) (getReturnExpr body) (resolveType env retType) env name params
 compileAst (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAst (AVarDecl t name (Just initExpr)) env =
   fmap (declareWithValue env t name) (compileExpr initExpr env)
 compileAst (AExpress expr) env =
   fmap (\instrs -> (instrs, env)) (compileExpr expr env)
-compileAst (ASymbol symbol) env =
-  Right (symbolInstrs env symbol, env)
 compileAst (AReturn expr) env =
   fmap (\(instrs, _) -> (instrs ++ [Ret], env)) (compileAst expr env)
 compileAst aIf@AIf{} env =
@@ -90,12 +88,6 @@ declareWithValue env t name exprCode
   | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
   where t' = resolveType env t
 
-symbolInstrs :: CompilerEnv -> String -> [Instr]
-symbolInstrs env symbol
-  | Just t <- M.lookup symbol (typeAliases env)
-  , not (isKonst t) = [PushEnv symbol, LoadRef]
-  | otherwise = [PushEnv symbol]
-
 compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileBlock asts env =
   foldl (\acc ast ->
@@ -129,7 +121,6 @@ extractParamNames :: [Ast] -> [String]
 extractParamNames = foldr extractParam []
   where
     extractParam (AVarDecl _ name _) acc = name : acc
-    extractParam (ASymbol name) acc = name : acc
     extractParam _ acc = acc
 
 extractParamTypes :: [Ast] -> [Type]

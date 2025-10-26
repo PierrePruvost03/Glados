@@ -167,3 +167,18 @@ symbolExpressionIn = '('
 
 symbolExpressionOut :: Char
 symbolExpressionOut = ')'
+
+symbolTrait :: String
+symbolTrait = "Trait"
+
+symbolImpl :: String
+symbolImpl = "Impl"
+
+symbolSelf :: String
+symbolSelf = "self"
+
+symbolSelfType :: String
+symbolSelfType = "Self"
+
+symbolCallMethod :: Char
+symbolCallMethod = '.'
