@@ -57,7 +57,9 @@ resolveType :: CompilerEnv -> Type -> Type
 resolveType env t@(TCustom name) =
   case M.lookup name (typeAliases env) of
     Just realTy -> resolveType env realTy
-    Nothing -> t
+    Nothing -> case M.lookup name (structDefs env) of
+      Just _ -> TStruct name
+      Nothing -> t
 resolveType env (TKonst ty) = TKonst (resolveType env ty)
 resolveType env (TStrong ty) = TStrong (resolveType env ty)
 resolveType env (TKong ty) = TKong (resolveType env ty)
@@ -155,9 +157,14 @@ inferType (AValue (ANumber (AFloat _))) _ = Just TFloat
 inferType (AValue (ANumber (ABool _))) _ = Just TBool
 inferType (AValue (ANumber (AChar _))) _ = Just TChar
 inferType (AValue (AString _)) _ = Just TString
-inferType (AValue (ATuple _)) _ = Nothing
-inferType (AValue (AArray _)) _ = Nothing
-inferType (AValue (AVector _)) _ = Nothing
+inferType (AValue (ATuple exprs)) env =
+  case traverse (\e -> inferType e env) exprs of
+    Just ts -> Just (TTuple ts)
+    Nothing -> Nothing
+inferType (AValue (AArray exprs)) env =
+  inferHomogeneousList TArray exprs env
+inferType (AValue (AVector exprs)) env =
+  inferHomogeneousList TVector exprs env
 inferType (AValue (AStruct _)) _ = Nothing
 inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
 inferType (AAttribution _ _) _ = Nothing
@@ -178,3 +185,12 @@ comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
 
 arithOps :: [String]
 arithOps = ["+", "-", "*", "/"]
+
+inferHomogeneousList :: (Type -> AExpression -> Type) -> [AExpression] -> CompilerEnv -> Maybe Type
+inferHomogeneousList ctor exprs env =
+  case traverse (\e -> inferType e env) exprs of
+    Just [] -> Just (ctor TInt (AValue (ANumber (AInteger 0))))
+    Just (t:ts) | all (typesEqual t) ts ->
+      let sizeExpr = AValue (ANumber (AInteger (length exprs)))
+      in Just (ctor t sizeExpr)
+    _ -> Nothing

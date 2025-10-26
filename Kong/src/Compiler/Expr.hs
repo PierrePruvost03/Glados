@@ -29,6 +29,29 @@ compileExpr (AAttribution var rhs) env =
     matchAssignment _ _ (Left err) = Left err
 compileExpr (AValue astValue) env = compileValue astValue env
 compileExpr (AAccess access) env = compileAccess access env
+compileExpr (ACall "=" [lhs, val]) env =
+  case lhs of
+    -- x = val
+    AValue (AVarCall v) ->
+      (++) <$> compileExpr val env <*> Right [PushEnv v, StoreRef]
+    -- arr[idx] = val
+    AAccess (AArrayAccess name idx) ->
+      (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
+           <*> Right [SetList, PushEnv name, StoreRef]
+    -- vec<idx> = val
+    AAccess (AVectorAccess name idx) ->
+      (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
+           <*> Right [SetList, PushEnv name, StoreRef]
+    -- tup|idx| = val
+    AAccess (ATupleAccess name idx) ->
+      (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
+           <*> Right [SetList, PushEnv name, StoreRef]
+    -- struct{field} = val
+    AAccess (AStructAccess name [field]) ->
+      (++) <$> ((++) <$> compileExpr val env <*> Right (pushVarValue env name))
+           <*> Right [SetStruct field, PushEnv name, StoreRef]
+    -- unsupported LHS
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment"
 compileExpr (ACall "print" args) env = compilePrintCall args env
 compileExpr (ACall op [lhs, rhs]) env | op `elem` comparisonOps =
   case (inferType lhs env, inferType rhs env) of
@@ -48,7 +71,7 @@ compileExpr (ACall op [lhs, rhs]) env | op `elem` arithOps =
       | otherwise -> Left $ InvalidArguments ("Arithmetic operation on incompatible types: " ++ show t1 ++ ", " ++ show t2)
     _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation"
 compileExpr (ACall funcName args) env
-  | not (elem funcName (comparisonOps ++ arithOps ++ ["print"])) =
+  | not (elem funcName (comparisonOps ++ arithOps ++ ["print","open","read","write","close","exit"])) =
       matchFunctionCall funcName (M.lookup funcName (typeAliases env)) (getFunctionArgTypes (typeAliases env) funcName) (map (\a -> inferType a env) args) (traverse (\a -> compileExpr a env) args)
   | otherwise = fmap (\compiledArgs -> concat compiledArgs ++ compileCall funcName) (mapM (`compileExpr` env) (reverse args))
 
@@ -102,19 +125,32 @@ compileValue (AVarCall vname) env
 checkAccessType :: Maybe Type -> Either CompilerError ()
 checkAccessType (Just (TArray _ _)) = Right ()
 checkAccessType (Just (TVector _ _)) = Right ()
+checkAccessType (Just (TTuple _)) = Right ()
 checkAccessType (Just (TStruct _)) = Right ()
 checkAccessType (Just _) = Left $ InvalidArguments "Invalid type for access (not a struct/array/vector)"
 checkAccessType Nothing = Left $ InvalidArguments "Unable to infer type for access"
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
 compileAccess (AArrayAccess arrName idx) env =
-  matchAccess (M.lookup arrName (typeAliases env)) (compileExpr idx env)
+  let idxCode = compileExpr idx env
+      arrCode = Right (pushVarValue env arrName)
+      final = (++) <$> ((++) <$> idxCode <*> arrCode) <*> Right [GetList]
+  in matchAccess (M.lookup arrName (typeAliases env)) final
 compileAccess (AVectorAccess vecName idx) env =
-  matchAccess (M.lookup vecName (typeAliases env)) (compileExpr idx env)
+  let idxCode = compileExpr idx env
+      vecCode = Right (pushVarValue env vecName)
+      final = (++) <$> ((++) <$> idxCode <*> vecCode) <*> Right [GetList]
+  in matchAccess (M.lookup vecName (typeAliases env)) final
 compileAccess (ATupleAccess tupleName idx) env =
-  matchAccess (M.lookup tupleName (typeAliases env)) (compileExpr idx env)
+  let idxCode = compileExpr idx env
+      tupCode = Right (pushVarValue env tupleName)
+      final = (++) <$> ((++) <$> idxCode <*> tupCode) <*> Right [GetList]
+  in matchAccess (M.lookup tupleName (typeAliases env)) final
 compileAccess (AStructAccess structName fieldPath) env =
-  matchAccess (M.lookup structName (typeAliases env)) (Right (map GetStruct fieldPath))
+  let base = pushVarValue env structName
+      accessChain = map GetStruct fieldPath
+      final = Right (base ++ accessChain)
+  in matchAccess (M.lookup structName (typeAliases env)) final
 
 matchAccess :: Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr]
 matchAccess t (Right code) =
@@ -122,6 +158,13 @@ matchAccess t (Right code) =
     Right () -> Right code
     Left err -> Left err
 matchAccess _ (Left err) = Left err
+
+-- Helper to push a variable's current value (handles konst/reference semantics)
+pushVarValue :: CompilerEnv -> String -> [Instr]
+pushVarValue env vname
+  | Just t <- M.lookup vname (typeAliases env)
+  , not (isKonst (resolveType env t)) = [PushEnv vname, LoadRef]
+  | otherwise = [PushEnv vname]
 
 compileNumber :: AstNumber -> Number
 compileNumber (AInteger n) = VInt n

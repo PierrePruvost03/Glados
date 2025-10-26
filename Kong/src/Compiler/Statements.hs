@@ -146,4 +146,7 @@ defaultValue TFloat = VNumber $ VFloat 0.0
 defaultValue TString = VList (V.fromList [])
 defaultValue (TStrong t) = defaultValue t
 defaultValue (TKong t) = defaultValue t
+defaultValue (TArray _ _) = VList (V.fromList [])
+defaultValue (TVector _ _) = VList (V.fromList [])
+defaultValue (TTuple _) = VList (V.fromList [])
 defaultValue _ = VEmpty
