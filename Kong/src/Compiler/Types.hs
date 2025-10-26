@@ -17,6 +17,7 @@ module Compiler.Types
   , inferType
   , comparisonOps
   , arithOps
+  , bothNumeric
   ) where
 
 import DataStruct.Ast

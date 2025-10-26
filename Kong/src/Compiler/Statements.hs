@@ -10,24 +10,14 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import qualified Data.Vector as V
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, eqTypeNormalized)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, eqTypeNormalized, inferType, isKonst, bothNumeric)
 import Compiler.Expr (compileExpr)
 import qualified Data.Map as M
 import qualified Data.List as L
 
-isKonst :: Type -> Bool
-isKonst (TKonst _) = True
-isKonst _ = False
-
-comparisonOps :: [String]
-comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
-
-arithOps :: [String]
-arithOps = ["+", "-", "*", "/"]
-
 checkReturnType :: Type -> Maybe Type -> Either CompilerError ()
 checkReturnType expected (Just actual)
-  | typesEqual expected actual || (bothNumeric expected actual) = Right ()
+  | eqTypeNormalized expected actual || (bothNumeric expected actual) = Right ()
   | otherwise = Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
 checkReturnType _ Nothing = Left $ InvalidArguments "Unable to infer return type"
 
@@ -36,28 +26,8 @@ getReturnExpr [] = Nothing
 getReturnExpr (AReturn e : _) = Just e
 getReturnExpr (_ : xs) = getReturnExpr xs
 
-inferExprType :: AExpression -> CompilerEnv -> Maybe Type
-inferExprType (AValue (ANumber (AInteger _))) _ = Just TInt
-inferExprType (AValue (ANumber (AFloat _))) _ = Just TFloat
-inferExprType (AValue (ANumber (ABool _))) _ = Just TBool
-inferExprType (AValue (ANumber (AChar _))) _ = Just TChar
-inferExprType (AValue (AString _)) _ = Just TString
-inferExprType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
-inferExprType (ACall f [_, _]) _ | f `elem` comparisonOps = Just TBool
-inferExprType (ACall f [l, r]) env | f `elem` arithOps =
-  case (inferExprType l env, inferExprType r env) of
-    (Just t1, Just t2)
-      | bothNumeric t1 t2 && (isFloat t1 || isFloat t2) -> Just TFloat
-      | bothNumeric t1 t2 -> Just TInt
-    _ -> Nothing
-inferExprType (ACall f _args) env | not (f `elem` (comparisonOps ++ arithOps ++ ["print"])) =
-  case M.lookup f (typeAliases env) of
-    Just (TKonst (TTuple ts)) -> case ts of { [] -> Nothing; _ -> Just (last ts) }
-    _ -> Nothing
-inferExprType _ _ = Nothing
-
 inferReturnType :: Maybe Ast -> CompilerEnv -> Maybe Type
-inferReturnType (Just (AExpress e)) env = inferExprType e env
+inferReturnType (Just (AExpress e)) env = inferType e env
 inferReturnType _ _ = Nothing
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
@@ -136,8 +106,8 @@ compileBlock asts env =
 
 compileIf :: Ast -> CompilerEnv -> Either CompilerError [Instr]
 compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
-  case inferExprType cond env of
-    Just t | typesEqual t TBool ->
+  case inferType cond env of
+    Just t | eqTypeNormalized t TBool ->
       compileExpr cond env >>= \condCode ->
         compileAst thenBranch env >>= \(thenCode, _) ->
           compileElse elseBranch env >>= \(elseCode, _) ->
@@ -177,26 +147,3 @@ defaultValue TString = VList (V.fromList [])
 defaultValue (TStrong t) = defaultValue t
 defaultValue (TKong t) = defaultValue t
 defaultValue _ = VEmpty
-
-stripWrap :: Type -> Type
-stripWrap (TKonst t) = stripWrap t
-stripWrap (TStrong t) = stripWrap t
-stripWrap (TKong t) = stripWrap t
-stripWrap t = t
-
-typesEqual :: Type -> Type -> Bool
-typesEqual = eqTypeNormalized
-
-bothNumeric :: Type -> Type -> Bool
-bothNumeric a b = isNumeric a && isNumeric b
-
-isNumeric :: Type -> Bool
-isNumeric t = case stripWrap t of
-  TInt -> True
-  TFloat -> True
-  _ -> False
-
-isFloat :: Type -> Bool
-isFloat t = case stripWrap t of
-  TFloat -> True
-  _ -> False
