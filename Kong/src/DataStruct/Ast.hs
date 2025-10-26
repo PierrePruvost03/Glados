@@ -38,6 +38,7 @@ data Type
   | TVector Type AExpression-- Type<size>
   | TTuple [Type]           -- |Type1, Type2, ...|
   | TCustom String          -- custom type alias
+  | TFunc [Type] Type     -- arg type -> return type
   deriving (Show, Eq)
 
 data AstNumber
@@ -55,6 +56,7 @@ data AstValue
   | AVector [AExpression]
   | AStruct [(String, AExpression)]
   | AVarCall String
+  | ALambda [Ast] Type [Ast]
   deriving (Show, Eq)
 
 data AstAccess
@@ -93,17 +95,20 @@ data AExpression
 -- Main AST
 data Ast
   -- Declarations & Definitions
-  = AFunkDef
-      { funkName :: String,
-        funkParams :: [Ast],
-        funkReturnType :: Type,
-        funkBody :: [Ast]
-      }
-  | AExpress AExpression
+  = AExpress AExpression
   | AStruktDef
       { struktName :: String,
         struktFields :: [(Type, String)]
       }
+  | ATraitDef
+    { traitName :: String,
+      traitMethods :: [(String, [Type], Type)]
+    }
+  | ATraitImpl
+    { implTrait :: String,
+      traitType :: Type,
+      implMethods :: [Ast]
+    }
   | ATypeAlias
       { aliasName :: String,
         aliasType :: Type
@@ -117,13 +122,6 @@ data Ast
   | AInclude
       { includeFrom :: String,
         includeItems :: [String]
-      }
-  -- Expressions
-  | ASymbol AstSymbol
-  | ALambda
-      { lambdaParams :: [(Type, String)],
-        lambdaReturnType :: Type,
-        lambdaBody :: Ast
       }
   -- Control Flow
   | AIf

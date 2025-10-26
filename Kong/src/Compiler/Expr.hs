@@ -98,6 +98,7 @@ compileValue (AVarCall vname) env
   | Just t <- M.lookup vname (typeAliases env)
   , not (isKonst (resolveType env t)) = Right [PushEnv vname, LoadRef]
   | otherwise = Right [PushEnv vname]
+-- compileValue (ALambda args type body) =  COMPILER LES FONCTIONS ICI
 
 checkAccessType :: Maybe Type -> Either CompilerError ()
 checkAccessType (Just (TArray _ _)) = Right ()

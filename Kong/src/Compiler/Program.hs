@@ -25,7 +25,6 @@ compileProgram fas =
     selectResult _ errs = Left errs
 
 enrichEnvWithAst :: CompilerEnv -> Ast -> CompilerEnv
-enrichEnvWithAst env (AFunkDef name params retTy _) = env { typeAliases = M.insert name (TKonst (TTuple (paramTypes params ++ [retTy]))) (typeAliases env) }
 enrichEnvWithAst env (AVarDecl t name _) = env { typeAliases = M.insert name t (typeAliases env) }
 enrichEnvWithAst env _ = env
 
@@ -64,7 +63,6 @@ buildAliasEnv asts = foldl stepAlias emptyEnv asts
   where
     stepAlias e a@(ATypeAlias _ _) = insertTypeAlias e a
     stepAlias e a@(AStruktDef _ _) = insertTypeAlias e a
-    stepAlias e (AFunkDef name params retTy _) = e { typeAliases = M.insert name (TKonst (TTuple (paramTypes params ++ [retTy]))) (typeAliases e) }
     stepAlias e _ = e
 
 paramTypes :: [Ast] -> [Type]
