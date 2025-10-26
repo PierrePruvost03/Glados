@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module DataStruct.Bytecode.Number (Number(..), put, get) where
+module DataStruct.Bytecode.Number (Number(..), NumberType(..), put, get) where
 
 import DataStruct.Bytecode.Utils (construct)
 import Data.Binary
@@ -24,3 +24,24 @@ instance Binary Number where
         2 -> construct VChar
         3 -> construct VBool
         _ -> fail "Unknow number"
+
+data NumberType
+    = NTInt
+    | NTBool
+    | NTChar
+    | NTFloat
+    deriving (Eq, Show)
+
+instance Binary NumberType where
+    -- writing
+    put NTInt = put (0 :: Word8)
+    put NTFloat = put (1 :: Word8)
+    put NTChar = put (2 :: Word8)
+    put NTBool = put (3 :: Word8)
+    -- reading
+    get = (get :: Get Word8) >>= \case
+        0 -> return NTInt
+        1 -> return NTFloat
+        2 -> return NTChar
+        3 -> return NTBool
+        _ -> fail "Unknow number type"
