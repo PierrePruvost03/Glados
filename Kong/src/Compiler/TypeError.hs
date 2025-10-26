@@ -3,10 +3,10 @@ module Compiler.TypeError (
     prettyTypeError
 ) where
 
- data TypeError
-    = TypeMismatch { expected :: String, actual :: String }
-    | InvalidComparison { leftType :: String, rightType :: String }
-    | InvalidFunctionCall { functionName :: String, expectedType :: String, actualType :: String }
+data TypeError
+    = TypeMismatch String String
+    | InvalidComparison String String
+    | InvalidFunctionCall String String String
     | OtherTypeError String
     deriving (Eq, Show)
 

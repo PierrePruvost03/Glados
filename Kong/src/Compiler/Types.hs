@@ -5,11 +5,13 @@ module Compiler.Types
   , emptyEnv
   , insertTypeAlias
   , resolveType
+  , checkComparisonTypes
+  , eqTypeNormalized
   ) where
 
 import DataStruct.Ast (Ast (..), Type (..))
 import qualified Data.Map as M
-import Compiler.TypeError (TypeError(..), prettyTypeError)
+import Compiler.TypeError (TypeError(..))
 
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
@@ -57,5 +59,37 @@ resolveType _ t = t
 
 checkComparisonTypes :: Type -> Type -> Either TypeError ()
 checkComparisonTypes t1 t2
-  | t1 == t2 = Right ()
+  | eqTypeNormalized t1 t2 = Right ()
+  | bothNumeric (stripWrap t1) (stripWrap t2) = Right ()
   | otherwise = Left $ InvalidComparison (show t1) (show t2)
+
+stripWrap :: Type -> Type
+stripWrap (TKonst t) = stripWrap t
+stripWrap (TStrong t) = stripWrap t
+stripWrap (TKong t) = stripWrap t
+stripWrap t = t
+
+bothNumeric :: Type -> Type -> Bool
+bothNumeric TInt TInt = True
+bothNumeric TFloat TFloat = True
+bothNumeric TInt TFloat = True
+bothNumeric TFloat TInt = True
+bothNumeric _ _ = False
+
+-- Structural type equality ignoring wrappers (TKonst, TStrong, TKong)
+eqTypeNormalized :: Type -> Type -> Bool
+eqTypeNormalized a b = eqType (stripWrap a) (stripWrap b)
+
+eqType :: Type -> Type -> Bool
+eqType TInt TInt = True
+eqType TBool TBool = True
+eqType TChar TChar = True
+eqType TString TString = True
+eqType TFloat TFloat = True
+eqType (TStruct s1) (TStruct s2) = s1 == s2
+eqType (TTrait s1) (TTrait s2) = s1 == s2
+eqType (TCustom s1) (TCustom s2) = s1 == s2
+eqType (TArray t1 _) (TArray t2 _) = eqType t1 t2
+eqType (TVector t1 _) (TVector t2 _) = eqType t1 t2
+eqType (TTuple xs) (TTuple ys) = length xs == length ys && and (zipWith eqType xs ys)
+eqType _ _ = False

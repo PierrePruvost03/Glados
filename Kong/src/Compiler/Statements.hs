@@ -10,7 +10,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import qualified Data.Vector as V
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, eqTypeNormalized)
 import Compiler.Expr (compileExpr)
 import qualified Data.Map as M
 import qualified Data.List as L
@@ -19,9 +19,15 @@ isKonst :: Type -> Bool
 isKonst (TKonst _) = True
 isKonst _ = False
 
+comparisonOps :: [String]
+comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
+
+arithOps :: [String]
+arithOps = ["+", "-", "*", "/"]
+
 checkReturnType :: Type -> Maybe Type -> Either CompilerError ()
 checkReturnType expected (Just actual)
-  | expected == actual = Right ()
+  | typesEqual expected actual || (bothNumeric expected actual) = Right ()
   | otherwise = Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
 checkReturnType _ Nothing = Left $ InvalidArguments "Unable to infer return type"
 
@@ -30,14 +36,41 @@ getReturnExpr [] = Nothing
 getReturnExpr (AReturn e : _) = Just e
 getReturnExpr (_ : xs) = getReturnExpr xs
 
+inferExprType :: AExpression -> CompilerEnv -> Maybe Type
+inferExprType (AValue (ANumber (AInteger _))) _ = Just TInt
+inferExprType (AValue (ANumber (AFloat _))) _ = Just TFloat
+inferExprType (AValue (ANumber (ABool _))) _ = Just TBool
+inferExprType (AValue (ANumber (AChar _))) _ = Just TChar
+inferExprType (AValue (AString _)) _ = Just TString
+inferExprType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
+inferExprType (ACall f [_, _]) _ | f `elem` comparisonOps = Just TBool
+inferExprType (ACall f [l, r]) env | f `elem` arithOps =
+  case (inferExprType l env, inferExprType r env) of
+    (Just t1, Just t2)
+      | bothNumeric t1 t2 && (isFloat t1 || isFloat t2) -> Just TFloat
+      | bothNumeric t1 t2 -> Just TInt
+    _ -> Nothing
+inferExprType (ACall f _args) env | not (f `elem` (comparisonOps ++ arithOps ++ ["print"])) =
+  case M.lookup f (typeAliases env) of
+    Just (TKonst (TTuple ts)) -> case ts of { [] -> Nothing; _ -> Just (last ts) }
+    _ -> Nothing
+inferExprType _ _ = Nothing
+
 inferReturnType :: Maybe Ast -> CompilerEnv -> Maybe Type
-inferReturnType (Just (AExpress (AValue v))) env = inferType (AValue v) env
+inferReturnType (Just (AExpress e)) env = inferExprType e env
 inferReturnType _ _ = Nothing
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst (ABlock asts) env = compileBlock asts env
 compileAst (AFunkDef name params retType body) env =
-  matchFunkDef (compileAst (ABlock body) (foldl (\e p -> case p of {AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e}) env params)) (getReturnExpr body) retType env name
+  matchFunkDef
+  ( compileAst (ABlock body)
+    ( foldl
+      (\e p -> case p of { AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e })
+      ( env { typeAliases = M.insert name (TKonst (TTuple (extractParamTypes params ++ [resolveType env retType]))) (typeAliases env) }
+      )
+      params )
+  ) (getReturnExpr body) (resolveType env retType) env name params
 compileAst (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAst (AVarDecl t name (Just initExpr)) env =
@@ -57,7 +90,7 @@ compileAst ast _ = Left $ UnsupportedAst (show ast)
 registerFunction :: CompilerEnv -> String -> [Ast] -> ([Instr], CompilerEnv) -> ([Instr], CompilerEnv)
 registerFunction env name params (bodyCode, _) =
   ( [Push (VFunction capturedNames (V.fromList (concatMap genParam paramNames ++ bodyCode))), SetVar name]
-  , env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) }
+  , env
   )
   where
     paramNames = extractParamNames params
@@ -65,12 +98,12 @@ registerFunction env name params (bodyCode, _) =
     capturedNames = L.nub (name : paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
 
-matchFunkDef :: Either CompilerError ([Instr], CompilerEnv) -> Maybe Ast -> Type -> CompilerEnv -> String -> Either CompilerError ([Instr], CompilerEnv)
-matchFunkDef (Right (bodyInstrs, _)) retExpr retType env name =
-  case checkReturnType retType (inferReturnType retExpr env) of
-    Right () -> Right ([], env { typeAliases = M.insert name (TKonst TInt) (typeAliases env) })
+matchFunkDef :: Either CompilerError ([Instr], CompilerEnv) -> Maybe Ast -> Type -> CompilerEnv -> String -> [Ast] -> Either CompilerError ([Instr], CompilerEnv)
+matchFunkDef (Right (_bodyInstrs, bodyEnv)) retExpr retType env name params =
+  case checkReturnType retType (inferReturnType retExpr bodyEnv) of
+    Right () -> Right (registerFunction env name params (_bodyInstrs, bodyEnv))
     Left err -> Left err
-matchFunkDef (Left err) _ _ _ _ = Left err
+matchFunkDef (Left err) _ _ _ _ _ = Left err
 
 extractGlobalNames :: M.Map String a -> [String]
 extractGlobalNames = M.keys
@@ -103,10 +136,14 @@ compileBlock asts env =
 
 compileIf :: Ast -> CompilerEnv -> Either CompilerError [Instr]
 compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
-  compileExpr cond env >>= \condCode ->
-    compileAst thenBranch env >>= \(thenCode, _) ->
-      compileElse elseBranch env >>= \(elseCode, _) ->
-        Right (assemble condCode thenCode elseCode)
+  case inferExprType cond env of
+    Just t | typesEqual t TBool ->
+      compileExpr cond env >>= \condCode ->
+        compileAst thenBranch env >>= \(thenCode, _) ->
+          compileElse elseBranch env >>= \(elseCode, _) ->
+            Right (assemble condCode thenCode elseCode)
+    Just other -> Left $ InvalidArguments ("If condition must be boolean, got " ++ show other)
+    Nothing -> Left $ InvalidArguments "Unable to infer type for if-condition"
   where
     assemble condCode thenCode elseCode =
       condCode ++ [JumpIfFalse (jumpOffset thenCode elseCode)] ++ thenCode ++ elseSegment elseCode
@@ -125,6 +162,12 @@ extractParamNames = foldr extractParam []
     extractParam (ASymbol name) acc = name : acc
     extractParam _ acc = acc
 
+extractParamTypes :: [Ast] -> [Type]
+extractParamTypes = foldr go []
+  where
+    go (AVarDecl t _ _) acc = t : acc
+    go _ acc = acc
+
 defaultValue :: Type -> Value
 defaultValue TInt = VNumber $ VInt 0
 defaultValue TBool = VNumber $ VBool False
@@ -134,3 +177,26 @@ defaultValue TString = VList (V.fromList [])
 defaultValue (TStrong t) = defaultValue t
 defaultValue (TKong t) = defaultValue t
 defaultValue _ = VEmpty
+
+stripWrap :: Type -> Type
+stripWrap (TKonst t) = stripWrap t
+stripWrap (TStrong t) = stripWrap t
+stripWrap (TKong t) = stripWrap t
+stripWrap t = t
+
+typesEqual :: Type -> Type -> Bool
+typesEqual = eqTypeNormalized
+
+bothNumeric :: Type -> Type -> Bool
+bothNumeric a b = isNumeric a && isNumeric b
+
+isNumeric :: Type -> Bool
+isNumeric t = case stripWrap t of
+  TInt -> True
+  TFloat -> True
+  _ -> False
+
+isFloat :: Type -> Bool
+isFloat t = case stripWrap t of
+  TFloat -> True
+  _ -> False

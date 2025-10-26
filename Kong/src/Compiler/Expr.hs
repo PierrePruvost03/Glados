@@ -3,6 +3,7 @@ module Compiler.Expr
   , compileCall
   , compileValue
   , compileAccess
+  , inferType
   ) where
 
 import DataStruct.Ast
@@ -11,35 +12,16 @@ import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
-import Compiler.TypeError (TypeError(..), prettyTypeError)
-import Compiler.Types (checkComparisonTypes)
+import Compiler.TypeError (prettyTypeError)
+import Compiler.Types (checkComparisonTypes, eqTypeNormalized)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 
-isKonst :: Type -> Bool
-isKonst (TKonst _) = True
-isKonst _ = False
-
-inferType :: AExpression -> CompilerEnv -> Maybe Type
-inferType (AValue (ANumber (AInteger _))) _ = Just TInt
-inferType (AValue (ANumber (AFloat _))) _ = Just TFloat
-inferType (AValue (ANumber (ABool _))) _ = Just TBool
-inferType (AValue (ANumber (AChar _))) _ = Just TChar
-inferType (AValue (AString _)) _ = Just TString
-inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
-inferType (AAttribution _ _) _ = Nothing
-inferType (AAccess _) _ = Nothing
-inferType (ACall _ _) _ = Nothing
-
-comparisonOps :: [String]
-comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
-
-arithOps :: [String]
-arithOps = ["+", "-", "*", "/"]
-
 compileExpr :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
 compileExpr (AAttribution var rhs) env =
-  matchAssignment (M.lookup var (typeAliases env)) (inferType rhs env) (compileExpr rhs env)
+  case M.lookup var (typeAliases env) of
+    Nothing -> Left (UnknownVariable var)
+    Just _ -> matchAssignment (M.lookup var (typeAliases env)) (inferType rhs env) (compileExpr rhs env)
   where
     matchAssignment t v (Right rhsCode) =
       case checkAssignmentType t v of
@@ -49,41 +31,36 @@ compileExpr (AAttribution var rhs) env =
 compileExpr (AValue astValue) env = compileValue astValue env
 compileExpr (AAccess access) env = compileAccess access env
 compileExpr (ACall "print" args) env = compilePrintCall args env
+compileExpr (ACall op [lhs, rhs]) env | op `elem` comparisonOps =
+  case (inferType lhs env, inferType rhs env) of
+    (Just t1, Just t2) ->
+      case (compileExpr lhs env, compileExpr rhs env) of
+        (Right lcode, Right rcode) ->
+          case checkComparisonTypes t1 t2 of
+            Right () -> Right (rcode ++ lcode ++ [DoOp (stringToOp op)])
+            Left terr -> Left $ InvalidArguments (prettyTypeError terr)
+        (Left e, _) -> Left e
+        (_, Left e) -> Left e
+    _ -> Left $ InvalidArguments "Unable to infer types for comparison"
+compileExpr (ACall op [lhs, rhs]) env | op `elem` arithOps =
+  case (inferType lhs env, inferType rhs env) of
+    (Just t1, Just t2)
+      | numericCompatible t1 t2 -> (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp op)])
+      | otherwise -> Left $ InvalidArguments ("Arithmetic operation on incompatible types: " ++ show t1 ++ ", " ++ show t2)
+    _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation"
 compileExpr (ACall funcName args) env
   | not (elem funcName (comparisonOps ++ arithOps ++ ["print"])) =
-      matchFunctionCall (M.lookup funcName (typeAliases env)) (getFunctionArgTypes (typeAliases env) funcName) (map (\a -> inferType a env) args) (traverse (\a -> compileExpr a env) args)
-  | otherwise = fmap (concat . (++ [compileCall funcName])) (mapM (`compileExpr` env) (reverse args))
+      matchFunctionCall funcName (M.lookup funcName (typeAliases env)) (getFunctionArgTypes (typeAliases env) funcName) (map (\a -> inferType a env) args) (traverse (\a -> compileExpr a env) args)
+  | otherwise = fmap (\compiledArgs -> concat compiledArgs ++ compileCall funcName) (mapM (`compileExpr` env) (reverse args))
 
-matchFunctionCall :: Maybe Type -> Maybe [Type] -> [Maybe Type] -> Either CompilerError [[Instr]] -> Either CompilerError [Instr]
-matchFunctionCall (Just (TKonst _)) (Just expectedTypes) argTypes (Right argInstrs) =
+matchFunctionCall :: String -> Maybe Type -> Maybe [Type] -> [Maybe Type] -> Either CompilerError [[Instr]] -> Either CompilerError [Instr]
+matchFunctionCall funcName (Just (TKonst _)) (Just expectedTypes) argTypes (Right argInstrs) =
   case checkFunctionCallTypes expectedTypes argTypes of
-    Right () -> Right (concat argInstrs ++ [compileCall funcName])
+    Right () -> Right (concat argInstrs ++ compileCall funcName)
     Left err -> Left err
-matchFunctionCall (Just (TKonst _)) (Just _) _ (Left err) = Left err
-matchFunctionCall (Just (TKonst _)) Nothing _ _ = Left $ UnknownFunction funcName
-matchFunctionCall _ _ _ _ = Left $ UnknownFunction funcName
-compileExpr (ACall op [lhs, rhs]) env
-  | elem op comparisonOps =
-      matchComparison (inferType lhs env) (inferType rhs env) (compileExpr lhs env) (compileExpr rhs env)
-  | elem op arithOps =
-      matchArith (inferType lhs env) (inferType rhs env) (compileExpr lhs env) (compileExpr rhs env)
-
-matchComparison :: Maybe Type -> Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr] -> Either CompilerError [Instr]
-matchComparison (Just t1) (Just t2) (Right lcode) (Right rcode) =
-  case checkComparisonTypes t1 t2 of
-    Right () -> Right (lcode ++ rcode ++ [DoOp (stringToOp op)])
-    Left terr -> Left $ InvalidArguments (prettyTypeError terr)
-matchComparison (Just _) (Just _) (Left err) _ = Left err
-matchComparison (Just _) (Just _) _ (Left err) = Left err
-matchComparison _ _ _ _ = Left $ InvalidArguments "Unable to infer types for comparison"
-
-matchArith :: Maybe Type -> Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr] -> Either CompilerError [Instr]
-matchArith (Just t1) (Just t2) (Right lcode) (Right rcode)
-  | t1 == t2 && (t1 == TInt || t1 == TFloat) = Right (lcode ++ rcode ++ [DoOp (stringToOp op)])
-  | otherwise = Left $ InvalidArguments ("Arithmetic operation on incompatible types: " ++ show t1 ++ ", " ++ show t2)
-matchArith (Just _) (Just _) (Left err) _ = Left err
-matchArith (Just _) (Just _) _ (Left err) = Left err
-matchArith _ _ _ _ = Left $ InvalidArguments "Unable to infer types for arithmetic operation"
+matchFunctionCall _ (Just (TKonst _)) (Just _) _ (Left err) = Left err
+matchFunctionCall funcName (Just (TKonst _)) Nothing _ _ = Left $ UnknownFunction funcName
+matchFunctionCall funcName _ _ _ _ = Left $ UnknownFunction funcName
 
 compilePrintCall :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
 compilePrintCall [AValue (AString s)] _ =
@@ -166,19 +143,9 @@ compileStructLiteral fieldPairs env =
     compileField (_, expression) = compileExpr expression env
     fieldNames = map fst fieldPairs
 
-compileIndexedAccess :: String -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileIndexedAccess name idx env =
-  compileExpr idx env >>= Right . assemble
-  where
-    assemble idxCode = base name ++ idxCode ++ [GetList]
-    base targetName
-      | Just t <- M.lookup targetName (typeAliases env)
-      , not (isKonst t) = [PushEnv targetName, LoadRef]
-      | otherwise = [PushEnv targetName]
-
 checkFunctionCallTypes :: [Type] -> [Maybe Type] -> Either CompilerError ()
 checkFunctionCallTypes (t:ts) (Just a:as)
-  | t == a = checkFunctionCallTypes ts as
+  | typesEqual t a || numericCompatible t a = checkFunctionCallTypes ts as
   | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a)
 checkFunctionCallTypes [] [] = Right ()
 checkFunctionCallTypes _ _ = Left $ InvalidArguments "Function argument count or type mismatch"
@@ -186,5 +153,77 @@ checkFunctionCallTypes _ _ = Left $ InvalidArguments "Function argument count or
 getFunctionArgTypes :: M.Map String Type -> String -> Maybe [Type]
 getFunctionArgTypes envMap fname =
   case M.lookup fname envMap of
-    Just (TKonst (TTuple ts)) -> Just ts
+    Just (TKonst (TTuple ts)) -> case ts of
+      [] -> Just []
+      _  -> Just (init ts)
     _ -> Nothing
+
+getFunctionReturnType :: M.Map String Type -> String -> Maybe Type
+getFunctionReturnType envMap fname =
+  case M.lookup fname envMap of
+    Just (TKonst (TTuple ts)) -> case ts of
+      [] -> Nothing
+      _  -> Just (last ts)
+    _ -> Nothing
+
+stripWrap :: Type -> Type
+stripWrap (TKonst t) = stripWrap t
+stripWrap (TStrong t) = stripWrap t
+stripWrap (TKong t) = stripWrap t
+stripWrap t = t
+
+checkAssignmentType :: Maybe Type -> Maybe Type -> Either CompilerError ()
+checkAssignmentType (Just expected) (Just actual)
+  | eqTypeNormalized expected actual = Right ()
+  | otherwise = Left $ IllegalAssignment ("Type mismatch on assignment: expected " ++ show expected ++ ", got " ++ show actual)
+checkAssignmentType _ _ = Left $ IllegalAssignment "Unable to infer types for assignment"
+
+typesEqual :: Type -> Type -> Bool
+typesEqual = eqTypeNormalized
+
+numericCompatible :: Type -> Type -> Bool
+numericCompatible a b =
+  case (stripWrap a, stripWrap b) of
+    (TInt, TInt) -> True
+    (TFloat, TFloat) -> True
+    (TInt, TFloat) -> True
+    (TFloat, TInt) -> True
+    _ -> False
+
+isFloatType :: Type -> Bool
+isFloatType t = case stripWrap t of
+  TFloat -> True
+  _ -> False
+
+isKonst :: Type -> Bool
+isKonst (TKonst _) = True
+isKonst _ = False
+
+inferType :: AExpression -> CompilerEnv -> Maybe Type
+inferType (AValue (ANumber (AInteger _))) _ = Just TInt
+inferType (AValue (ANumber (AFloat _))) _ = Just TFloat
+inferType (AValue (ANumber (ABool _))) _ = Just TBool
+inferType (AValue (ANumber (AChar _))) _ = Just TChar
+inferType (AValue (AString _)) _ = Just TString
+inferType (AValue (ATuple _)) _ = Nothing
+inferType (AValue (AArray _)) _ = Nothing
+inferType (AValue (AVector _)) _ = Nothing
+inferType (AValue (AStruct _)) _ = Nothing
+inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
+inferType (AAttribution _ _) _ = Nothing
+inferType (AAccess _) _ = Nothing
+inferType (ACall fname [l, r]) env | fname `elem` arithOps =
+  case (inferType l env, inferType r env) of
+    (Just t1, Just t2)
+      | numericCompatible t1 t2 && (isFloatType t1 || isFloatType t2) -> Just TFloat
+      | numericCompatible t1 t2 -> Just TInt
+    _ -> Nothing
+inferType (ACall fname _) env
+  | fname `elem` (comparisonOps ++ ["print"]) = Nothing
+  | otherwise = getFunctionReturnType (typeAliases env) fname
+
+comparisonOps :: [String]
+comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
+
+arithOps :: [String]
+arithOps = ["+", "-", "*", "/"]
