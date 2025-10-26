@@ -184,7 +184,7 @@ parsePositiveFloatString :: Parser String
 parsePositiveFloatString =
   (<>)
     <$> some (parseAnyChar ['0' .. '9'])
-    <*> (((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9'])) <|> (skipChars "." *> pure ".0"))
+    <*> (((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9'])))
 
 
 
