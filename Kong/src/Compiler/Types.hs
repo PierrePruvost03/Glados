@@ -88,21 +88,16 @@ bothNumeric TFloat TInt = True
 bothNumeric _ _ = False
 
 eqTypeNormalized :: Type -> Type -> Bool
-eqTypeNormalized a b = eqType (stripWrap a) (stripWrap b)
+eqTypeNormalized a b = normalize a == normalize b
 
-eqType :: Type -> Type -> Bool
-eqType TInt TInt = True
-eqType TBool TBool = True
-eqType TChar TChar = True
-eqType TString TString = True
-eqType TFloat TFloat = True
-eqType (TStruct s1) (TStruct s2) = s1 == s2
-eqType (TTrait s1) (TTrait s2) = s1 == s2
-eqType (TCustom s1) (TCustom s2) = s1 == s2
-eqType (TArray t1 _) (TArray t2 _) = eqType t1 t2
-eqType (TVector t1 _) (TVector t2 _) = eqType t1 t2
-eqType (TTuple xs) (TTuple ys) = length xs == length ys && and (zipWith eqType xs ys)
-eqType _ _ = False
+normalize :: Type -> Type
+normalize (TKonst t) = normalize t
+normalize (TStrong t) = normalize t
+normalize (TKong t) = normalize t
+normalize (TArray t _) = TArray (normalize t) (AValue (ANumber (AInteger 0)))
+normalize (TVector t _) = TVector (normalize t) (AValue (ANumber (AInteger 0)))
+normalize (TTuple ts) = TTuple (map normalize ts)
+normalize t = t
 
 checkFunctionCallTypes :: [Type] -> [Maybe Type] -> Either CompilerError ()
 checkFunctionCallTypes (t:ts) (Just a:as)
@@ -173,6 +168,7 @@ inferType (ACall fname [l, r]) env | fname `elem` arithOps =
       | numericCompatible t1 t2 && (isFloatType t1 || isFloatType t2) -> Just TFloat
       | numericCompatible t1 t2 -> Just TInt
     _ -> Nothing
+inferType (ACall fname [_l, _r]) _env | fname `elem` comparisonOps = Just TBool
 inferType (ACall fname _) env
   | fname `elem` (comparisonOps ++ ["print"]) = Nothing
   | otherwise = getFunctionReturnType (typeAliases env) fname

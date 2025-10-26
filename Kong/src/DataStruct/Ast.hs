@@ -38,14 +38,14 @@ data Type
   | TVector Type AExpression-- Type<size>
   | TTuple [Type]           -- |Type1, Type2, ...|
   | TCustom String          -- custom type alias
-  deriving Show
+  deriving (Show, Eq)
 
 data AstNumber
     = AInteger AstInt
     | ABool AstBool
     | AChar AstChar
     | AFloat AstFloat
-    deriving Show
+  deriving (Show, Eq)
 
 data AstValue
   = ANumber AstNumber
@@ -55,7 +55,7 @@ data AstValue
   | AVector [AExpression]
   | AStruct [(String, AExpression)]
   | AVarCall String
-  deriving Show
+  deriving (Show, Eq)
 
 data AstAccess
     = AArrayAccess {
@@ -74,7 +74,7 @@ data AstAccess
         sVarName :: String,
         fields :: [String]
     }
-    deriving Show
+  deriving (Show, Eq)
 
 data AExpression
     = AValue AstValue
@@ -87,7 +87,7 @@ data AExpression
         { callFunction :: String,
           callArgs :: [AExpression]
         }
-    deriving Show
+    deriving (Show, Eq)
 
 
 -- Main AST
@@ -144,4 +144,4 @@ data Ast
         forInIter :: Ast,
         forInBody :: Ast
       }
-  deriving Show
+  deriving (Show, Eq)
