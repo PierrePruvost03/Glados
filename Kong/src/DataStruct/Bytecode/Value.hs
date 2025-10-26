@@ -3,7 +3,7 @@ module DataStruct.Bytecode.Value (Value(..), Instr(..), put, get, Env, MemoryCel
 
 import qualified Data.Vector as V
 import qualified Data.Map as M
-import DataStruct.Bytecode.Number (Number(..))
+import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import Data.Binary
 import DataStruct.Bytecode.Utils (putManyMany, construct, constructList, getList)
 import DataStruct.Bytecode.Op (Op(..))
@@ -71,6 +71,8 @@ data Instr
 
     -- Opérations natives
     | DoOp Op
+    | Cast NumberType       -- cast a number into another number -- stack state (VNumber x : xs)
+    | Length                -- return the len of the list in top of the stack -- stack state (VList v : xs)
 
     -- Heap
     | Alloc
@@ -102,6 +104,8 @@ instance Binary Instr where
     put LoadRef = put (17 :: Word8)
     put StoreRef = put (18 :: Word8)
     put (Syscall s) = put (19 :: Word8) <> put s
+    put (Cast t) = put (20 :: Word8) <> put t
+    put Length = put (21 :: Word8)
 
     get = (get :: Get Word8) >>= \case
         0 -> construct Push
@@ -124,4 +128,6 @@ instance Binary Instr where
         17 -> return LoadRef
         18 -> return StoreRef
         19 -> construct Syscall
+        20 -> construct Syscall
+        21 -> return Length
         _ -> fail "Unknow Insrtuction"

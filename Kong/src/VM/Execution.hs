@@ -4,6 +4,7 @@ module VM.Execution (exec, createList) where
 
 import DataStruct.VM (VMState(..))
 import DataStruct.Bytecode.Value
+import DataStruct.Bytecode.Number (Number(..))
 import Control.Exception
 import qualified Data.Vector as V
 import qualified Data.Map as M
@@ -11,6 +12,7 @@ import VM.EnvGestion (mergeEnv)
 import VM.Errors (ExecError (..))
 import VM.Operations (applyOp)
 import VM.Syscall (executeSyscall)
+import VM.Cast (castNumber)
 import VM.Utils
 
 exec :: VMState -> IO VMState
@@ -40,8 +42,11 @@ checkInstrution state@(VMState {stack = x : xs, ip}) (JumpIfTrue n)
     | otherwise = exec $ state {stack = xs, ip = ip + 1}
 
 -- Operations
-checkInstrution state@(VMState {ip}) (DoOp op) = case applyOp state op of
-    newState -> exec $ newState {ip = ip + 1}
+checkInstrution s@(VMState {ip}) (DoOp op) = exec $ (applyOp s op) {ip = ip + 1}
+checkInstrution s@(VMState {stack = (VNumber v : xs), ip}) (Cast t) =
+    exec $ s {stack = (VNumber (castNumber v t) : xs), ip = ip + 1}
+checkInstrution s@(VMState {stack = VList l : xs, ip}) Length =
+    exec $ s {stack = VNumber (VInt (V.length l)) : xs, ip = ip + 1}
 
 -- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, heap, ip}) Call =
