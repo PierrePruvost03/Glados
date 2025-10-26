@@ -61,19 +61,19 @@ data AstValue
 
 data AstAccess
     = AArrayAccess {
-        aVarName :: String,
+        aVarName :: AExpression,
         aIndex :: AExpression
     }
     | AVectorAccess {
-        vVarName :: String,
+        vVarName :: AExpression,
         vIndex :: AExpression
     }
     | ATupleAccess {
-        tVarName :: String,
+        tVarName :: AExpression,
         tIndex :: AExpression
     }
     | AStructAccess {
-        sVarName :: String,
+        sVarName :: AExpression,
         fields :: [String]
     }
   deriving (Show, Eq)

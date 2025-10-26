@@ -238,11 +238,14 @@ parseInfix =
   where
     infixSymbol = parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix)
 
+parseWrappedExpression :: Parser AExpression
+parseWrappedExpression = (parseChar symbolExpressionIn *> parseBasicExpression <* parseChar symbolExpressionOut)
+
 parseMethodCall :: Parser AExpression
 parseMethodCall =
     skip
     *> ( AMethodCall
-                <$> ((parseChar symbolExpressionIn *> parseBasicExpression <* parseChar symbolExpressionOut) <|>
+                <$> (parseWrappedExpression <|>
                     parseValue
                 ) <* skip
                 <*>  (parseChar symbolCallMethod *> skip *> parseName <* skip)
@@ -254,7 +257,7 @@ parseCall :: Parser AExpression
 parseCall =
   skip
     *> ( ACall
-             <$> ((parseChar symbolExpressionIn *> parseBasicExpression <* parseChar symbolExpressionOut) <|>
+             <$> (parseWrappedExpression <|>
                  parseValue
              )
              <* skip
@@ -262,8 +265,8 @@ parseCall =
        )
     <* skip
 
-parseWrapperAccess :: (String -> AExpression -> AstAccess) -> Char -> Char -> Parser AstAccess
-parseWrapperAccess f i o = f <$> (parseName <* skip) <*> (parseChar i *> parseExpression <* parseChar o)
+parseWrapperAccess :: (AExpression -> AExpression -> AstAccess) -> Char -> Char -> Parser AstAccess
+parseWrapperAccess f i o = f <$> (parseWrappedExpression <|> parseValue) <*> (parseChar i *> parseExpression <* parseChar o)
 
 parseAccess :: Parser AExpression
 parseAccess =
@@ -272,23 +275,23 @@ parseAccess =
             *> ( parseWrapperAccess AArrayAccess symbolArrayIn symbolArrayOut
                    <|> parseWrapperAccess AVectorAccess symbolVectorIn symbolVectorOut
                    <|> parseWrapperAccess ATupleAccess symbolTuple symbolTuple
-                   <|> AStructAccess
-                           <$> (parseName <* skip)
+                   <|> (AStructAccess
+                           <$> ((parseWrappedExpression <|> parseValue) <* skip))
                            <*> ( parseChar symbolStructIn
                                    *> parseMultiple (skip *> parseName <* skip)
                                    <* skip
                                    <* parseChar symbolStructOut
-                               )
-               )
+                               ))
         )
+
 
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
     *> (    parseCall
         <|> parseMethodCall
-        <|> (parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut)
         <|> parseAccess
+        <|> (parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut)
         <|> parseValue
        )
     <* skip
