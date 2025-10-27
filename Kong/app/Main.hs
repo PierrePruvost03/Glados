@@ -1,15 +1,16 @@
 module Main (main) where
 
 import System.Environment (getArgs)
-import System.Exit (exitSuccess, exitFailure)
+import System.Exit (exitSuccess, exitFailure, exitWith, ExitCode (..) )
 import System.IO (hPutStrLn, stderr)
 import Parser (runParser)
-import DataStruct.VM (baseState)
+import DataStruct.VM (baseState, VMState (VMState, stack))
 import AstParsing.BaseParsing (parseAst)
 import Compiler.Program (compileProgram)
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
-import DataStruct.Bytecode.Value (Instr(..))
+import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
+import DataStruct.Bytecode.Number (Number(VInt))
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -38,5 +39,13 @@ handleExec instrs = do
     putStrLn $ "[Bytecode] " ++ show instrs --debug
     exec (baseState instrs) >>= printResult
 
-printResult :: Show a => a -> IO ()
-printResult result = putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitSuccess
+printResult :: VMState -> IO ()
+printResult result@(VMState {stack = (VNumber (VInt r)) : _}) =
+    putStrLn ("[Execution finished] Final VM state: " ++ show result) >> returnValue r
+printResult result = putStrLn ("[Execution finished] Final VM state: " ++ show result ++
+    "\n invalid return type") >> returnValue 1
+
+
+returnValue :: Int -> IO ()
+returnValue 0 = exitSuccess
+returnValue n = exitWith (ExitFailure n)
