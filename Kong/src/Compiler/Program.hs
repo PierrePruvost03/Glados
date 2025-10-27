@@ -64,9 +64,3 @@ buildAliasEnv asts = foldl stepAlias emptyEnv asts
     stepAlias e a@(ATypeAlias _ _) = insertTypeAlias e a
     stepAlias e a@(AStruktDef _ _) = insertTypeAlias e a
     stepAlias e _ = e
-
-paramTypes :: [Ast] -> [Type]
-paramTypes = foldr go []
-  where
-    go (AVarDecl t _ _) acc = t : acc
-    go _ acc = acc

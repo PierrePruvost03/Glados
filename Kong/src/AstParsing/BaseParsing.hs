@@ -397,14 +397,14 @@ parseAstBlock =
 
 parseAstFile :: Parser Ast
 parseAstFile =
-  skip
-    *> parseFunction
-    <|> parseInclude
-    <|> parseLineDeclaration
-    <|> parseStruct
-    <|> parseTrait
-    <|> parseTraitImpl
-      <* skip
+  skip *> (
+      parseFunction
+      <|> parseInclude
+      <|> parseLineDeclaration
+      <|> parseStruct
+      <|> parseTrait
+      <|> parseTraitImpl
+    ) <* skip
 
 parseBody :: Parser Ast
 parseBody =
