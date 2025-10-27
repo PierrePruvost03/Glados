@@ -60,8 +60,10 @@ checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
     exec $ s {env = M.insert n x env, stack = xs, ip = ip + 1}
 
 -- List
-checkInstrution s@(VMState {stack = (VList li) : index : value :xs, ip}) SetList =
-    exec $ s {stack = VList (li V.// [(makeIntValue index, value)]) : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = (VList li) : index : value :xs, ip}) SetList
+    | intIndex < (V.length li) = exec $ s {stack = VList (li V.// [(intIndex, value)]) : xs, ip = ip + 1}
+    | otherwise = throwIO $ AccessOutOfRange intIndex
+    where intIndex = makeIntValue index
 checkInstrution s@(VMState {stack = (VList li) : index : xs, ip}) GetList = case li V.!? intIndex of
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ AccessOutOfRange intIndex
