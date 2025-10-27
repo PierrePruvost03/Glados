@@ -214,11 +214,22 @@ checkLambdaReturn expected bodyStmts scope =
   case getReturnExpr bodyStmts of
     Nothing -> Right ()
     Just (AExpress e) ->
-      case (inferType e scope) of
-        Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
-                    | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
-        Nothing -> Left $ InvalidArguments "Unable to infer return type in lambda"
+      case inferType e (extendScopeWithPrefixDecls bodyStmts scope) of
+           Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
+                       | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
+           Nothing -> Right ()
     _ -> Right ()
+
+isReturnStmt :: Ast -> Bool
+isReturnStmt (AReturn _) = True
+isReturnStmt _ = False
+
+extendWithDecl :: CompilerEnv -> Ast -> CompilerEnv
+extendWithDecl env (AVarDecl t n _) = env { typeAliases = M.insert n t (typeAliases env) }
+extendWithDecl env _ = env
+
+extendScopeWithPrefixDecls :: [Ast] -> CompilerEnv -> CompilerEnv
+extendScopeWithPrefixDecls stmts env = foldl extendWithDecl env (takeWhile (not . isReturnStmt) stmts)
 
 getReturnExpr :: [Ast] -> Maybe Ast
 getReturnExpr [] = Nothing
