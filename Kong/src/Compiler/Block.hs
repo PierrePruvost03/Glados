@@ -12,6 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric)
 import qualified Data.Map as M
+import Data.Char (isSpace)
 import qualified Data.Vector as V
 
 compileAstWith :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
@@ -20,17 +21,19 @@ compileAstWith compileExpr (ABlock asts) env =
   foldl
     (\acc a -> acc >>= \(code, sc) ->
         compileAstWith compileExpr a sc >>= \(code', sc') -> Right (code ++ code', sc'))
-    (Right ([], env))
+    (Right ([], prebindKonsts asts env))
     asts
 compileAstWith _ (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAstWith compileExpr (AVarDecl t name (Just initExpr)) env =
   case inferType initExpr env of
     Just it
-      | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env t name exprCode) (compileExpr initExpr env)
+      | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
       | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it)
       where t' = resolveType env t
-    Nothing -> fmap (\exprCode -> declareWithValue env t name exprCode) (compileExpr initExpr env)
+            env' = prebindVar t name env
+    Nothing -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
+      where env' = prebindVar t name env
 compileAstWith compileExpr (AExpress e) env =
   fmap (\code -> (code, env)) (compileExpr e env)
 compileAstWith compileExpr (AReturn a) env =
@@ -59,15 +62,17 @@ typesCompatible env expected actual =
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
 declareDefault env t name
-  | isKonst t' = ([Push (defaultValue t'), SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
-  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | isKonst t' = ([Push (defaultValue t'), SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
+  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
   where t' = resolveType env t
+        n  = normalizeName name
 
 declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
 declareWithValue env t name exprCode
-  | isKonst t' = (exprCode ++ [SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
-  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | isKonst t' = (exprCode ++ [SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
   where t' = resolveType env t
+        n  = normalizeName name
 
 defaultValue :: Type -> Value
 defaultValue TInt = VNumber $ VInt 0
@@ -110,3 +115,16 @@ compileIf compileExpr (AIf (AExpress cond) thenBranch elseBranch) env =
     f (Just a) = compileAstWith compileExpr a env
     f Nothing = Right ([], env)
 compileIf _ _ _ = Left $ UnsupportedAst "If statement not supported"
+
+prebindVar :: Type -> String -> CompilerEnv -> CompilerEnv
+prebindVar t@(TKonst _) name env = env { typeAliases = M.insert name t (typeAliases env) }
+prebindVar _ _ env = env
+
+prebindKonsts :: [Ast] -> CompilerEnv -> CompilerEnv
+prebindKonsts asts env = foldl step env asts
+  where
+    step e (AVarDecl t@(TKonst _) n _) = e { typeAliases = M.insert n t (typeAliases e) }
+    step e _ = e
+
+normalizeName :: String -> String
+normalizeName = reverse . dropWhile isSpace . reverse . dropWhile isSpace
