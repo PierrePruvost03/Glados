@@ -9,7 +9,13 @@ data Number
   | VBool Bool
   | VChar Char
   | VFloat Double
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
+
+instance Show Number where
+    show (VInt i) = show i
+    show (VBool b) = show b
+    show (VChar c) = show c
+    show (VFloat f) = show f
 
 instance Binary Number where
     -- writing
