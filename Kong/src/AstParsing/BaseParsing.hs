@@ -18,7 +18,7 @@ parseField :: Parser (Type, String)
 parseField = (,) <$> parseType <*> (skip *> (parseName <|> fatal "Struct" "missing field's name"))
 
 parseStruct :: Parser Ast
-parseStruct = AStruktDef
+parseStruct = wrap $ AStruktDef
     <$> (parseString symbolStruct *> (parseName <|> fatal "Struct" "missing struct name"))
     <*> (skip *> (parseChar symbolStructIn <|> fatal "Struct" ("missing char \"" <> [symbolStructIn] <> "\""))
     *> many (skip *> parseField <* skip <* (parseChar symbolStructSep <|> fatal "Struct" ("missing char \"" <> [symbolStructSep] <> "\""))<* skip)
@@ -36,14 +36,14 @@ parseTraitBody = (
     (parseChar symbolBlockOut <|> fatal "Trait" ("missing char \"" <> [symbolBlockOut] <> "\"")))
 
 parseTrait :: Parser Ast
-parseTrait = skip *> (
+parseTrait = wrap $ skip *> (
         ATraitDef <$>
             (parseString symbolTrait *> skip *> (parseName <|> fatal "Trait" "invalid trait name") <* skip) <*>
             (parseTraitBody)
     )
 
 parseTraitFuncDef :: Type -> Parser Ast
-parseTraitFuncDef t = f <$> ((,,,)
+parseTraitFuncDef t = wrap $ f <$> wrap ((,,,)
     <$> (skip *> parseName)
     <*> (skip
             *> (parseChar symbolFuncParamIn <|> fatal "Method" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
@@ -54,15 +54,15 @@ parseTraitFuncDef t = f <$> ((,,,)
     <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
     <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Method" "invalid body"))
     where
-        f (name, args, ret, body) = AVarDecl
-            (TKonst (TFunc (t:(map getVarType args)) ret))
+        f (lc, (name, args, ret, body)) = AVarDecl
+            (lc, TKonst (lc, TFunc (t:(map (\(lc, v) -> (lc, getVarType v))) args) ret))
             ((show t) <> ('$':name))
-            (Just (AValue (ALambda (AVarDecl t symbolSelf Nothing : args) ret body)))
+            (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl t symbolSelf Nothing) : args) ret body))))
 
 parseTraitImpl :: Parser Ast
 parseTraitImpl = skip *> (
     (,) <$> (parseString symbolImpl *> skip *> parseName <* skip) <*> (parseType <* skip) >>=
-        \(n, t) -> ATraitImpl <$> pure n <*> pure t <*>
+        \(n, t) -> wrap $ ATraitImpl <$> pure n <*> pure t <*>
             ((parseChar symbolBlockIn <|> fatal "Trait" ("missing char \"" <> [symbolBlockIn] <> "\"")) *> skip *>
             many (skip *> parseTraitFuncDef t) <* skip <*
             (parseChar symbolBlockOut <|> fatal "Trait" ("missing char \"" <> [symbolBlockOut] <> "\"")))
@@ -74,7 +74,7 @@ parseTraitImpl = skip *> (
 ------------------------------------------------
 parseTraitDeclaration :: Type -> Parser Ast
 parseTraitDeclaration t =
-  skip
+  wrap $ skip
     *> ( AVarDecl
            <$> parseTraitType t
            <*> parseName
@@ -84,7 +84,7 @@ parseTraitDeclaration t =
 
 parseDeclaration :: Parser Ast
 parseDeclaration =
-  skip
+  wrap $ skip
     *> ( AVarDecl
            <$> parseType
            <*> parseName
@@ -101,7 +101,7 @@ parseLineDeclaration = parseDeclaration <* parseChar symbolEndOfDeclaration
 ------------------------------------------------
 parseBaseType :: Parser Type
 parseBaseType = parseConstType f
-    where f =
+    where f = wrap $
             skip *> (TKong <$> (parseString symbolUnsigned *> f) <|>
             TStrong <$> (parseString symbolLong *> f) <|>
             TInt <$ parseString symbolInt <|>
@@ -120,7 +120,7 @@ parseBaseType = parseConstType f
 
 parseConstType :: Parser Type -> Parser Type
 parseConstType base = skip *>
-    (TKonst <$> (base <* skip <* parseString symbolConst) <|>
+    (wrap (TKonst <$> (base <* skip <* parseString symbolConst)) <|>
     base) <* skip
 
 isNotWrapper :: Parser ()
@@ -128,10 +128,10 @@ isNotWrapper = isAnyNotChar wrapperList
 
 parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
-        where f =
+        where f = wrap $
                 TVector <$> (base <* skip) <*>
                     (parseChar symbolVectorIn *> (parseExpression
-                        <|> pure (AValue (ANumber (AInteger 0))))
+                        <|> wrap (AValue <$> (wrap (pure (ANumber (AInteger 0))))))
                     <* parseChar symbolVectorOut) <|>
                 TArray <$> (base <* skip) <*>
                     (parseChar symbolArrayIn *> skip *> parseExpression
@@ -155,11 +155,11 @@ parseType = parseRecParentType parseBaseType
 -- Expressions
 ------------------------------------------------
 parseStringValue :: Parser AstValue
-parseStringValue = AString <$> parseBetween symbolStringDelimiter
+parseStringValue = wrap $ AString <$> parseBetween symbolStringDelimiter
 
 parseNumberValue :: Parser AstValue
 parseNumberValue =
-  ANumber
+  wrap $ ANumber
     <$> (parseAstInt <|> parseAstFloat <|> parseAstBool <|> parseAstChar)
   where
     parseAstFloat = AFloat <$> parseFloat
@@ -176,17 +176,17 @@ parseWrapper i o =
     <* parseChar o
 
 parseTupleValue :: Parser AstValue
-parseTupleValue = ATuple <$> parseWrapper symbolTuple symbolTuple
+parseTupleValue = wrap $ ATuple <$> parseWrapper symbolTuple symbolTuple
 
 parseArrayValue :: Parser AstValue
-parseArrayValue = AArray <$> parseWrapper symbolArrayIn symbolArrayOut
+parseArrayValue = wrap $ AArray <$> parseWrapper symbolArrayIn symbolArrayOut
 
 parseVectorValue :: Parser AstValue
-parseVectorValue = AVector <$> parseWrapper symbolVectorIn symbolVectorOut
+parseVectorValue = wrap $ AVector <$> parseWrapper symbolVectorIn symbolVectorOut
 
 parseStructValue :: Parser AstValue
 parseStructValue =
-  AStruct
+  wrap $ AStruct
     <$> ( parseChar symbolStructIn
             *> parseMultiple
               ( (,)
@@ -200,18 +200,18 @@ parseStructValue =
         )
 
 parseVarCall :: Parser AstValue
-parseVarCall = AVarCall <$> parseName
+parseVarCall = wrap $ AVarCall <$> parseName
 
 parseLambda :: Parser AstValue
-parseLambda = ALambda <$>
+parseLambda = wrap $ ALambda <$>
     (parseChar symbolFuncParamIn *> parseMultiple parseDeclaration <* parseChar symbolFuncParamOut <* skip) <*>
     (parseString symbolFuncReturn *> skip *> (parseType <|> fatal "Lambda" "Invalid Return Type") <* skip) <*>
     ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Lambda" "invalid body")
 
 parseValue :: Parser AExpression
 parseValue =
-  skip
-    *> ( AValue
+  wrap $ skip *>
+    ( AValue
            <$> ( parseStringValue
                    <|> parseNumberValue
                    <|> parseTupleValue
@@ -226,14 +226,14 @@ parseValue =
 
 parseInfix :: Parser AExpression
 parseInfix =
-  skip
-    *> ( (\e1 n e2 -> ACall n (catMaybes [e1, Just e2]))
+  wrap $ skip *>
+    ((\e1 n e2 -> ACall n (catMaybes [e1, Just e2]))
            <$> optional parseBasicExpression
            <* skip
-           <*> (AValue <$> AVarCall <$> infixSymbol)
+           <*> wrap (AValue <$> wrap (AVarCall <$> infixSymbol))
            <* skip
            <*> parseExpression
-       )
+    )
   where
     infixSymbol = parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix)
 
@@ -242,7 +242,7 @@ parseWrappedExpression = (parseChar symbolExpressionIn *> parseBasicExpression <
 
 parseMethodCall :: Parser AExpression
 parseMethodCall =
-    skip
+    wrap $ skip
     *> ( AMethodCall
                 <$> (parseWrappedExpression <|>
                     parseValue
@@ -254,7 +254,7 @@ parseMethodCall =
 
 parseCall :: Parser AExpression
 parseCall =
-  skip
+    wrap $ skip
     *> ( ACall
              <$> (parseWrappedExpression <|>
                  parseValue
@@ -264,23 +264,23 @@ parseCall =
        )
     <* skip
 
-parseWrapperAccess :: (AExpression -> AExpression -> AstAccess) -> Char -> Char -> Parser AstAccess
+parseWrapperAccess :: (AExpression -> AExpression -> AstAccessRaw) -> Char -> Char -> Parser AstAccessRaw
 parseWrapperAccess f i o = f <$> (parseWrappedExpression <|> parseValue) <*> (parseChar i *> parseExpression <* parseChar o)
 
 parseAccess :: Parser AExpression
 parseAccess =
-  AAccess
+  wrap $ AAccess
     <$> ( skip
-            *> ( parseWrapperAccess AArrayAccess symbolArrayIn symbolArrayOut
-                   <|> parseWrapperAccess AVectorAccess symbolVectorIn symbolVectorOut
-                   <|> parseWrapperAccess ATupleAccess symbolTuple symbolTuple
-                   <|> (AStructAccess
-                           <$> ((parseWrappedExpression <|> parseValue) <* skip))
+        *> ( wrap (parseWrapperAccess AArrayAccess symbolArrayIn symbolArrayOut)
+                   <|> wrap (parseWrapperAccess AVectorAccess symbolVectorIn symbolVectorOut)
+                   <|> wrap (parseWrapperAccess ATupleAccess symbolTuple symbolTuple)
+                   <|> wrap (AStructAccess
+                           <$> ((parseWrappedExpression <|> parseValue) <* skip)
                            <*> ( parseChar symbolStructIn
                                    *> parseMultiple (skip *> parseName <* skip)
                                    <* skip
                                    <* parseChar symbolStructOut
-                               ))
+                               )))
         )
 
 
@@ -308,52 +308,52 @@ parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression
 -- Block Parsing
 ------------------------------------------------
 parseWhile :: Parser Ast
-parseWhile =
+parseWhile = wrap $
   parseString symbolWhile
     *> ( ALoop Nothing
-           <$> (parseChar symbolForIn *> (AExpress <$> parseExpression) <* parseChar symbolForOut)
+           <$> (parseChar symbolForIn *> wrap (AExpress <$> parseExpression) <* parseChar symbolForOut)
            <*> pure Nothing
            <*> parseBody
        )
 
 parseFor :: Parser Ast
-parseFor =
+parseFor = wrap $
   parseString symbolFor
     *> skip
     *> parseChar symbolForIn
     *> ( ALoop
            <$> optional parseDeclaration
-           <*> ((parseChar symbolForSep *> (AExpress <$> parseExpression)) <|> fatal "For" "invalid condition")
-           <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
+           <*> ((parseChar symbolForSep *> wrap (AExpress <$> parseExpression)) <|> fatal "For" "invalid condition")
+           <*> (parseChar symbolForSep *> optional (wrap (AExpress <$> parseExpression)))
            <*> ((parseChar symbolForOut <|> fatal "For" ("missing char \"" <> [symbolForOut] <> "\"")) *> skip *> (parseBody <|> fatal "For" "invalid body"))
        )
 
 parseForIn :: Parser Ast
-parseForIn =
+parseForIn = wrap $
   parseString symbolFor
     *> skip
     *> ( AForIn
            <$> (parseName <|> fatal "For" "missing variable or condition")
            <* skip
            <* parseString symbolIn
-           <*> ((AExpress <$> parseExpression) <|> fatal "For In" "invalid expression")
+           <*> (wrap (AExpress <$> parseExpression) <|> fatal "For In" "invalid expression")
            <*> (parseBody <|> fatal "For In" "invalid body")
        )
 
 parseCond :: Parser Ast
-parseCond =
+parseCond = wrap $
   skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar symbolCondOut <* skip
 
 parseIf :: Parser Ast
 parseIf =
-  AIf
+  wrap $ AIf
     <$> (skip *> parseString symbolIf *> (parseCond <|> fatal "If" "invalid condition"))
     <*> ((skip *> parseBody) <|> fatal "If" "invalid code block")
     <*> optional (parseString symbolElse *> skip *> (parseBody <|> parseIf <|> fatal "Else" "invalid else body"))
 
 parseFunction :: Parser Ast
 parseFunction =
-    f <$> ((,,,)
+    wrap $ f <$> wrap (((,,,)
     <$> (skip *> parseString symbolFunc *> skip *> parseName)
     <*> ( skip
             *> (parseChar symbolFuncParamIn <|> fatal "Function" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
@@ -361,12 +361,12 @@ parseFunction =
             <* (parseChar symbolFuncParamOut <|> fatal "Function" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
         )
     <*> ((skip *> parseString symbolFuncReturn *> parseType <* skip) <|> fatal "Function" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
-    <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Function" "invalid body"))
+    <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Function" "invalid body")))
     where
-        f (name, args, ret, body) = AVarDecl
-            (TKonst (TFunc (map getVarType args) ret))
+        f (lc, (name, args, ret, body)) = AVarDecl
+            (lc, TKonst (lc, TFunc (map (\(lc, v) -> (lc, getVarType v)) args) ret))
             name
-            (Just (AValue (ALambda args ret body)))
+            (Just (lc, (AValue (lc, ALambda args ret body))))
 
 
 
@@ -382,11 +382,11 @@ parseAstBlockContent =
     <|> parseForIn
     <|> parseReturn
     <|> parseAstFile
-    <|> AExpress <$> parseLineExpression
+    <|> wrap (AExpress <$> parseLineExpression)
 
 parseReturn :: Parser Ast
-parseReturn = parseString symbolReturn *>
-    ((AReturn . AExpress <$> parseLineExpression) <|> fatal "Return" "invalid expression")
+parseReturn = wrap $ parseString symbolReturn *>
+    ((AReturn <$> wrap (AExpress <$> parseLineExpression)) <|> fatal "Return" "invalid expression")
 
 parseAstBlock :: Parser [Ast]
 parseAstBlock =
@@ -408,7 +408,7 @@ parseAstFile =
 
 parseBody :: Parser Ast
 parseBody =
-  ABlock
+  wrap $ ABlock
     <$> (skip *> parseChar symbolBlockIn *> parseAstBlock <* skip <* parseChar symbolBlockOut <* skip)
 
 parseAst :: Parser [Ast]
