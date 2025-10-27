@@ -28,7 +28,7 @@ compileAstWith compileExpr (AVarDecl t name (Just initExpr)) env =
       | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env t name exprCode) (compileExpr initExpr env)
       | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it)
       where t' = resolveType env t
-    Nothing -> Left $ InvalidArguments "Unable to infer type for initializer"
+    Nothing -> fmap (\exprCode -> declareWithValue env t name exprCode) (compileExpr initExpr env)
 compileAstWith compileExpr (AExpress e) env =
   fmap (\code -> (code, env)) (compileExpr e env)
 compileAstWith compileExpr (AReturn a) env =

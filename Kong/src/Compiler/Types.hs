@@ -178,7 +178,7 @@ inferType (AValue (AVector exprs)) env =
 inferType (AValue (AStruct _)) _ = Nothing
 inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
 inferType (AAttribution _ _) _ = Nothing
-inferType (AAccess _) _ = Nothing
+inferType (AAccess acc) env = inferAccessType acc env
 inferType (ACall fexp [l, r]) env | maybeFuncName fexp `elem` map Just arithOps =
   case (inferType l env, inferType r env) of
     (Just t1, Just t2)
@@ -197,6 +197,50 @@ comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
 
 arithOps :: [String]
 arithOps = ["+", "-", "*", "/"]
+
+inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type
+inferAccessType (AArrayAccess arrExpr _) env =
+  case inferType arrExpr env of
+    Just t -> case stripWrap (resolveType env t) of
+      TArray et _ -> Just et
+      TVector et _ -> Just et
+      _ -> Nothing
+    Nothing -> Nothing
+inferAccessType (AVectorAccess vecExpr _) env =
+  case inferType vecExpr env of
+    Just t -> case stripWrap (resolveType env t) of
+      TVector et _ -> Just et
+      TArray et _ -> Just et
+      _ -> Nothing
+    Nothing -> Nothing
+inferAccessType (ATupleAccess tupleExpr idxExpr) env =
+  case inferType tupleExpr env of
+    Just t -> case stripWrap (resolveType env t) of
+      TTuple ts -> tupleIndexType' ts idxExpr
+      _ -> Nothing
+    Nothing -> Nothing
+inferAccessType (AStructAccess structExpr fields) env =
+  case inferType structExpr env of
+    Just t0 -> go t0 fields
+    Nothing -> Nothing
+  where
+    go t [] = Just (resolveType env t)
+    go t (f:fs) =
+      case stripWrap (resolveType env t) of
+        TStruct sname ->
+          case M.lookup sname (structDefs env) of
+            Just fds ->
+              case lookup f (map (\(ty, nm) -> (nm, ty)) fds) of
+                Just fty -> go fty fs
+                Nothing -> Nothing
+            Nothing -> Nothing
+        _ -> Nothing
+
+tupleIndexType' :: [Type] -> AExpression -> Maybe Type
+tupleIndexType' ts (AValue (ANumber (AInteger i)))
+  | i >= 0 && i < length ts = Just (ts !! i)
+  | otherwise = Nothing
+tupleIndexType' _ _ = Nothing
 
 inferHomogeneousList :: (Type -> AExpression -> Type) -> [AExpression] -> CompilerEnv -> Maybe Type
 inferHomogeneousList ctor exprs env =
