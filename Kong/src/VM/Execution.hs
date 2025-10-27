@@ -14,6 +14,7 @@ import VM.Operations (applyOp)
 import VM.Syscall (executeSyscall)
 import VM.Cast (castNumber)
 import VM.Utils
+import Data.Maybe (fromMaybe)
 
 exec :: VMState -> IO VMState
 exec state@(VMState {code, ip}) = case code V.!? ip of
@@ -67,6 +68,14 @@ checkInstrution s@(VMState {stack = (VList li) : index : xs, ip}) GetList = case
     where intIndex = makeIntValue index
 checkInstrution s@(VMState {stack, ip}) (CreateList n) = case createList stack n of
     (values, xs) -> exec $ s {stack = VList (V.fromList values) : xs, ip = ip + 1}
+
+-- List Management
+checkInstrution s@(VMState {stack = VList l : v : xs, ip}) ListPush =
+    exec $ s {stack = VList (V.snoc l v) : xs, ip = ip + 1}
+checkInstrution s@(VMState {stack = VList l : xs, ip}) ListPop =
+    exec $ s {stack = VList ( V.fromList [] `fromMaybe` (fst <$> V.unsnoc l)) : xs, ip = ip + 1}
+
+
 
 -- Struct
 checkInstrution s@(VMState {stack = VStruct struct : value : xs, ip}) (SetStruct field) =

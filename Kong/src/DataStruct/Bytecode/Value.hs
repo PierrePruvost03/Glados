@@ -56,12 +56,16 @@ data Instr
     | SetList           -- stack state (list : index : value : xs)
     | SetStruct String  -- stack state (struct : value : xs)
 
+    -- List Management
+    | ListPush          -- stack state (list : value : xs) -- after (list : xs)
+    | ListPop           -- stack state (list : xs) -- after (list : xs)
+
     -- Accès
     | GetList           -- stack state (list : index : xs)
     | GetStruct String  -- stack state (struct : xs) -- field pas dans la stack car impossible d'acceder à un field avec une expression
 
     -- Creation
-    | CreateList Int        -- stack access for int = 2 (value : value : xs)
+    | CreateList Int        -- stack access for int = 2 (value1 : value2 : xs)
     | CreateStruct [String] -- stack access for array = ["age", "name"] (age value : name value : xs)
 
     -- Sauts
@@ -106,6 +110,8 @@ instance Binary Instr where
     put (Syscall s) = put (19 :: Word8) <> put s
     put (Cast t) = put (20 :: Word8) <> put t
     put Length = put (21 :: Word8)
+    put ListPush = put (22 :: Word8)
+    put ListPop = put (23 :: Word8)
 
     get = (get :: Get Word8) >>= \case
         0 -> construct Push
@@ -128,6 +134,8 @@ instance Binary Instr where
         17 -> return LoadRef
         18 -> return StoreRef
         19 -> construct Syscall
-        20 -> construct Syscall
+        20 -> construct Cast
         21 -> return Length
+        22 -> return ListPush
+        23 -> return ListPop
         _ -> fail "Unknow Insrtuction"
