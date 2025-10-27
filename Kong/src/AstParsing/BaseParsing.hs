@@ -9,7 +9,6 @@ import Control.Applicative
 import DataStruct.Ast
 import Data.Functor
 import Data.Maybe
-import Control.Applicative
 import Parser
 
 ------------------------------------------------

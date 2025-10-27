@@ -8,6 +8,7 @@ import Data.Binary
 import DataStruct.Bytecode.Utils (putManyMany, construct, constructList, getList)
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall
+import Numeric (showHex)
 
 data MemoryCell = THEAP | TSTACK deriving (Show, Eq)
 type Env = M.Map String (Value, MemoryCell)
@@ -18,11 +19,19 @@ data Value
   | VList (V.Vector Value)
   | VStruct (M.Map String Value)
   | VFunction [String] (V.Vector Instr)
-  | VBuiltinOp Op
   | VRef HeapAddr
   | VEmpty
-  deriving (Eq, Show)
+  deriving (Eq)
 
+instance Show Value where
+    show (VNumber n) = show n
+    show (VList v) = show v
+    show (VStruct s) = "{\n" <>
+        (concat $ map (\(name, v) -> ("\t" <> name <> ":\t" <> show v <> ";\n")) (M.toList s))
+                       <> "}"
+    show (VFunction _ l) = show l <> " bro t'a joué à chelsea..."
+    show (VRef addr) = "0x" <> showHex addr ""
+    show VEmpty = "Empty"
 
 instance Binary Value where
     -- writing
@@ -30,7 +39,6 @@ instance Binary Value where
     put (VList v) = put (2 :: Word8) <> putList (V.toList v)
     put (VStruct v) = put (3 :: Word8) <> put v
     put (VFunction a i) = put (4 :: Word8) <> putManyMany a <> putList (V.toList i)
-    put (VBuiltinOp v) = put (5 :: Word8) <> put v
     put (VRef v) = put (6 :: Word8) <> put v
     put (VEmpty) = put (7 :: Word8)
     -- reading
@@ -39,7 +47,6 @@ instance Binary Value where
         2 -> VList <$> (V.fromList <$> getList (get :: Get Value))
         3 -> VStruct <$> (get :: Get (M.Map String Value))
         4 -> VFunction <$> getList (getList (get :: Get Char)) <*> (V.fromList <$> getList (get :: Get Instr))
-        5 -> construct VBuiltinOp
         6 -> construct VRef
         7 -> return VEmpty
         _ -> fail "Unknow Value"
@@ -56,12 +63,16 @@ data Instr
     | SetList           -- stack state (list : index : value : xs)
     | SetStruct String  -- stack state (struct : value : xs)
 
+    -- List Management
+    | ListPush          -- stack state (list : value : xs) -- after (list : xs)
+    | ListPop           -- stack state (list : xs) -- after (list : xs)
+
     -- Accès
     | GetList           -- stack state (list : index : xs)
     | GetStruct String  -- stack state (struct : xs) -- field pas dans la stack car impossible d'acceder à un field avec une expression
 
     -- Creation
-    | CreateList Int        -- stack access for int = 2 (value : value : xs)
+    | CreateList Int        -- stack access for int = 2 (value1 : value2 : xs)
     | CreateStruct [String] -- stack access for array = ["age", "name"] (age value : name value : xs)
 
     -- Sauts
@@ -106,6 +117,8 @@ instance Binary Instr where
     put (Syscall s) = put (19 :: Word8) <> put s
     put (Cast t) = put (20 :: Word8) <> put t
     put Length = put (21 :: Word8)
+    put ListPush = put (22 :: Word8)
+    put ListPop = put (23 :: Word8)
 
     get = (get :: Get Word8) >>= \case
         0 -> construct Push
@@ -128,6 +141,8 @@ instance Binary Instr where
         17 -> return LoadRef
         18 -> return StoreRef
         19 -> construct Syscall
-        20 -> construct Syscall
+        20 -> construct Cast
         21 -> return Length
+        22 -> return ListPush
+        23 -> return ListPop
         _ -> fail "Unknow Insrtuction"

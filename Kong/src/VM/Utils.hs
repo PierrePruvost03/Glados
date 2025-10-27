@@ -35,7 +35,6 @@ makeBoolValue (VNumber (VFloat n))
 makeBoolValue (VList (list)) = null list
 -- makeBoolValue VStruct String (M.Map String HeapAddr)
 -- makeBoolValue VFunction [String] [Instr] Env
--- makeBoolValue VBuiltinOp Op
 -- makeBoolValue VRef HeapAddr
 makeBoolValue VEmpty = False
 makeBoolValue _ = False
