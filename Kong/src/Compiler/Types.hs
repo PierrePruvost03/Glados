@@ -24,6 +24,10 @@ import DataStruct.Ast
 import qualified Data.Map as M
 import Compiler.TypeError (TypeError(..))
 
+maybeFuncName :: AExpression -> Maybe String
+maybeFuncName (AValue (AVarCall n)) = Just n
+maybeFuncName _ = Nothing
+
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
   , structDefs  :: M.Map String [(Type, String)]
@@ -68,6 +72,7 @@ resolveType _ (TTrait s) = TTrait s
 resolveType env (TArray ty e) = TArray (resolveType env ty) e
 resolveType env (TVector ty e) = TVector (resolveType env ty) e
 resolveType env (TTuple tys) = TTuple (map (resolveType env) tys)
+resolveType env (TFunc args ret) = TFunc (map (resolveType env) args) (resolveType env ret)
 resolveType _ t = t
 
 checkComparisonTypes :: Type -> Type -> Either TypeError ()
@@ -114,6 +119,8 @@ getFunctionArgTypes envMap fname =
     Just (TKonst (TTuple ts)) -> case ts of
       [] -> Just []
       _  -> Just (init ts)
+    Just (TKonst (TFunc args _)) -> Just args
+    Just (TFunc args _) -> Just args
     _ -> Nothing
 
 getFunctionReturnType :: M.Map String Type -> String -> Maybe Type
@@ -122,6 +129,8 @@ getFunctionReturnType envMap fname =
     Just (TKonst (TTuple ts)) -> case ts of
       [] -> Nothing
       _  -> Just (last ts)
+    Just (TKonst (TFunc _ ret)) -> Just ret
+    Just (TFunc _ ret) -> Just ret
     _ -> Nothing
 
 checkAssignmentType :: Maybe Type -> Maybe Type -> Either CompilerError ()
@@ -157,6 +166,7 @@ inferType (AValue (ANumber (AFloat _))) _ = Just TFloat
 inferType (AValue (ANumber (ABool _))) _ = Just TBool
 inferType (AValue (ANumber (AChar _))) _ = Just TChar
 inferType (AValue (AString _)) _ = Just TString
+inferType (AValue (ALambda _ retType _)) _ = Just retType
 inferType (AValue (ATuple exprs)) env =
   case traverse (\e -> inferType e env) exprs of
     Just ts -> Just (TTuple ts)
@@ -169,16 +179,18 @@ inferType (AValue (AStruct _)) _ = Nothing
 inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
 inferType (AAttribution _ _) _ = Nothing
 inferType (AAccess _) _ = Nothing
-inferType (ACall fname [l, r]) env | fname `elem` arithOps =
+inferType (ACall fexp [l, r]) env | maybeFuncName fexp `elem` map Just arithOps =
   case (inferType l env, inferType r env) of
     (Just t1, Just t2)
       | numericCompatible t1 t2 && (isFloatType t1 || isFloatType t2) -> Just TFloat
       | numericCompatible t1 t2 -> Just TInt
     _ -> Nothing
-inferType (ACall fname [_l, _r]) _env | fname `elem` comparisonOps = Just TBool
-inferType (ACall fname _) env
-  | fname `elem` (comparisonOps ++ ["print"]) = Nothing
-  | otherwise = getFunctionReturnType (typeAliases env) fname
+inferType (ACall fexp [_l, _r]) _env | maybeFuncName fexp `elem` map Just comparisonOps = Just TBool
+inferType (ACall fexp _) env
+  | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) = Nothing
+  | Just name <- maybeFuncName fexp = getFunctionReturnType (typeAliases env) name
+  | otherwise = Nothing
+inferType (AMethodCall _ _ _) _ = Nothing
 
 comparisonOps :: [String]
 comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
@@ -190,7 +202,5 @@ inferHomogeneousList :: (Type -> AExpression -> Type) -> [AExpression] -> Compil
 inferHomogeneousList ctor exprs env =
   case traverse (\e -> inferType e env) exprs of
     Just [] -> Just (ctor TInt (AValue (ANumber (AInteger 0))))
-    Just (t:ts) | all (typesEqual t) ts ->
-      let sizeExpr = AValue (ANumber (AInteger (length exprs)))
-      in Just (ctor t sizeExpr)
+    Just (t:ts) | all (typesEqual t) ts -> Just (ctor t (AValue (ANumber (AInteger (length exprs)))))
     _ -> Nothing
