@@ -160,7 +160,7 @@ parseStringValue = AString <$> parseBetween symbolStringDelimiter
 parseNumberValue :: Parser AstValue
 parseNumberValue =
   ANumber
-    <$> (parseAstInt <|> parseAstFloat <|> parseAstBool <|> parseAstChar)
+    <$> (parseAstFloat <|> parseAstInt <|> parseAstBool <|> parseAstChar)
   where
     parseAstFloat = AFloat <$> parseFloat
     parseAstInt = AInteger <$> parseInt

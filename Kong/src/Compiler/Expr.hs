@@ -182,10 +182,12 @@ compileValue (ALambda params retType body) env =
     capturedNames = L.nub (paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
     makeLambda (bodyCode, _) = [Push (VFunction capturedNames (V.fromList (concatMap genParam paramNames ++ bodyCode)))]
-compileValue (AVarCall vname) env
-  | Just t <- M.lookup vname (typeAliases env)
-  , not (isKonst (resolveType env t)) = Right [PushEnv vname, LoadRef]
-  | otherwise = Right [PushEnv vname]
+compileValue (AVarCall vname) env =
+  case M.lookup vname (typeAliases env) of
+    Just t
+      | not (isKonst (resolveType env t)) -> Right [PushEnv vname, LoadRef]
+      | otherwise -> Right [PushEnv vname]
+    Nothing -> Left (UnknownVariable vname)
 
 elementTypeFromResolved :: Type -> Maybe Type
 elementTypeFromResolved (TArray et _) = Just et

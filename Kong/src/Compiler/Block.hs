@@ -3,6 +3,8 @@ module Compiler.Block
   , declareDefault
   , declareWithValue
   , defaultValue
+  , compileLoop
+  , compileIf
   ) where
 
 import DataStruct.Ast
@@ -35,6 +37,10 @@ compileAstWith compileExpr (AReturn a) env =
   compileAstWith compileExpr a env >>= \(code, sc) -> Right (code ++ [Ret], sc)
 compileAstWith _ (AStruktDef name fdls) env =
   Right ([], env { structDefs = M.insert name fdls (structDefs env) })
+compileAstWith compileExpr (loop@ALoop{}) env =
+  fmap (\instrs -> (instrs, env)) (compileLoop compileExpr loop env)
+compileAstWith compileExpr (ifStmt@AIf{}) env =
+  fmap (\instrs -> (instrs, env)) (compileIf compileExpr ifStmt env)
 compileAstWith _ other _ = Left $ UnsupportedAst (show other)
 
 typesCompatible :: CompilerEnv -> Type -> Type -> Bool
@@ -75,3 +81,32 @@ defaultValue (TArray _ _) = VList (V.fromList [])
 defaultValue (TVector _ _) = VList (V.fromList [])
 defaultValue (TTuple _) = VList (V.fromList [])
 defaultValue _ = VEmpty
+
+compileLoop :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+            -> Ast -> CompilerEnv -> Either CompilerError [Instr]
+compileLoop compileExpr (ALoop initAst cond incr body) env =
+  f initAst env >>= \(compiledInit, newenv) ->
+    compileAstWith compileExpr cond newenv >>= \(compiledCond, newenv') ->
+      f incr newenv' >>= \(compiledIncr, newenv'') ->
+        compileAstWith compileExpr body newenv'' >>= \(compiledBody, _) ->
+          Right [JumpIfFalse (length compiledBody + length compiledIncr + 2)] >>= \bodyJump ->
+            Right [Jump (- (length compiledBody + length compiledIncr + length compiledCond + length bodyJump + 1))] >>= \jumpBack ->
+             Right (compiledInit <> compiledCond <> bodyJump <> compiledBody <> compiledIncr <> jumpBack)
+  where
+    f (Just a) newEnv = compileAstWith compileExpr a newEnv
+    f Nothing newEnv = Right ([], newEnv)
+compileLoop _ _ _ = Left $ UnsupportedAst "Loop not supported"
+
+compileIf :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+          -> Ast -> CompilerEnv -> Either CompilerError [Instr]
+compileIf compileExpr (AIf (AExpress cond) thenBranch elseBranch) env =
+  compileExpr cond env >>= \compiledCond ->
+    compileAstWith compileExpr thenBranch env >>= \(compiledThen, _) ->
+      Right [JumpIfFalse (length compiledThen + 2)] >>= \condJump ->
+        f elseBranch >>= \(compiledElse, _) ->
+          Right [Jump (length compiledElse + 1)] >>= \thenJump ->
+            Right (compiledCond <> condJump <> compiledThen <> thenJump <> compiledElse)
+  where
+    f (Just a) = compileAstWith compileExpr a env
+    f Nothing = Right ([], env)
+compileIf _ _ _ = Left $ UnsupportedAst "If statement not supported"
