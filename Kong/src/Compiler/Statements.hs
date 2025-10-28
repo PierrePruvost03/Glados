@@ -27,6 +27,8 @@ compileAst aIf@AIf{} env =
   fmap (\instrs -> (instrs, env)) (compileIf compileExpr aIf env)
 compileAst (AStruktDef name fdls) env =
   Right ([], env { structDefs = M.insert name fdls (structDefs env) })
+compileAst (AInclude _ _) env =
+  Right ([], env)
 compileAst ast _ = Left $ UnsupportedAst (show ast)
 
 extractGlobalNames :: M.Map String a -> [String]
