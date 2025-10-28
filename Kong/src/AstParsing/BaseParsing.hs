@@ -322,7 +322,7 @@ parseFor =
     *> skip
     *> parseChar symbolForIn
     *> ( ALoop
-           <$> optional parseDeclaration
+           <$> optional (parseDeclaration <|> (AExpress <$> parseExpression))
            <*> ((parseChar symbolForSep *> (AExpress <$> parseExpression)) <|> fatal "For" "invalid condition")
            <*> (parseChar symbolForSep *> optional (AExpress <$> parseExpression))
            <*> ((parseChar symbolForOut <|> fatal "For" ("missing char \"" <> [symbolForOut] <> "\"")) *> skip *> (parseBody <|> fatal "For" "invalid body"))
