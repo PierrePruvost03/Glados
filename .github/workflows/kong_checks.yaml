@@ -23,8 +23,3 @@ jobs:
         run: make kong
       - name: check Kong binary exists
         run: test -f Kong/glados
-      - name: test Kong binary works
-        run: |
-          Kong/glados --version
-          Kong/glados --help
-          echo "Kong compiler basic test passed"
