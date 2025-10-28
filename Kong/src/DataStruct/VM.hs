@@ -6,14 +6,12 @@ module DataStruct.VM
   , Heap
   , Stack
   , HeapAddr
-  , initVMState
   , baseState
   ) where
 
 import qualified Data.Vector as V
 import qualified Data.Map.Strict as M
 import DataStruct.Bytecode.Value (Value, Instr)
-import Control.Exception
 
 -- Types de base de la VM
 type ExecEnv = M.Map String Value
@@ -29,17 +27,7 @@ data VMState = VMState
   , heap :: Heap
   , code :: Code
   , ip :: Int  -- Instruction Pointer
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 baseState :: [Instr] -> VMState
-baseState code = VMState {stack = [], env = M.empty, heap = V.empty, code = V.fromList code, ip = 0}
-
--- Initialisation d'un état VM vide
-initVMState :: [Instr] -> VMState
-initVMState instructions = VMState
-  { stack = []
-  , env = M.empty
-  , heap = V.empty
-  , code = V.fromList instructions
-  , ip = 0
-  }
+baseState instr = VMState {stack = [], env = M.empty, heap = V.empty, code = V.fromList instr, ip = 0}

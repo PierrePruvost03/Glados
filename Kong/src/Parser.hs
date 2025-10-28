@@ -58,7 +58,7 @@ getRest c str lc = (str, updateLineCount c lc)
 fatal :: String -> String -> Parser a
 fatal scope detail = Parser f
     where
-        f = \(_, lc) -> Left (True, scope, detail, lc)
+        f (_, lc) = Left (True, scope, detail, lc)
 
 
 instance Functor Parser where
@@ -103,7 +103,7 @@ generateError c d = Parser $ \(_, lc) -> Left (False, c, d, lc)
 
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \(s, lc) -> case s of
-  [] -> Left $ (False, "Error parsing char \"" <> [c] <> "\"", "String empty", lc)
+  [] -> Left (False, "Error parsing char \"" <> [c] <> "\"", "String empty", lc)
   (x : xs)
     | c == x -> Right (x, getRest x xs lc)
     | otherwise -> Left (False, "Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
@@ -180,11 +180,18 @@ parseBetween c = parseChar c *> parseUntilChar c <* parseChar c
 parseInt :: Parser Int
 parseInt = read <$> ((parseChar '-' >> ('-' :) <$> some (parseAnyChar ['0' .. '9'])) <|> some (parseAnyChar ['0' .. '9']))
 
-parseFloatString :: Parser String
-parseFloatString =
+parsePositiveFloatString :: Parser String
+parsePositiveFloatString =
   (<>)
     <$> some (parseAnyChar ['0' .. '9'])
-    <*> ((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9']))
+    <*> (((:) <$> parseChar '.' <*> some (parseAnyChar ['0' .. '9'])))
+
+
+
+parseFloatString :: Parser String
+parseFloatString =
+    ((:) <$> parseChar '-' <*> parsePositiveFloatString)
+    <|> parsePositiveFloatString
 
 parseFloat :: Parser Float
 parseFloat = read <$> parseFloatString

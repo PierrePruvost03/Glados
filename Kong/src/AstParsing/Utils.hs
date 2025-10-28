@@ -1,10 +1,13 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module AstParsing.Utils
   ( parseMultiple,
     parseName,
+    getVarType
   )
 where
 
 import AstParsing.Skip
+import DataStruct.Ast
 import Parser
 
 parseMultiple :: Parser a -> Parser [a]
@@ -20,3 +23,7 @@ parseName =
     *> parseSomeUntilAnyNotChar
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
     <* skip
+
+getVarType :: Ast -> Type
+getVarType (AVarDecl {varType}) = varType
+getVarType _ = TInt

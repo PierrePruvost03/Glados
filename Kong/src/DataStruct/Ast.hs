@@ -38,14 +38,15 @@ data Type
   | TVector Type AExpression-- Type<size>
   | TTuple [Type]           -- |Type1, Type2, ...|
   | TCustom String          -- custom type alias
-  deriving Show
+  | TFunc [Type] Type     -- arg type -> return type
+  deriving (Show, Eq)
 
 data AstNumber
     = AInteger AstInt
     | ABool AstBool
     | AChar AstChar
     | AFloat AstFloat
-    deriving Show
+  deriving (Show, Eq)
 
 data AstValue
   = ANumber AstNumber
@@ -55,26 +56,27 @@ data AstValue
   | AVector [AExpression]
   | AStruct [(String, AExpression)]
   | AVarCall String
-  deriving Show
+  | ALambda [Ast] Type [Ast]
+  deriving (Show, Eq)
 
 data AstAccess
     = AArrayAccess {
-        aVarName :: String,
+        aVarName :: AExpression,
         aIndex :: AExpression
     }
     | AVectorAccess {
-        vVarName :: String,
+        vVarName :: AExpression,
         vIndex :: AExpression
     }
     | ATupleAccess {
-        tVarName :: String,
+        tVarName :: AExpression,
         tIndex :: AExpression
     }
     | AStructAccess {
-        sVarName :: String,
+        sVarName :: AExpression,
         fields :: [String]
     }
-    deriving Show
+  deriving (Show, Eq)
 
 data AExpression
     = AValue AstValue
@@ -84,26 +86,34 @@ data AExpression
           value :: AExpression
         }
     | ACall
-        { callFunction :: String,
+        { callFunction :: AExpression,
           callArgs :: [AExpression]
         }
-    deriving Show
+    | AMethodCall
+        { calledVar :: AExpression,
+          calledMethod :: String,
+          callArgs :: [AExpression]
+        }
+    deriving (Show, Eq)
 
 
 -- Main AST
 data Ast
   -- Declarations & Definitions
-  = AFunkDef
-      { funkName :: String,
-        funkParams :: [Ast],
-        funkReturnType :: Type,
-        funkBody :: [Ast]
-      }
-  | AExpress AExpression
+  = AExpress AExpression
   | AStruktDef
       { struktName :: String,
         struktFields :: [(Type, String)]
       }
+  | ATraitDef
+    { traitName :: String,
+      traitMethods :: [(String, [Type], Type)]
+    }
+  | ATraitImpl
+    { implTrait :: String,
+      traitType :: Type,
+      implMethods :: [Ast]
+    }
   | ATypeAlias
       { aliasName :: String,
         aliasType :: Type
@@ -117,13 +127,6 @@ data Ast
   | AInclude
       { includeFrom :: String,
         includeItems :: [String]
-      }
-  -- Expressions
-  | ASymbol AstSymbol
-  | ALambda
-      { lambdaParams :: [(Type, String)],
-        lambdaReturnType :: Type,
-        lambdaBody :: Ast
       }
   -- Control Flow
   | AIf
@@ -144,4 +147,4 @@ data Ast
         forInIter :: Ast,
         forInBody :: Ast
       }
-  deriving Show
+  deriving (Show, Eq)

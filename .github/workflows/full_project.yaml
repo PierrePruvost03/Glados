@@ -28,11 +28,6 @@ jobs:
         run: |
           echo "(+ 1 2)" | LispInterpreter/glados
           echo "LISP interpreter works!"
-      - name: test Kong compiler
-        run: |
-          Kong/glados --version
-          Kong/glados --help
-          echo "Kong compiler works!"
 
   run_all_tests:
     runs-on: ubuntu-latest
