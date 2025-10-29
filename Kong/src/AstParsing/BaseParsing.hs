@@ -391,7 +391,6 @@ parseAstBlockContent =
     <|> parseReturn
     <|> parseAstFile
     <|> AExpress <$> parseLineExpression
-    <|> fatal "Block" "invalid command"
 
 parseReturn :: Parser Ast
 parseReturn = parseString symbolReturn *>

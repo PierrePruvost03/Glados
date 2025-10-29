@@ -14,6 +14,7 @@ import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
 import System.FilePath (dropExtension, takeFileName)
 import qualified Data.Set as S
+import AstParsing.ErrorMessage
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -40,21 +41,16 @@ loadAndValidateFiles filePaths =
 
     providedFiles = S.fromList $ map (dropExtension . takeFileName) filePaths
 
-handleParse :: String -> IO ()
-handleParse content =
-    either printParseError handleCompile $ runParser parseAst (content, (1, 1))
-
 parseFile :: FilePath -> IO (Either IncludeError (String, [Ast]))
 parseFile filePath =
   readFile filePath >>= parseContent
   where
     fileName = dropExtension $ takeFileName filePath
 
-    parseContent content = case runParser parseAst (content, (1, 1)) of
-      Left (_, scope, detail, (line, col)) ->
-        return $ Left $ ParseError filePath
-          (scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col)
-      Right (asts, _) -> return $ Right (fileName, asts)
+    parseContent content = case printParsingResult content parseAst of
+      Right str ->
+        return $ Left $ ParseError filePath str
+      Left asts -> return $ Right (fileName, asts)
 
 handleLoad :: Either IncludeError [(String, [Ast])] -> IO ()
 handleLoad (Left err) = printIncludeError err
@@ -63,10 +59,6 @@ handleLoad (Right fileAsts) = handleCompile fileAsts
 handleCompile :: [(String, [Ast])] -> IO ()
 handleCompile fileAsts =
     either printCompileError handleExec $ compileProgram fileAsts
-
-printParseError :: String -> IO ()
-printParseError str =
-    hPutStrLn stderr str >> exitFailure
 
 printIncludeError :: IncludeError -> IO ()
 printIncludeError (FileNotFound path) =
@@ -79,10 +71,6 @@ printIncludeError (ParseError _ msg) =
 printIncludeError (MissingInclude file missing) =
     hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++
                      "' but it was not provided in compilation arguments") >> exitFailure
-
-handleCompile :: [(String, [Ast])] -> IO ()
-handleCompile fileAsts =
-    either printCompileError handleExec $ compileProgram fileAsts
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
