@@ -123,12 +123,14 @@ parseConstType base = skip *>
     (TKonst <$> (base <* skip <* parseString symbolConst) <|>
     base) <* skip
 
+
 isNotWrapper :: Parser ()
 isNotWrapper = isAnyNotChar wrapperList
 
 parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
         where f =
+                TRef <$> (base <* skip <* parseChar symbolRef) <|>
                 TVector <$> (base <* skip) <*>
                     (parseChar symbolVectorIn *> (parseExpression
                         <|> pure (AValue (ANumber (AInteger 0))))
@@ -284,10 +286,16 @@ parseAccess =
         )
 
 
+parseCast :: Parser AExpression
+parseCast = ACast <$> (skip *> parseString symbolCast *> skip *>
+    skip *> parseChar symbolFuncParamIn *> parseType) <*>
+    (skip *> parseChar ',' *> parseExpression <* parseChar symbolFuncParamOut)
+
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
-    *> (    parseCall
+    *> (    parseCast
+        <|> parseCall
         <|> parseMethodCall
         <|> parseAccess
         <|> (parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut)
