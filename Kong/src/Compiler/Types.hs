@@ -67,6 +67,7 @@ resolveType env t@(TCustom name) =
 resolveType env (TKonst ty) = TKonst (resolveType env ty)
 resolveType env (TStrong ty) = TStrong (resolveType env ty)
 resolveType env (TKong ty) = TKong (resolveType env ty)
+resolveType env (TRef ty) = TRef (resolveType env ty)
 resolveType _ (TStruct s) = TStruct s
 resolveType _ (TTrait s) = TTrait s
 resolveType env (TArray ty e) = TArray (resolveType env ty) e
@@ -101,6 +102,7 @@ normalize :: Type -> Type
 normalize (TKonst t) = normalize t
 normalize (TStrong t) = normalize t
 normalize (TKong t) = normalize t
+normalize (TRef t) = TRef (normalize t)
 normalize (TArray t _) = TArray (normalize t) (AValue (ANumber (AInteger 0)))
 normalize (TVector t _) = TVector (normalize t) (AValue (ANumber (AInteger 0)))
 normalize (TTuple ts) = TTuple (map normalize ts)
@@ -109,9 +111,24 @@ normalize t = t
 checkFunctionCallTypes :: [Type] -> [Maybe Type] -> Either CompilerError ()
 checkFunctionCallTypes (t:ts) (Just a:as)
   | typesEqual t a || numericCompatible t a = checkFunctionCallTypes ts as
+  | isRefType t && typesEqual (extractRefType t) a = checkFunctionCallTypes ts as
   | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a)
 checkFunctionCallTypes [] [] = Right ()
 checkFunctionCallTypes _ _ = Left $ InvalidArguments "Function argument count or type mismatch"
+
+isRefType :: Type -> Bool
+isRefType (TRef _) = True
+isRefType (TKonst t) = isRefType t
+isRefType (TStrong t) = isRefType t
+isRefType (TKong t) = isRefType t
+isRefType _ = False
+
+extractRefType :: Type -> Type
+extractRefType (TRef t) = t
+extractRefType (TKonst t) = extractRefType t
+extractRefType (TStrong t) = extractRefType t
+extractRefType (TKong t) = extractRefType t
+extractRefType t = t
 
 getFunctionArgTypes :: M.Map String Type -> String -> Maybe [Type]
 getFunctionArgTypes envMap fname =
@@ -136,6 +153,7 @@ getFunctionReturnType envMap fname =
 checkAssignmentType :: Maybe Type -> Maybe Type -> Either CompilerError ()
 checkAssignmentType (Just expected) (Just actual)
   | eqTypeNormalized expected actual = Right ()
+  | isRefType expected && eqTypeNormalized (extractRefType expected) actual = Right ()
   | otherwise = Left $ IllegalAssignment ("Type mismatch on assignment: expected " ++ show expected ++ ", got " ++ show actual)
 checkAssignmentType _ _ = Left $ IllegalAssignment "Unable to infer types for assignment"
 
@@ -176,7 +194,11 @@ inferType (AValue (AArray exprs)) env =
 inferType (AValue (AVector exprs)) env =
   inferHomogeneousList TVector exprs env
 inferType (AValue (AStruct _)) _ = Nothing
-inferType (AValue (AVarCall v)) env = M.lookup v (typeAliases env)
+inferType (AValue (AVarCall v)) env = 
+  case M.lookup v (typeAliases env) of
+    Just (TRef t) -> Just t
+    Just t -> Just t
+    Nothing -> Nothing
 inferType (AAttribution _ _) _ = Nothing
 inferType (AAccess acc) env = inferAccessType acc env
 inferType (ACall fexp [l, r]) env | maybeFuncName fexp `elem` map Just arithOps =
