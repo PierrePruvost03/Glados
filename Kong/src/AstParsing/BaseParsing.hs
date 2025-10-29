@@ -192,11 +192,11 @@ parseStructValue =
               ( (,)
                   <$> parseName
                   <* skip
-                  <* parseChar symbolDeclaration
+                  <* (parseChar symbolDeclaration <|> fatal "Struct Value" ("missing char \"" <> [symbolDeclaration] <> "\""))
                   <* skip
-                  <*> parseExpression
+                  <*> (parseExpression <|> fatal "Struct Value" "invalid expression")
               )
-            <* parseChar symbolStructOut
+            <* (parseChar symbolStructOut <|> fatal "Struct Value" ("missing char \"" <> [symbolStructOut] <> "\""))
         )
 
 parseVarCall :: Parser AstValue
