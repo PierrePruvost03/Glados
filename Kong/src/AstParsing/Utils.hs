@@ -2,13 +2,17 @@
 module AstParsing.Utils
   ( parseMultiple,
     parseName,
-    getVarType
+    getVarType,
+    wrap
   )
 where
 
 import AstParsing.Skip
 import DataStruct.Ast
 import Parser
+
+wrap :: Parser a -> Parser (Wrapper a)
+wrap p = (,) <$> getLineCount <*> p
 
 parseMultiple :: Parser a -> Parser [a]
 parseMultiple p = parseMultipleSep p ','
@@ -24,6 +28,6 @@ parseName =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
     <* skip
 
-getVarType :: Ast -> Type
-getVarType (AVarDecl {varType}) = varType
+getVarType :: AstRaw -> TypeRaw
+getVarType (AVarDecl {varType}) = snd varType
 getVarType _ = TInt

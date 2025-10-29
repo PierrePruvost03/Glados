@@ -10,6 +10,7 @@ module Compiler.Include
   ) where
 
 import DataStruct.Ast
+import Compiler.Types (unwrapAst)
 import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
 import System.FilePath (takeDirectory, (</>), takeFileName, dropExtension, addExtension)
@@ -37,8 +38,6 @@ resolveIncludes filePath content =
     baseDir = takeDirectory filePath
     fileName = dropExtension $ takeFileName filePath
 
--- | Fonction récursive pour résoudre les includes
--- | Fonction récursive pour résoudre les includes
 resolveIncludesRec :: FilePath -> String -> [Ast] -> S.Set String -> M.Map String [Ast]
   -> [(String, [Ast])] -> IO (Either IncludeError [(String, [Ast])])
 resolveIncludesRec baseDir currentFile asts processing cache acc
@@ -75,12 +74,14 @@ processInclude baseDir processing cache (Right acc) includeFile =
 extractIncludes :: [Ast] -> [String]
 extractIncludes = foldr extractInclude []
   where
-    extractInclude (AInclude from _) = (from :)
-    extractInclude _ = id
+    extractInclude ast = case unwrapAst ast of
+      AInclude from _ -> (from :)
+      _ -> id
 
 isInclude :: Ast -> Bool
-isInclude (AInclude _ _) = True
-isInclude _ = False
+isInclude ast = case unwrapAst ast of
+  AInclude _ _ -> True
+  _ -> False
 
 loadFileWithIncludes :: FilePath -> IO (Either IncludeError [(String, [Ast])])
 loadFileWithIncludes filePath = readFile filePath >>= resolveIncludes filePath
@@ -98,17 +99,15 @@ findMissingIncludes fileAsts providedFiles =
   , includeName <- extractIncludes asts
   , not (S.member includeName providedFiles)]
 
--- | Trie les fichiers selon l'ordre de dépendance (tri topologique)
 sortByDependencies :: [(String, [Ast])] -> Either IncludeError [(String, [Ast])]
 sortByDependencies fileAsts =
   case topologicalSort fileMap dependencies of
-    Left cycle -> Left $ CircularDependency (head cycle) cycle
+    Left cyc -> Left $ CircularDependency (head cyc) cyc
     Right sorted -> Right $ fmap (\name -> (name, fileMap M.! name)) sorted
   where
     fileMap = M.fromList fileAsts
     dependencies = [(name, extractIncludes asts) | (name, asts) <- fileAsts]
 
--- | Tri topologique avec détection de cycles
 topologicalSort :: M.Map String [Ast] -> [(String, [String])] -> Either [String] [String]
 topologicalSort fileMap deps = fmap reverse $ topSort [] S.empty S.empty (M.keys fileMap)
   where
@@ -134,7 +133,10 @@ applySelectiveImports fileAsts = fmap (filterFile requestMap) fileAsts
     requestMap = M.fromListWith combineRequests
       [ (from, toMaybe items)
       | (_, asts) <- fileAsts
-      , AInclude from items <- asts
+      , ast <- asts
+      , (from, items) <- case unwrapAst ast of
+          AInclude f i -> [(f, i)]
+          _ -> []
       ]
     
     toMaybe [] = Nothing
@@ -152,12 +154,13 @@ symbolIsRequested :: S.Set String -> Ast -> Bool
 symbolIsRequested symbols = maybe True (`S.member` symbols) . getSymbolName
 
 getSymbolName :: Ast -> Maybe String
-getSymbolName (AVarDecl _ name _) = Just name
-getSymbolName (AStruktDef name _) = Just name
-getSymbolName (ATypeAlias name _) = Just name
-getSymbolName (ATraitDef name _) = Just name
-getSymbolName (ATraitImpl trait _ _) = Just trait
-getSymbolName _ = Nothing
+getSymbolName ast = case unwrapAst ast of
+  AVarDecl _ name _ -> Just name
+  AStruktDef name _ -> Just name
+  ATypeAlias name _ -> Just name
+  ATraitDef name _ -> Just name
+  ATraitImpl trait _ _ -> Just trait
+  _ -> Nothing
 
 combineRequests :: Maybe [String] -> Maybe [String] -> Maybe [String]
 combineRequests Nothing _ = Nothing

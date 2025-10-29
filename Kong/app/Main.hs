@@ -10,7 +10,6 @@ import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
-import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
 import System.FilePath (dropExtension, takeFileName)
 import qualified Data.Set as S
