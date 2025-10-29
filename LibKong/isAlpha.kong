@@ -1,0 +1,8 @@
+Funk isAlpha(Khar k) -> Bool {
+    If (k `>=` 'a') {
+        If (k `<=` 'z') {
+            Return true;
+        }
+    }
+    Return false;
+}
