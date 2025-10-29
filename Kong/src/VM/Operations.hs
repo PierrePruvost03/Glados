@@ -54,7 +54,7 @@ subOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) - (fromEnum b))::Char
 subOp ((VInt a), (VInt b)) = VInt (a - b)
 subOp ((VFloat a), (VFloat b)) = VFloat (a - b)
 subOp ((VLong a), (VLong b)) = VLong (a - b)
-subOp ((VUInt a), (VUInt b)) = VUInt (a - b)  -- Note: underflow wraps around
+subOp ((VUInt a), (VUInt b)) = VUInt (a - b)
 subOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 mulOp :: (Number, Number) -> Number
