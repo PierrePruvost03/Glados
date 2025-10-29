@@ -95,6 +95,7 @@ data AExpression
           calledMethod :: String,
           callArgs :: [AExpression]
         }
+    | ACast Type AExpression
     deriving (Show, Eq)
 
 

@@ -185,3 +185,6 @@ symbolCallMethod = '.'
 
 symbolRef :: Char
 symbolRef = '&'
+
+symbolCast :: String
+symbolCast = "Kast"
