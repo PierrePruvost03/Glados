@@ -14,6 +14,7 @@ import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
 import System.FilePath (dropExtension, takeFileName)
 import qualified Data.Set as S
+import AstParsing.ErrorMessage
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -29,15 +30,15 @@ loadAndValidateFiles filePaths =
     processFiles parsedFiles = case sequence parsedFiles of
       Left err -> return $ Left err
       Right fileAsts -> validateAndSort fileAsts
-    
+
     validateAndSort fileAsts = case validateIncludes fileAsts providedFiles of
       Left err -> return $ Left err
       Right _ -> sortAndFilter fileAsts
-    
+
     sortAndFilter fileAsts = case sortByDependencies fileAsts of
       Left err -> return $ Left err
       Right sorted -> return $ Right $ applySelectiveImports sorted
-    
+
     providedFiles = S.fromList $ map (dropExtension . takeFileName) filePaths
 
 parseFile :: FilePath -> IO (Either IncludeError (String, [Ast]))
@@ -45,32 +46,31 @@ parseFile filePath =
   readFile filePath >>= parseContent
   where
     fileName = dropExtension $ takeFileName filePath
-    
-    parseContent content = case runParser parseAst (content, (1, 1)) of
-      Left (_, scope, detail, (line, col)) ->
-        return $ Left $ ParseError filePath 
-          (scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col)
-      Right (asts, _) -> return $ Right (fileName, asts)
+
+    parseContent content = case printParsingResult content parseAst of
+      Right str ->
+        return $ Left $ ParseError filePath str
+      Left asts -> return $ Right (fileName, asts)
 
 handleLoad :: Either IncludeError [(String, [Ast])] -> IO ()
 handleLoad (Left err) = printIncludeError err
 handleLoad (Right fileAsts) = handleCompile fileAsts
 
-printIncludeError :: IncludeError -> IO ()
-printIncludeError (FileNotFound path) = 
-    hPutStrLn stderr ("[Include error] File not found: " ++ path) >> exitFailure
-printIncludeError (CircularDependency file chain) = 
-    hPutStrLn stderr ("[Include error] Circular dependency detected in " ++ file ++ 
-                     ": " ++ show chain) >> exitFailure
-printIncludeError (ParseError _ msg) = 
-    hPutStrLn stderr ("[Parsing error] " ++ msg) >> exitFailure
-printIncludeError (MissingInclude file missing) = 
-    hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++ 
-                     "' but it was not provided in compilation arguments") >> exitFailure
-
 handleCompile :: [(String, [Ast])] -> IO ()
 handleCompile fileAsts =
     either printCompileError handleExec $ compileProgram fileAsts
+
+printIncludeError :: IncludeError -> IO ()
+printIncludeError (FileNotFound path) =
+    hPutStrLn stderr ("[Include error] File not found: " ++ path) >> exitFailure
+printIncludeError (CircularDependency file chain) =
+    hPutStrLn stderr ("[Include error] Circular dependency detected in " ++ file ++
+                     ": " ++ show chain) >> exitFailure
+printIncludeError (ParseError _ msg) =
+    hPutStrLn stderr ("[Parsing error] " ++ msg) >> exitFailure
+printIncludeError (MissingInclude file missing) =
+    hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++
+                     "' but it was not provided in compilation arguments") >> exitFailure
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
