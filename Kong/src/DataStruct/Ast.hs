@@ -39,6 +39,7 @@ data Type
   | TTuple [Type]           -- |Type1, Type2, ...|
   | TCustom String          -- custom type alias
   | TFunc [Type] Type     -- arg type -> return type
+  | TRef Type
   deriving (Show, Eq)
 
 data AstNumber
@@ -94,6 +95,7 @@ data AExpression
           calledMethod :: String,
           callArgs :: [AExpression]
         }
+    | ACast Type AExpression
     deriving (Show, Eq)
 
 

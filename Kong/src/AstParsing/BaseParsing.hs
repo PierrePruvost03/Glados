@@ -123,19 +123,21 @@ parseConstType base = skip *>
     (TKonst <$> (base <* skip <* parseString symbolConst) <|>
     base) <* skip
 
+
 isNotWrapper :: Parser ()
 isNotWrapper = isAnyNotChar wrapperList
 
 parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
         where f =
+                TRef <$> (base <* skip <* parseChar symbolRef) <|>
                 TVector <$> (base <* skip) <*>
                     (parseChar symbolVectorIn *> (parseExpression
                         <|> pure (AValue (ANumber (AInteger 0))))
-                    <* parseChar symbolVectorOut) <|>
+                    <* (parseChar symbolVectorOut <|> fatal "Vector" ("missing char \"" <> [symbolVectorOut] <> "\""))) <|>
                 TArray <$> (base <* skip) <*>
                     (parseChar symbolArrayIn *> skip *> parseExpression
-                    <* skip <* parseChar symbolArrayOut)
+                    <* skip <* (parseChar symbolArrayOut <|> fatal "Array" ("missing char \"" <> [symbolArrayOut] <> "\"")))
 
 parseRecParentType  :: Parser Type -> Parser Type
 parseRecParentType  base = parseTry base *>
@@ -173,7 +175,7 @@ parseWrapper :: Char -> Char -> Parser [AExpression]
 parseWrapper i o =
   parseChar i
     *> parseMultiple parseExpression
-    <* parseChar o
+    <* (parseChar o <|> fatal "Parsing" ("missing char \"" <> [o] <> "\""))
 
 parseTupleValue :: Parser AstValue
 parseTupleValue = ATuple <$> parseWrapper symbolTuple symbolTuple
@@ -192,11 +194,11 @@ parseStructValue =
               ( (,)
                   <$> parseName
                   <* skip
-                  <* parseChar symbolDeclaration
+                  <* (parseChar symbolDeclaration <|> fatal "Struct Value" ("missing char \"" <> [symbolDeclaration] <> "\""))
                   <* skip
-                  <*> parseExpression
+                  <*> (parseExpression <|> fatal "Struct Value" "invalid expression")
               )
-            <* parseChar symbolStructOut
+            <* (parseChar symbolStructOut <|> fatal "Struct Value" ("missing char \"" <> [symbolStructOut] <> "\""))
         )
 
 parseVarCall :: Parser AstValue
@@ -284,10 +286,16 @@ parseAccess =
         )
 
 
+parseCast :: Parser AExpression
+parseCast = ACast <$> (skip *> parseString symbolCast *> skip *>
+    skip *> parseChar symbolFuncParamIn *> parseType) <*>
+    (skip *> parseChar ',' *> parseExpression <* parseChar symbolFuncParamOut)
+
 parseBasicExpression :: Parser AExpression
 parseBasicExpression =
   skip
-    *> (    parseCall
+    *> (    parseCast
+        <|> parseCall
         <|> parseMethodCall
         <|> parseAccess
         <|> (parseChar symbolExpressionIn *> parseExpression <* parseChar symbolExpressionOut)
