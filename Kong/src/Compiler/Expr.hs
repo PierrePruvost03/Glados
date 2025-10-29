@@ -6,7 +6,7 @@ module Compiler.Expr
   ) where
 
 import DataStruct.Ast
-import DataStruct.Bytecode.Number (Number(..))
+import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
@@ -35,6 +35,7 @@ compileExpr (AAttribution var rhs) env =
     matchAssignment _ _ (Left err) = Left err
 compileExpr (AValue astValue) env = compileValue astValue env
 compileExpr (AAccess access) env = compileAccess access env
+compileExpr (ACast targetType expr) env = compileCast targetType expr env
 compileExpr (AMethodCall _ _ _) _ = Left $ UnsupportedAst "Method calls not yet implemented"
 compileExpr (ACall fexp [lhs, val]) env | maybeFuncName fexp == Just "=" =
   case lhs of
@@ -330,3 +331,38 @@ compileStructLiteral fieldPairs env =
   where
     compileField (_, expression) = compileExpr expression env
     fieldNames = map fst fieldPairs
+
+compileCast :: Type -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
+compileCast targetType expr env =
+  case typeToNumberType (resolveType env targetType) of
+    Just numType ->
+      case inferType expr env of
+        Just exprType
+          | isNumericType (resolveType env exprType) ->
+              fmap (\exprCode -> exprCode ++ [Cast numType]) (compileExpr expr env)
+          | otherwise ->
+              Left $ InvalidArguments ("Cannot cast non-numeric type " ++ show exprType ++ " to " ++ show targetType)
+        Nothing ->
+          Left $ InvalidArguments "Unable to infer type of expression being cast"
+    Nothing ->
+      Left $ InvalidArguments ("Cannot cast to non-numeric type: " ++ show targetType)
+
+typeToNumberType :: Type -> Maybe NumberType
+typeToNumberType TInt = Just NTInt
+typeToNumberType TBool = Just NTBool
+typeToNumberType TChar = Just NTChar
+typeToNumberType TFloat = Just NTFloat
+typeToNumberType (TKonst t) = typeToNumberType t
+typeToNumberType (TStrong t) = typeToNumberType t
+typeToNumberType (TKong t) = typeToNumberType t
+typeToNumberType _ = Nothing
+
+isNumericType :: Type -> Bool
+isNumericType TInt = True
+isNumericType TBool = True
+isNumericType TChar = True
+isNumericType TFloat = True
+isNumericType (TKonst t) = isNumericType t
+isNumericType (TStrong t) = isNumericType t
+isNumericType (TKong t) = isNumericType t
+isNumericType _ = False

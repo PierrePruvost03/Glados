@@ -201,6 +201,7 @@ inferType (AValue (AVarCall v)) env =
     Nothing -> Nothing
 inferType (AAttribution _ _) _ = Nothing
 inferType (AAccess acc) env = inferAccessType acc env
+inferType (ACast targetType _) env = Just (resolveType env targetType)
 inferType (ACall fexp [l, r]) env | maybeFuncName fexp `elem` map Just arithOps =
   case (inferType l env, inferType r env) of
     (Just t1, Just t2)
