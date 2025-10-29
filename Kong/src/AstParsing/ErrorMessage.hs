@@ -36,4 +36,4 @@ printParsingResult str p =
         <> context <> "]:" <> error_message <> " "
         <> printError str lc
         )
-    Right (res, rest) -> Left res
+    Right (res, _) -> Left res

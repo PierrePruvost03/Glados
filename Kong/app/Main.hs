@@ -11,6 +11,7 @@ import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
+import AstParsing.ErrorMessage
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -21,15 +22,15 @@ handleArgs _ = hPutStrLn stderr "Usage: glados <source-file>" >> exitFailure
 
 handleParse :: String -> IO ()
 handleParse content =
-    either printParseError handleCompile $ runParser parseAst (content, (1, 1))
+    either handleCompile printParseError $ printParsingResult content parseAst
 
-handleCompile :: ([Ast], b) -> IO ()
-handleCompile (asts, _) =
+handleCompile :: [Ast] -> IO ()
+handleCompile asts =
     either printCompileError handleExec $ compileProgram [("main", asts)]
 
-printParseError :: (Bool, String, String, (Int, Int)) -> IO ()
-printParseError (_, scope, detail, (line, col)) =
-    hPutStrLn stderr ("[Parsing error] " ++ scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col) >> exitFailure
+printParseError :: String -> IO ()
+printParseError str =
+    hPutStrLn stderr str >> exitFailure
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
