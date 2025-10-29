@@ -1,10 +1,11 @@
 Funk powf(Float a, Int b) -> Float {
+    Float result = 1;
     If (b `==` 0) {
-        Return 1;
+        Return result;
     } Else If (b `<` 0) {
-        Return 0;
+        result = 1.0 / Kast(Float, powf(a, -1 * b));
+        Return result;
     } Else {
-        Float result = 1;
         For (Int i = 0; i `<` b; i = i + 1) {
             result = result * a;
         }

@@ -1,10 +1,10 @@
 Funk pow(Int a, Int b) -> Int {
+    Int result = 1;
     If (b `==` 0) {
-        Return 1;
+        Return result;
     } Else If (b `<` 0) {
         Return 0;
     } Else {
-        Int result = 1;
         For (Int i = 0; i `<` b; i = i + 1) {
             result = result * a;
         }

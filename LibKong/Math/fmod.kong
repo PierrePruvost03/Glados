@@ -3,7 +3,3 @@ Funk fmod(Float a, Float b) -> Float {
     Int modulo = Kast(Int, result);
     Return a - (modulo * b);
 }
-
-Funk main() -> Int {
-    Return 42;
-}
