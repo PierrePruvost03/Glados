@@ -1,0 +1,7 @@
+Funk min(Int a, Int b) -> Int {
+    If (a `<` b) {
+        Return a;
+    } Else {
+        Return b;
+    }
+}
