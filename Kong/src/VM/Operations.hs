@@ -13,23 +13,39 @@ import VM.Utils (makeBoolValue)
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
 compareTypes (VBool a) (VChar b) = (VChar a2, VChar b) where a2 = toEnum (fromEnum a)::Char
-compareTypes (VBool a) (VInt b) = (VInt a2, VInt b) where a2 = fromEnum a
+compareTypes (VBool a) (VInt b) = (VInt a2, VInt b) where a2 = fromIntegral (fromEnum a)
 compareTypes (VBool a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral (fromEnum a)::Double
+compareTypes (VBool a) (VLong b) = (VLong a2, VLong b) where a2 = fromIntegral (fromEnum a)
+compareTypes (VBool a) (VUInt b) = (VUInt a2, VUInt b) where a2 = fromIntegral (fromEnum a)
 compareTypes a (VBool b) = (a2, b2) where (b2, a2) = compareTypes (VBool b) a
 compareTypes (VChar a) (VChar b) = (VChar a, VChar b)
-compareTypes (VChar a) (VInt b) = (VInt a2, VInt b) where a2 = fromEnum a
+compareTypes (VChar a) (VInt b) = (VInt a2, VInt b) where a2 = fromIntegral (fromEnum a)
 compareTypes (VChar a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral (fromEnum a)::Double
+compareTypes (VChar a) (VLong b) = (VLong a2, VLong b) where a2 = fromIntegral (fromEnum a)
+compareTypes (VChar a) (VUInt b) = (VUInt a2, VUInt b) where a2 = fromIntegral (fromEnum a)
 compareTypes a (VChar b) = (a2, b2) where (b2, a2) = compareTypes (VChar b) a
 compareTypes (VInt a) (VInt b) = (VInt a, VInt b)
 compareTypes (VInt a) (VFloat b) = (VFloat a2, VFloat b) where a2 = fromIntegral a::Double
+compareTypes (VInt a) (VLong b) = (VLong a2, VLong b) where a2 = fromIntegral a
+compareTypes (VInt a) (VUInt b) = (VUInt a2, VUInt b) where a2 = fromIntegral (max 0 a)
 compareTypes a (VInt b) = (a2, b2) where (b2, a2) = compareTypes (VInt b) a
 compareTypes (VFloat a) (VFloat b) = (VFloat a, VFloat b)
+compareTypes (VFloat a) (VLong b) = (VFloat a, VFloat b2) where b2 = fromIntegral b::Double
+compareTypes (VFloat a) (VUInt b) = (VFloat a, VFloat b2) where b2 = fromIntegral b::Double
+compareTypes a (VFloat b) = (a2, b2) where (b2, a2) = compareTypes (VFloat b) a
+compareTypes (VLong a) (VLong b) = (VLong a, VLong b)
+compareTypes (VLong a) (VUInt b) = (VLong a, VLong b2) where b2 = fromIntegral b
+compareTypes a (VLong b) = (a2, b2) where (b2, a2) = compareTypes (VLong b) a
+compareTypes (VUInt a) (VUInt b) = (VUInt a, VUInt b)
+compareTypes a (VUInt b) = (a2, b2) where (b2, a2) = compareTypes (VUInt b) a
 
 addOp :: (Number, Number) -> Number
 addOp ((VBool a), (VBool b)) = VBool (a /= b)
 addOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 addOp ((VInt a), (VInt b)) = VInt (a + b)
 addOp ((VFloat a), (VFloat b)) = VFloat (a + b)
+addOp ((VLong a), (VLong b)) = VLong (a + b)
+addOp ((VUInt a), (VUInt b)) = VUInt (a + b)
 addOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 subOp :: (Number, Number) -> Number
@@ -37,6 +53,8 @@ subOp ((VBool a), (VBool b)) = VBool (a == b)
 subOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) - (fromEnum b))::Char)
 subOp ((VInt a), (VInt b)) = VInt (a - b)
 subOp ((VFloat a), (VFloat b)) = VFloat (a - b)
+subOp ((VLong a), (VLong b)) = VLong (a - b)
+subOp ((VUInt a), (VUInt b)) = VUInt (a - b)  -- Note: underflow wraps around
 subOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 mulOp :: (Number, Number) -> Number
@@ -44,6 +62,8 @@ mulOp ((VBool a), (VBool b)) = VBool (a && b)
 mulOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) * (fromEnum b))::Char)
 mulOp ((VInt a), (VInt b)) = VInt (a * b)
 mulOp ((VFloat a), (VFloat b)) = VFloat (a * b)
+mulOp ((VLong a), (VLong b)) = VLong (a * b)
+mulOp ((VUInt a), (VUInt b)) = VUInt (a * b)
 mulOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 divOp :: (Number, Number) -> Number
@@ -51,10 +71,14 @@ divOp (_, (VBool False)) = throw $ ImpossibleDivsionByZero
 divOp (_, (VChar '\0')) = throw $ ImpossibleDivsionByZero
 divOp (_, (VInt 0)) = throw $ ImpossibleDivsionByZero
 divOp (_, (VFloat 0)) = throw $ ImpossibleDivsionByZero
+divOp (_, (VLong 0)) = throw $ ImpossibleDivsionByZero
+divOp (_, (VUInt 0)) = throw $ ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = VBool (a && b)
 divOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) + (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = VInt (a + b)
 divOp ((VFloat a), (VFloat b)) = VFloat (a + b)
+divOp ((VLong a), (VLong b)) = VLong (a + b)
+divOp ((VUInt a), (VUInt b)) = VUInt (a + b)
 divOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 equalOp :: (Number, Number) -> Number
