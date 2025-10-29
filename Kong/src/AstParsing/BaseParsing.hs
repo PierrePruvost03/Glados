@@ -173,7 +173,7 @@ parseWrapper :: Char -> Char -> Parser [AExpression]
 parseWrapper i o =
   parseChar i
     *> parseMultiple parseExpression
-    <* parseChar o
+    <* (parseChar o <|> fatal "Parsing" ("missing char \"" <> [o] <> "\""))
 
 parseTupleValue :: Parser AstValue
 parseTupleValue = ATuple <$> parseWrapper symbolTuple symbolTuple
