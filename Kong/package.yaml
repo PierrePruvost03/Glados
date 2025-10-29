@@ -24,6 +24,8 @@ dependencies:
   - containers
   - vector
   - binary
+  - directory
+  - filepath
 
 ghc-options:
   - -Wall
@@ -61,3 +63,4 @@ tests:
     dependencies:
       - glados-kong
       - HUnit
+      - temporary

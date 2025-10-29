@@ -3,34 +3,86 @@ module Main (main) where
 import System.Environment (getArgs)
 import System.Exit (exitSuccess, exitFailure, exitWith, ExitCode (..) )
 import System.IO (hPutStrLn, stderr)
-import Parser (runParser)
 import DataStruct.VM (baseState, VMState (VMState, stack))
-import AstParsing.BaseParsing (parseAst)
 import Compiler.Program (compileProgram)
+import Compiler.Include (validateIncludes, sortByDependencies, applySelectiveImports, IncludeError(..))
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
-import AstParsing.ErrorMessage
+import Parser (runParser)
+import AstParsing.BaseParsing (parseAst)
+import System.FilePath (dropExtension, takeFileName)
+import qualified Data.Set as S
 
 main :: IO ()
 main = getArgs >>= handleArgs
 
 handleArgs :: [String] -> IO ()
-handleArgs [file] = readFile file >>= handleParse
-handleArgs _ = hPutStrLn stderr "Usage: glados <source-file>" >> exitFailure
+handleArgs [] = hPutStrLn stderr "Usage: glados <source-file> [additional-files...]" >> exitFailure
+handleArgs files = loadAndValidateFiles files >>= handleLoad
+
+loadAndValidateFiles :: [FilePath] -> IO (Either IncludeError [(String, [Ast])])
+loadAndValidateFiles filePaths =
+  mapM parseFile filePaths >>= processFiles
+  where
+    processFiles parsedFiles = case sequence parsedFiles of
+      Left err -> return $ Left err
+      Right fileAsts -> validateAndSort fileAsts
+
+    validateAndSort fileAsts = case validateIncludes fileAsts providedFiles of
+      Left err -> return $ Left err
+      Right _ -> sortAndFilter fileAsts
+
+    sortAndFilter fileAsts = case sortByDependencies fileAsts of
+      Left err -> return $ Left err
+      Right sorted -> return $ Right $ applySelectiveImports sorted
+
+    providedFiles = S.fromList $ map (dropExtension . takeFileName) filePaths
 
 handleParse :: String -> IO ()
 handleParse content =
-    either handleCompile printParseError $ printParsingResult content parseAst
+    either printParseError handleCompile $ runParser parseAst (content, (1, 1))
 
-handleCompile :: [Ast] -> IO ()
-handleCompile asts =
-    either printCompileError handleExec $ compileProgram [("main", asts)]
+parseFile :: FilePath -> IO (Either IncludeError (String, [Ast]))
+parseFile filePath =
+  readFile filePath >>= parseContent
+  where
+    fileName = dropExtension $ takeFileName filePath
+
+    parseContent content = case runParser parseAst (content, (1, 1)) of
+      Left (_, scope, detail, (line, col)) ->
+        return $ Left $ ParseError filePath
+          (scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col)
+      Right (asts, _) -> return $ Right (fileName, asts)
+
+handleLoad :: Either IncludeError [(String, [Ast])] -> IO ()
+handleLoad (Left err) = printIncludeError err
+handleLoad (Right fileAsts) = handleCompile fileAsts
+
+handleCompile :: [(String, [Ast])] -> IO ()
+handleCompile fileAsts =
+    either printCompileError handleExec $ compileProgram fileAsts
 
 printParseError :: String -> IO ()
 printParseError str =
     hPutStrLn stderr str >> exitFailure
+
+printIncludeError :: IncludeError -> IO ()
+printIncludeError (FileNotFound path) =
+    hPutStrLn stderr ("[Include error] File not found: " ++ path) >> exitFailure
+printIncludeError (CircularDependency file chain) =
+    hPutStrLn stderr ("[Include error] Circular dependency detected in " ++ file ++
+                     ": " ++ show chain) >> exitFailure
+printIncludeError (ParseError _ msg) =
+    hPutStrLn stderr ("[Parsing error] " ++ msg) >> exitFailure
+printIncludeError (MissingInclude file missing) =
+    hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++
+                     "' but it was not provided in compilation arguments") >> exitFailure
+
+handleCompile :: [(String, [Ast])] -> IO ()
+handleCompile fileAsts =
+    either printCompileError handleExec $ compileProgram fileAsts
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
