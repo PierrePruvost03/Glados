@@ -132,10 +132,10 @@ parseParentType base = parseConstType (skip *> f <* skip)
                 TVector <$> (base <* skip) <*>
                     (parseChar symbolVectorIn *> (parseExpression
                         <|> pure (AValue (ANumber (AInteger 0))))
-                    <* parseChar symbolVectorOut) <|>
+                    <* (parseChar symbolVectorOut <|> fatal "Vector" ("missing char \"" <> [symbolVectorOut] <> "\""))) <|>
                 TArray <$> (base <* skip) <*>
                     (parseChar symbolArrayIn *> skip *> parseExpression
-                    <* skip <* parseChar symbolArrayOut)
+                    <* skip <* (parseChar symbolArrayOut <|> fatal "Array" ("missing char \"" <> [symbolArrayOut] <> "\"")))
 
 parseRecParentType  :: Parser Type -> Parser Type
 parseRecParentType  base = parseTry base *>
