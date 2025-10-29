@@ -1,4 +1,7 @@
-module AstParsing.Include where
+module AstParsing.Include
+(
+    parseInclude
+) where
 
 import AstParsing.Skip
 import Parser
@@ -7,7 +10,7 @@ import AstParsing.Utils
 import AstParsing.Keywords.Keywords
 
 parseInclude :: Parser Ast
-parseInclude = AInclude <$>
+parseInclude = wrap $ AInclude <$>
     (skip *> parseString symbolInclude  *>
         (parseName <|> fatal "Include" "missing include name"))
         <*> ((skip *> parseString symbolIncludeIn
