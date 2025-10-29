@@ -1,6 +1,5 @@
 module Compiler.Statements
   ( compileAst
-  , compileIf
   , extractParamNames
   , defaultValue
   , extractGlobalNames
@@ -8,9 +7,9 @@ module Compiler.Statements
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), eqTypeNormalized, inferType)
+import Compiler.Types (CompilerError(..), CompilerEnv(..))
 import Compiler.Expr (compileExpr)
-import Compiler.Block (declareDefault, declareWithValue, defaultValue)
+import Compiler.Block (declareDefault, declareWithValue, defaultValue, compileIf)
 import qualified Data.Map as M
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
@@ -18,13 +17,14 @@ compileAst (ABlock asts) env = compileBlock asts env
 compileAst (AVarDecl t name Nothing) env =
   Right (declareDefault env t name)
 compileAst (AVarDecl t name (Just initExpr)) env =
-  fmap (declareWithValue env t name) (compileExpr initExpr env)
+  fmap (declareWithValue (prebindVar t name env) t name)
+       (compileExpr initExpr (prebindVar t name env))
 compileAst (AExpress expr) env =
   fmap (\instrs -> (instrs, env)) (compileExpr expr env)
 compileAst (AReturn expr) env =
   fmap (\(instrs, _) -> (instrs ++ [Ret], env)) (compileAst expr env)
 compileAst aIf@AIf{} env =
-  fmap (\instrs -> (instrs, env)) (compileIf aIf env)
+  fmap (\instrs -> (instrs, env)) (compileIf compileExpr aIf env)
 compileAst (AStruktDef name fdls) env =
   Right ([], env { structDefs = M.insert name fdls (structDefs env) })
 compileAst ast _ = Left $ UnsupportedAst (show ast)
@@ -38,31 +38,20 @@ compileBlock asts env =
     acc >>= \(prevInstrs, currentEnv) ->
       compileAst ast currentEnv >>= \(newInstrs, nextEnv) ->
         Right (prevInstrs ++ newInstrs, nextEnv)
-  ) (Right ([], env)) asts
-
-compileIf :: Ast -> CompilerEnv -> Either CompilerError [Instr]
-compileIf (AIf (AExpress cond) thenBranch elseBranch) env =
-  case inferType cond env of
-    Just t | eqTypeNormalized t TBool ->
-      compileExpr cond env >>= \condCode ->
-        compileAst thenBranch env >>= \(thenCode, _) ->
-          compileElse elseBranch env >>= \(elseCode, _) ->
-            Right (assemble condCode thenCode elseCode)
-    Just other -> Left $ InvalidArguments ("If condition must be boolean, got " ++ show other)
-    Nothing -> Left $ InvalidArguments "Unable to infer type for if-condition"
-  where
-    assemble condCode thenCode elseCode =
-      condCode ++ [JumpIfFalse (jumpOffset thenCode elseCode)] ++ thenCode ++ elseSegment elseCode
-    jumpOffset thenCode [] = length thenCode + 1
-    jumpOffset thenCode _ = length thenCode + 2
-    elseSegment [] = []
-    elseSegment elseCode = Jump (length elseCode) : elseCode
-    compileElse Nothing scope = Right ([], scope)
-    compileElse (Just branch) scope = compileAst branch scope
-compileIf _ _ = Left $ UnsupportedAst "If statement not supported"
+  ) (Right ([], prebindKonsts asts env)) asts
 
 extractParamNames :: [Ast] -> [String]
 extractParamNames = foldr extractParam []
   where
     extractParam (AVarDecl _ name _) acc = name : acc
     extractParam _ acc = acc
+
+prebindVar :: Type -> String -> CompilerEnv -> CompilerEnv
+prebindVar t@(TKonst _) name env = env { typeAliases = M.insert name t (typeAliases env) }
+prebindVar _ _ env = env
+
+prebindKonsts :: [Ast] -> CompilerEnv -> CompilerEnv
+prebindKonsts asts env = foldl step env asts
+  where
+    step e (AVarDecl t@(TKonst _) n _) = e { typeAliases = M.insert n t (typeAliases e) }
+    step e _ = e

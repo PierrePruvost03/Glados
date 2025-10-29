@@ -10,6 +10,7 @@ import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias)
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
+import Data.Char (isSpace)
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram fas =

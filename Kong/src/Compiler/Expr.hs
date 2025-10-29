@@ -182,10 +182,12 @@ compileValue (ALambda params retType body) env =
     capturedNames = L.nub (paramNames ++ globalNames)
     genParam pname = [Alloc, StoreRef, SetVar pname]
     makeLambda (bodyCode, _) = [Push (VFunction capturedNames (V.fromList (concatMap genParam paramNames ++ bodyCode)))]
-compileValue (AVarCall vname) env
-  | Just t <- M.lookup vname (typeAliases env)
-  , not (isKonst (resolveType env t)) = Right [PushEnv vname, LoadRef]
-  | otherwise = Right [PushEnv vname]
+compileValue (AVarCall vname) env =
+  case M.lookup vname (typeAliases env) of
+    Just t
+      | not (isKonst (resolveType env t)) -> Right [PushEnv vname, LoadRef]
+      | otherwise -> Right [PushEnv vname]
+    Nothing -> Left (UnknownVariable vname)
 
 elementTypeFromResolved :: Type -> Maybe Type
 elementTypeFromResolved (TArray et _) = Just et
@@ -212,11 +214,22 @@ checkLambdaReturn expected bodyStmts scope =
   case getReturnExpr bodyStmts of
     Nothing -> Right ()
     Just (AExpress e) ->
-      case (inferType e scope) of
-        Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
-                    | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
-        Nothing -> Left $ InvalidArguments "Unable to infer return type in lambda"
+      case inferType e (extendScopeWithPrefixDecls bodyStmts scope) of
+           Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
+                       | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual)
+           Nothing -> Right ()
     _ -> Right ()
+
+isReturnStmt :: Ast -> Bool
+isReturnStmt (AReturn _) = True
+isReturnStmt _ = False
+
+extendWithDecl :: CompilerEnv -> Ast -> CompilerEnv
+extendWithDecl env (AVarDecl t n _) = env { typeAliases = M.insert n t (typeAliases env) }
+extendWithDecl env _ = env
+
+extendScopeWithPrefixDecls :: [Ast] -> CompilerEnv -> CompilerEnv
+extendScopeWithPrefixDecls stmts env = foldl extendWithDecl env (takeWhile (not . isReturnStmt) stmts)
 
 getReturnExpr :: [Ast] -> Maybe Ast
 getReturnExpr [] = Nothing
