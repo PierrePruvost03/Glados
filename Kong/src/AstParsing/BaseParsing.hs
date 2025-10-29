@@ -317,11 +317,11 @@ parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression
 ------------------------------------------------
 parseWhile :: Parser Ast
 parseWhile =
-  parseString symbolWhile
+  parseString symbolWhile *> skip
     *> ( ALoop Nothing
-           <$> (parseChar symbolForIn *> (AExpress <$> parseExpression) <* parseChar symbolForOut)
+           <$> (parseChar symbolForIn *> (AExpress <$> parseExpression) <* skip <* parseChar symbolForOut)
            <*> pure Nothing
-           <*> parseBody
+           <*> (skip *> parseBody)
        )
 
 parseFor :: Parser Ast
