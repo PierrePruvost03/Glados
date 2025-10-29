@@ -123,12 +123,14 @@ parseConstType base = skip *>
     (TKonst <$> (base <* skip <* parseString symbolConst) <|>
     base) <* skip
 
+
 isNotWrapper :: Parser ()
 isNotWrapper = isAnyNotChar wrapperList
 
 parseParentType :: Parser Type -> Parser Type
 parseParentType base = parseConstType (skip *> f <* skip)
         where f =
+                TRef <$> (base <* skip <* parseChar symbolRef) <|>
                 TVector <$> (base <* skip) <*>
                     (parseChar symbolVectorIn *> (parseExpression
                         <|> pure (AValue (ANumber (AInteger 0))))

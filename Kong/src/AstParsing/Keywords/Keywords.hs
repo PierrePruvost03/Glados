@@ -73,7 +73,7 @@ symbolTuple :: Char
 symbolTuple = '|'
 
 wrapperList :: String
-wrapperList = "<|["
+wrapperList = "<[&"
 
 symbolTrue :: String
 symbolTrue = "true"
@@ -182,3 +182,6 @@ symbolSelfType = "Self"
 
 symbolCallMethod :: Char
 symbolCallMethod = '.'
+
+symbolRef :: Char
+symbolRef = '&'
