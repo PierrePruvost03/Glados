@@ -5,6 +5,7 @@ module Compiler.Block
   , defaultValue
   , compileLoop
   , compileIf
+  , compileExprForInit
   ) where
 
 import DataStruct.Ast
@@ -14,6 +15,8 @@ import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst,
 import qualified Data.Map as M
 import Data.Char (isSpace)
 import qualified Data.Vector as V
+import Data.Int (Int64)
+import Data.Word (Word32)
 
 compileAstWith :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
                -> Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
@@ -29,12 +32,13 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
   AVarDecl t name (Just initExpr) ->
     case inferType initExpr env of
       Just it
-        | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
+        | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExprForInit compileExpr initExpr env' (Just t'))
         | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it) (getAstLineCount ast)
         where t' = resolveType env t
               env' = prebindVar t name env
-      Nothing -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
-        where env' = prebindVar t name env
+      Nothing -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExprForInit compileExpr initExpr env' (Just t'))
+        where t' = resolveType env t
+              env' = prebindVar t name env
   AExpress e ->
     fmap (\code -> (code, env)) (compileExpr e env)
   AReturn a ->
@@ -147,3 +151,43 @@ prebindKonsts asts env = foldl step env asts
 
 normalizeName :: String -> String
 normalizeName = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+compileNumberWithExpectedType :: AstNumber -> Maybe Type -> Number
+compileNumberWithExpectedType (AInteger n) expectedType = compileIntLiteralWithType n expectedType
+compileNumberWithExpectedType (ABool b) _ = VBool b
+compileNumberWithExpectedType (AChar c) _ = VChar c
+compileNumberWithExpectedType (AFloat f) _ = VFloat (realToFrac f)
+
+compileIntLiteralWithType :: Int -> Maybe Type -> Number
+compileIntLiteralWithType n (Just t) = 
+  case unwrapType t of
+    TStrong innerT -> compileIntLiteralForStrong n innerT
+    TKong innerT -> compileIntLiteralForKong n innerT
+    TKonst innerT -> compileIntLiteralWithType n (Just innerT)
+    TInt -> VInt (fromIntegral n)
+    _ -> VInt (fromIntegral n)
+compileIntLiteralWithType n Nothing = VInt (fromIntegral n)
+
+compileIntLiteralForStrong :: Int -> Type -> Number
+compileIntLiteralForStrong n innerT
+  | unwrapType innerT == TInt = VLong (fromIntegral n)
+  | otherwise = VInt (fromIntegral n)
+
+compileIntLiteralForKong :: Int -> Type -> Number
+compileIntLiteralForKong n innerT
+  | unwrapType innerT == TInt = VUInt (fromIntegral n)
+  | otherwise = VInt (fromIntegral n)
+
+compileExprForInit :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+                   -> AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileExprForInit compileExprFn expr env expectedType = 
+  case unwrapExpr expr of
+    AValue val -> compileValueForInit compileExprFn expr (unwrapValue val) env expectedType
+    _ -> compileExprFn expr env
+
+compileValueForInit :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+                    -> AExpression -> AstValueRaw -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileValueForInit _ _ (ANumber n) _ expectedType = 
+  Right [Push (VNumber (compileNumberWithExpectedType n expectedType))]
+compileValueForInit compileExprFn expr _ env _ = 
+  compileExprFn expr env

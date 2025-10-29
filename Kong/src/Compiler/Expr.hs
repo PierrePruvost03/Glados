@@ -1,5 +1,6 @@
 module Compiler.Expr
   ( compileExpr
+  , compileExprWithType
   , compileCall
   , compileValue
   , compileAccess
@@ -27,18 +28,22 @@ maybeFuncName expr = case unwrapExpr expr of
   _ -> Nothing
 
 compileExpr :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileExpr expr env = case unwrapExpr expr of
+compileExpr expr env = compileExprWithType expr env Nothing
+
+-- Version de compileExpr qui accepte un type attendu pour optimiser la compilation des littéraux
+compileExprWithType :: AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileExprWithType expr env expectedType = case unwrapExpr expr of
   AAttribution var rhs ->
     case M.lookup var (typeAliases env) of
       Nothing -> Left (UnknownVariable var (getExprLineCount expr))
-      Just _ -> matchAssignment (M.lookup var (typeAliases env)) (inferType rhs env) (compileExpr rhs env)
+      Just _ -> matchAssignment (M.lookup var (typeAliases env)) (inferType rhs env) (compileExprWithType rhs env Nothing)
     where
       matchAssignment t v (Right rhsCode) =
         case checkAssignmentType (getExprLineCount expr) t v of
           Right () -> Right (rhsCode ++ [PushEnv var, StoreRef])
           Left err -> Left err
       matchAssignment _ _ (Left err) = Left err
-  AValue astValue -> compileValue astValue env
+  AValue astValue -> compileValueWithType astValue env expectedType
   AAccess access -> compileAccess access env
   ACast targetType ex -> compileCast targetType ex env (getExprLineCount expr)
   AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (getExprLineCount expr)
@@ -222,8 +227,11 @@ compileCall name
   | otherwise = [PushEnv name, Call]
 
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
-compileValue val env = case unwrapValue val of
-  ANumber number -> Right [Push (VNumber (compileNumber number))]
+compileValue val env = compileValueWithType val env Nothing
+
+compileValueWithType :: AstValue -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileValueWithType val env expectedType = case unwrapValue val of
+  ANumber number -> Right [Push (VNumber (compileNumberWithType number expectedType env))]
   AString s -> Right [Push (VList (V.fromList (map (VNumber . VChar) s)))]
   ATuple exprs -> compileListLiteral exprs env
   AArray exprs -> compileListLiteral exprs env
@@ -361,10 +369,24 @@ extractGlobalNames :: M.Map String a -> [String]
 extractGlobalNames = M.keys
 
 compileNumber :: AstNumber -> Number
-compileNumber (AInteger n) = VInt n
+compileNumber (AInteger n) = VInt (fromIntegral n)
 compileNumber (AFloat f) = VFloat (realToFrac f)
 compileNumber (ABool b) = VBool b
 compileNumber (AChar c) = VChar c
+
+compileNumberWithType :: AstNumber -> Maybe Type -> CompilerEnv -> Number
+compileNumberWithType (AInteger n) (Just expectedType) env = 
+  case unwrapType (resolveType env expectedType) of
+    TStrong ty -> case unwrapType ty of
+      TInt -> VLong (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKong ty -> case unwrapType ty of
+      TInt -> VUInt (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKonst ty -> compileNumberWithType (AInteger n) (Just ty) env
+    _ -> VInt (fromIntegral n)
+compileNumberWithType number Nothing _ = compileNumber number
+compileNumberWithType number _ _ = compileNumber number
 
 compileListLiteral :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
 compileListLiteral exprs env =
@@ -401,9 +423,27 @@ typeToNumberType t = case unwrapType t of
   TChar -> Just NTChar
   TFloat -> Just NTFloat
   TKonst ty -> typeToNumberType ty
-  TStrong ty -> typeToNumberType ty
-  TKong ty -> typeToNumberType ty
+  TStrong ty -> typeToNumberTypeForStrong (stripTypeModifiers ty)
+  TKong ty -> typeToNumberTypeForKong (stripTypeModifiers ty)
   _ -> Nothing
+
+typeToNumberTypeForStrong :: Type -> Maybe NumberType
+typeToNumberTypeForStrong innerType = case unwrapType innerType of
+  TInt -> Just NTLong
+  TFloat -> Just NTFloat
+  _ -> Nothing
+
+typeToNumberTypeForKong :: Type -> Maybe NumberType
+typeToNumberTypeForKong innerType = case unwrapType innerType of
+  TInt -> Just NTUInt
+  _ -> Nothing
+
+stripTypeModifiers :: Type -> Type
+stripTypeModifiers t = case unwrapType t of
+  TKonst ty -> stripTypeModifiers ty
+  TStrong ty -> stripTypeModifiers ty
+  TKong ty -> stripTypeModifiers ty
+  _ -> t
 
 isNumericType :: Type -> Bool
 isNumericType t = case unwrapType t of
