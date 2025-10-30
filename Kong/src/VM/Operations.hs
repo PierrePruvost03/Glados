@@ -47,10 +47,10 @@ mulOp ((VFloat a), (VFloat b)) = VFloat (a * b)
 mulOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
 divOp :: (Number, Number) -> Number
-divOp (_, (VBool False)) = throw $ ImpossibleDivsionByZero
-divOp (_, (VChar '\0')) = throw $ ImpossibleDivsionByZero
-divOp (_, (VInt 0)) = throw $ ImpossibleDivsionByZero
-divOp (_, (VFloat 0)) = throw $ ImpossibleDivsionByZero
+divOp (_, (VBool False)) = throw ImpossibleDivsionByZero
+divOp (_, (VChar '\0')) = throw ImpossibleDivsionByZero
+divOp (_, (VInt 0)) = throw ImpossibleDivsionByZero
+divOp (_, (VFloat 0)) = throw ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = VBool (a && b)
 divOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) `div` (fromEnum b))::Char)
 divOp ((VInt a), (VInt b)) = VInt (a `div` b)
@@ -84,6 +84,17 @@ orOp (a, b) = VBool (makeBoolValue (VNumber a) || makeBoolValue (VNumber b))
 notOp :: Number -> Number
 notOp n = VBool (not (makeBoolValue (VNumber n)))
 
+modOp :: (Number, Number) -> Number
+modOp (_, (VBool False)) = throw ImpossibleModulusByZero
+modOp (_, (VChar '\0')) = throw ImpossibleModulusByZero
+modOp (_, (VInt 0)) = throw ImpossibleModulusByZero
+modOp (_, (VFloat 0)) = throw ImpossibleModulusByZero
+modOp ((VBool a), (VBool b)) = VBool (a /= b)
+modOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) `mod` (fromEnum b))::Char)
+modOp ((VInt a), (VInt b)) = VInt (a `mod` b)
+modOp ((VFloat a), (VFloat b)) = VFloat (a - b * fromIntegral (floor (a / b)))
+modOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
+
 applyOp :: VMState -> Op -> VMState
 applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Add =
      s {stack = VNumber (addOp $ compareTypes a b) : xs}
@@ -111,5 +122,7 @@ applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Or =
      s {stack = VNumber (orOp $ compareTypes a b) : xs}
 applyOp s@(VMState {stack = (VNumber a: xs)}) Not =
      s {stack = VNumber (notOp a) : xs}
+applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Mod =
+     s {stack = VNumber (modOp $ compareTypes a b) : xs}
 applyOp (VMState {stack = (v1: v2: _)}) _ = throw $ InvalidOpTypeError v1 v2
 applyOp _ _ = throw $ InvalidStackAccess

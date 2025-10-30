@@ -348,7 +348,7 @@ comparisonOps :: [String]
 comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
 
 arithOps :: [String]
-arithOps = ["+", "-", "*", "/"]
+arithOps = ["+", "-", "*", "/", "%"]
 
 inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type
 inferAccessType acc env = case unwrapAccess acc of
