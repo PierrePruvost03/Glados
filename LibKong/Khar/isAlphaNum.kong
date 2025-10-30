@@ -3,10 +3,10 @@ Inklude isDigit (isDigit)
 
 Funk isAlphaNum(Khar k) -> Bool {
     If (isAlpha(k)) {
-        Return true;
+        Return True;
     }
     If (isDigit(k)) {
-        Return true;
+        Return True;
     }
-    Return false;
+    Return False;
 }
