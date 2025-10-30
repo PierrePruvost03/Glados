@@ -7,32 +7,41 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst, checkMainSignature, validateStructDefinition, getAstLineCount, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
+import Control.Monad (foldM)
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram fas =
-  selectResult allInstrs allErrs
+  either (Left . (:[])) processWithEnv (buildAliasEnv (concatMap snd fas))
   where
-    (allInstrs, _, allErrs) = foldl compileInOrder ([], buildAliasEnv (concatMap snd fas), []) (expand fas)
-    compileInOrder (accInstrs, accEnv, accErrs) (file, ast) =
-      either
-        (\err -> (accInstrs, enrichEnvWithAst accEnv ast, accErrs ++ [err]))
-        (\instrs -> (accInstrs ++ instrs, enrichEnvWithAst accEnv ast, accErrs))
-        (compilePairWithEnv accEnv (file, ast))
-    selectResult instrs [] = ensureMain instrs
-    selectResult _ errs = Left errs
+    processWithEnv initialEnv = selectResult allInstrs finalEnv allErrs
+      where
+        (allInstrs, finalEnv, allErrs) = foldl compileInOrder ([], initialEnv, []) (expand fas)
+        compileInOrder (accInstrs, accEnv, accErrs) (file, ast) =
+          either
+            (\err -> (accInstrs, enrichEnvWithAst accEnv ast, accErrs ++ [err]))
+            (\instrs -> (accInstrs ++ instrs, enrichEnvWithAst accEnv ast, accErrs))
+            (compilePairWithEnv accEnv (file, ast))
+        selectResult instrs env [] = ensureMain instrs env
+        selectResult _ _ errs = Left errs
 
 enrichEnvWithAst :: CompilerEnv -> Ast -> CompilerEnv
 enrichEnvWithAst env ast = case unwrapAst ast of
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env
 
-ensureMain :: [Instr] -> Either [ProgramError] [Instr]
-ensureMain instrs
-  | hasMain instrs = Right (instrs ++ [PushEnv "main", Call, Ret])
-  | otherwise = Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "No 'main' function found.")]
+ensureMain :: [Instr] -> CompilerEnv -> Either [ProgramError] [Instr]
+ensureMain instrs env
+  | not (hasMain instrs) = Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "No 'main' function found.")]
+  | otherwise = 
+      case M.lookup "main" (typeAliases env) of
+        Just mainType -> 
+          case checkMainSignature mainType ((0, 0)) of
+            Right () -> Right (instrs ++ [PushEnv "main", Call, Ret])
+            Left err -> Left [ProgramError "<global>" ((0, 0), ABlock []) err]
+        Nothing -> Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "Main function type not found.")]
 
 hasMain :: [Instr] -> Bool
 hasMain = any isSetMain
@@ -59,10 +68,30 @@ step (Right is) (Right js) = Right (is ++ js)
 compileWithEnv :: CompilerEnv -> Ast -> Either CompilerError [Instr]
 compileWithEnv env ast = fst <$> compileAst ast env
 
-buildAliasEnv :: [Ast] -> CompilerEnv
-buildAliasEnv asts = foldl stepAlias emptyEnv asts
+buildAliasEnv :: [Ast] -> Either ProgramError CompilerEnv
+buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
   where
     stepAlias e a = case unwrapAst a of
-      ATypeAlias _ _ -> insertTypeAlias e a
-      AStruktDef _ _ -> insertTypeAlias e a
-      _ -> e
+      ATypeAlias name _ -> 
+        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
+          Left err -> Left (ProgramError "<global>" a err)
+          Right () -> Right (insertTypeAlias e a)
+      AStruktDef name fds -> 
+        case validateNoDuplicateStruct name e (getAstLineCount a) of
+          Left err -> Left (ProgramError "<global>" a err)
+          Right () -> case validateStructDefinition e name fds (getAstLineCount a) of
+            Left err -> Left (ProgramError "<global>" a err)
+            Right () -> Right (insertTypeAlias e a)
+      AVarDecl _ name _ ->
+        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
+          Left err -> Left (ProgramError "<global>" a err)
+          Right () -> Right e
+      _ -> Right e
+
+extractTopLevel :: [Ast] -> [Ast]
+extractTopLevel = concatMap extractFromAst
+
+extractFromAst :: Ast -> [Ast]
+extractFromAst a = case unwrapAst a of
+  ABlock innerAsts -> concatMap extractFromAst innerAsts
+  _ -> [a]

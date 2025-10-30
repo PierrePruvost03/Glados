@@ -7,7 +7,7 @@ module Compiler.Statements
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), getAstLineCount, unwrapAst, unwrapType)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), getAstLineCount, unwrapAst, unwrapType, validateStructDefinition)
 import Compiler.Expr (compileExpr)
 import Compiler.Block (declareDefault, declareWithValue, defaultValue, compileIf)
 import qualified Data.Map as M
@@ -27,7 +27,9 @@ compileAst ast env = case unwrapAst ast of
   AIf ifC ifT ifE ->
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr (getAstLineCount ast, AIf ifC ifT ifE) env)
   AStruktDef name fdls ->
-    Right ([], env { structDefs = M.insert name fdls (structDefs env) })
+    case validateStructDefinition env name fdls (getAstLineCount ast) of
+      Left err -> Left err
+      Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })
   AInclude _ _ ->
     Right ([], env)
   raw -> Left $ UnsupportedAst (show raw) (getAstLineCount ast)

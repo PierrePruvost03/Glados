@@ -5,7 +5,7 @@ import System.Exit (exitSuccess, exitFailure, exitWith, ExitCode (..) )
 import System.IO (hPutStrLn, stderr)
 import DataStruct.VM (baseState, VMState (VMState, stack))
 import Compiler.Program (compileProgram)
-import Compiler.Include (sortByDependencies, applySelectiveImports, validateIncludes, IncludeError(..))
+import Compiler.Include (sortByDependencies, applySelectiveImports, validateIncludes, validateNoDuplicateSymbols, IncludeError(..))
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
@@ -37,7 +37,9 @@ loadAndValidateFiles filePaths =
 
     validateAndSort fileAsts = case validateIncludes fileAsts providedFiles of
       Left err -> return $ Left err
-      Right _ -> sortAndFilter fileAsts
+      Right _ -> case validateNoDuplicateSymbols fileAsts of
+        Left err -> return $ Left err
+        Right _ -> sortAndFilter fileAsts
 
     sortAndFilter fileAsts = case sortByDependencies fileAsts of
       Left err -> return $ Left err
@@ -81,6 +83,9 @@ printIncludeError (MissingInclude file missing) =
 printIncludeError (MissingSymbol requester included symbol) =
     hPutStrLn stderr ("[Include error] File '" ++ requester ++ "' requests symbol '" ++ symbol ++
                      "' from '" ++ included ++ "' but it does not exist") >> exitFailure
+printIncludeError (DuplicateSymbol symbol files) =
+    hPutStrLn stderr ("[Include error] Symbol '" ++ symbol ++ "' is defined in multiple files: " ++
+                     show files) >> exitFailure
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure

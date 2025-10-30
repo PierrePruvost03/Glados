@@ -10,9 +10,9 @@ import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAstLineCount, getAccessLineCount, getValueLineCount)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAccessLineCount, getValueLineCount)
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, eqTypeNormalized, bothNumeric)
+import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -56,6 +56,7 @@ compileAssignmentExpr lhs val env lc = case unwrapExpr lhs of
   -- x = val
   AValue lval -> case unwrapValue lval of
     AVarCall v ->
+      validateKonstAssignment v env lc >>
       case checkAssignmentType lc (M.lookup v (typeAliases env)) (inferType val env) of
         Right () -> (++) <$> compileExpr val env <*> Right [PushEnv v, StoreRef]
         Left err -> Left err
@@ -73,6 +74,7 @@ compileIndexedAssignment :: AExpression -> AExpression -> AExpression -> Compile
 compileIndexedAssignment nameExpr idx val env lc _isTuple = case unwrapExpr nameExpr of
   AValue nval -> case unwrapValue nval of
     AVarCall name ->
+      validateKonstAssignment name env lc >>
       case checkAssignmentType lc (case lookupResolved env name of
                                   Just rt -> elementTypeFromResolved rt
                                   Nothing -> Nothing)
@@ -87,6 +89,7 @@ compileTupleAssignment :: AExpression -> AExpression -> AExpression -> CompilerE
 compileTupleAssignment nameExpr idx val env lc = case unwrapExpr nameExpr of
   AValue nval -> case unwrapValue nval of
     AVarCall name ->
+      validateKonstAssignment name env lc >>
       case checkAssignmentType lc (case lookupResolved env name of
                                   Just t -> case unwrapType t of
                                     TTuple ts -> tupleIndexType ts idx
@@ -103,6 +106,7 @@ compileStructAssignment :: AExpression -> String -> AExpression -> CompilerEnv -
 compileStructAssignment nameExpr field val env lc = case unwrapExpr nameExpr of
   AValue nval -> case unwrapValue nval of
     AVarCall name ->
+      validateKonstAssignment name env lc >>
       case checkAssignmentType lc (case lookupResolved env name of
                                   Just t -> case unwrapType t of
                                     TStruct sname ->
@@ -136,11 +140,14 @@ compileComparisonExpr fexp lhs rhs env lc =
 compileArithmeticExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileArithmeticExpr fexp lhs rhs env lc =
   case (inferType lhs env, inferType rhs env) of
-    (Just t1, Just t2)
-      | numericCompatible t1 t2 -> case maybeFuncName fexp of
-          Just opName -> (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
-          Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lc
-      | otherwise -> Left $ InvalidArguments ("Arithmetic operation on incompatible types: " ++ show t1 ++ ", " ++ show t2) lc
+    (Just t1, Just t2) -> case maybeFuncName fexp of
+      Just opName ->
+        validateArithmeticOperands opName t1 t2 lc >>
+        (case opName `elem` ["/", "%"] of
+          True -> validateDivisionByZero lhs rhs lc
+          False -> Right ()) >>
+        (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
+      Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lc
     _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lc
 
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
@@ -149,7 +156,11 @@ compileFunctionCall fexp args env lc =
     Just name | name `elem` (comparisonOps ++ arithOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
-      matchFunctionCall name (M.lookup name (typeAliases env)) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
+      case M.lookup name (typeAliases env) of
+        Just vartype -> 
+          validateNonCallable name vartype lc >>
+          matchFunctionCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
+        Nothing -> matchFunctionCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lc
     Nothing ->
       (++) <$> (concat <$> mapM (`compileExpr` env) (reverse args))
            <*> ((++) <$> compileExpr fexp env <*> Right [Call])
@@ -281,15 +292,8 @@ tupleIndexType ts expr = case unwrapExpr expr of
 
 checkLambdaReturn :: Type -> [Ast] -> CompilerEnv -> Either CompilerError ()
 checkLambdaReturn expected bodyStmts scope =
-  case getReturnExpr bodyStmts of
-    Nothing -> Right ()
-    Just ast -> case unwrapAst ast of
-      AExpress e ->
-        case inferType e (extendScopeWithPrefixDecls bodyStmts scope) of
-             Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
-                         | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual) (getAstLineCount ast)
-             Nothing -> Right ()
-      _ -> Right ()
+  checkFunctionReturn expected bodyStmts ((0, 0)) >>= \() ->
+    validateReturnsInBody bodyStmts expected (extendScopeWithPrefixDecls bodyStmts scope)
 
 isReturnStmt :: Ast -> Bool
 isReturnStmt ast = case unwrapAst ast of
@@ -304,12 +308,6 @@ extendWithDecl env ast = case unwrapAst ast of
 extendScopeWithPrefixDecls :: [Ast] -> CompilerEnv -> CompilerEnv
 extendScopeWithPrefixDecls stmts env = foldl extendWithDecl env (takeWhile (not . isReturnStmt) stmts)
 
-getReturnExpr :: [Ast] -> Maybe Ast
-getReturnExpr [] = Nothing
-getReturnExpr (ast:xs) = case unwrapAst ast of
-  AReturn _ -> Just ast
-  _ -> getReturnExpr xs
-
 checkAccessType :: Maybe Type -> LineCount -> Either CompilerError ()
 checkAccessType (Just t) lc = case unwrapType t of
   TArray _ _ -> Right ()
@@ -323,19 +321,21 @@ checkAccessType (Just t) lc = case unwrapType t of
 checkAccessType Nothing lc = Left $ InvalidArguments "Unable to infer type for access" lc
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
-compileAccess access env = case unwrapAccess access of
-  AArrayAccess arrExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType arrExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr arrExpr env) <*> Right [GetList])
-  AVectorAccess vecExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType vecExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr vecExpr env) <*> Right [GetList])
-  ATupleAccess tupleExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType tupleExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr tupleExpr env) <*> Right [GetList])
-  AStructAccess structExpr fieldPath ->
-    matchAccess (getAccessLineCount access) (inferType structExpr env)
-      ((++) <$> compileExpr structExpr env <*> Right (map GetStruct fieldPath))
+compileAccess access env = 
+  validateAccess access env (getAccessLineCount access) >>= \() ->
+    case unwrapAccess access of
+      AArrayAccess arrExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType arrExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr arrExpr env) <*> Right [GetList])
+      AVectorAccess vecExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType vecExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr vecExpr env) <*> Right [GetList])
+      ATupleAccess tupleExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType tupleExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr tupleExpr env) <*> Right [GetList])
+      AStructAccess structExpr fieldPath ->
+        matchAccess (getAccessLineCount access) (inferType structExpr env)
+          ((++) <$> compileExpr structExpr env <*> Right (map GetStruct fieldPath))
 
 matchAccess :: LineCount -> Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr]
 matchAccess lc t (Right code) =
@@ -381,18 +381,16 @@ compileStructLiteral fieldPairs env =
 
 compileCast :: Type -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileCast targetType expr env lc =
-  case typeToNumberType (resolveType env targetType) of
-    Just numType ->
-      case inferType expr env of
-        Just exprType
-          | isNumericType (resolveType env exprType) ->
-              fmap (\exprCode -> exprCode ++ [Cast numType]) (compileExpr expr env)
-          | otherwise ->
-              Left $ InvalidArguments ("Cannot cast non-numeric type " ++ show exprType ++ " to " ++ show targetType) lc
+  case inferType expr env of
+    Just exprType ->
+      isValidCast exprType targetType env lc >>
+      case typeToNumberType (resolveType env targetType) of
+        Just numType ->
+          fmap (\exprCode -> exprCode ++ [Cast numType]) (compileExpr expr env)
         Nothing ->
-          Left $ InvalidArguments "Unable to infer type of expression being cast" lc
+          Left $ InvalidCast ("Cannot cast to non-numeric type: " ++ show targetType) lc
     Nothing ->
-      Left $ InvalidArguments ("Cannot cast to non-numeric type: " ++ show targetType) lc
+      Left $ InvalidArguments "Unable to infer type of expression being cast" lc
 
 typeToNumberType :: Type -> Maybe NumberType
 typeToNumberType t = case unwrapType t of
@@ -404,14 +402,3 @@ typeToNumberType t = case unwrapType t of
   TStrong ty -> typeToNumberType ty
   TKong ty -> typeToNumberType ty
   _ -> Nothing
-
-isNumericType :: Type -> Bool
-isNumericType t = case unwrapType t of
-  TInt -> True
-  TBool -> True
-  TChar -> True
-  TFloat -> True
-  TKonst ty -> isNumericType ty
-  TStrong ty -> isNumericType ty
-  TKong ty -> isNumericType ty
-  _ -> False
