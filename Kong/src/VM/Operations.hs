@@ -52,11 +52,7 @@ divOp (_, (VChar '\0')) = throw ImpossibleDivsionByZero
 divOp (_, (VInt 0)) = throw ImpossibleDivsionByZero
 divOp (_, (VFloat 0)) = throw ImpossibleDivsionByZero
 divOp ((VBool a), (VBool b)) = VBool (a && b)
-<<<<<<< HEAD
-divOp ((VChar a), (VChar b)) = VChar ((toEnum ((fromEnum a) `div` (fromEnum b))::Char))
-=======
 divOp ((VChar a), (VChar b)) = VChar (toEnum ((fromEnum a) `div` (fromEnum b))::Char)
->>>>>>> 24aa778f8c52ea36bf2b804a10d99d56201d35f6
 divOp ((VInt a), (VInt b)) = VInt (a `div` b)
 divOp ((VFloat a), (VFloat b)) = VFloat (a / b)
 divOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
