@@ -69,9 +69,29 @@ typesCompatible env expected actual =
       _ -> False
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
-declareDefault env t name
-  | isKonst t' = ([Push (defaultValue t'), SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
-  | otherwise = ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
+declareDefault env t name = case unwrapType t' of
+  TArray _ sizeExpr -> 
+    case extractArraySize sizeExpr of
+      Just size -> 
+        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar n], 
+         env { typeAliases = M.insert n t' (typeAliases env) })
+      Nothing -> 
+        ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
+         env { typeAliases = M.insert n t' (typeAliases env) })
+  TVector _ sizeExpr -> 
+    case extractArraySize sizeExpr of
+      Just size -> 
+        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar n], 
+         env { typeAliases = M.insert n t' (typeAliases env) })
+      Nothing -> 
+        ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
+         env { typeAliases = M.insert n t' (typeAliases env) })
+  _ | isKonst t' -> 
+      ([Push (defaultValue t'), SetVar n], 
+       env { typeAliases = M.insert n t' (typeAliases env) })
+    | otherwise -> 
+      ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
+       env { typeAliases = M.insert n t' (typeAliases env) })
   where t' = resolveType env t
         n  = normalizeName name
 
@@ -147,3 +167,10 @@ prebindKonsts asts env = foldl step env asts
 
 normalizeName :: String -> String
 normalizeName = reverse . dropWhile isSpace . reverse . dropWhile isSpace
+
+extractArraySize :: AExpression -> Maybe Int
+extractArraySize expr = case unwrapExpr expr of
+  AValue val -> case unwrapValue val of
+    ANumber (AInteger n) -> Just n
+    _ -> Nothing
+  _ -> Nothing
