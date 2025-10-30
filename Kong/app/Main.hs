@@ -5,15 +5,15 @@ import System.Exit (exitSuccess, exitFailure, exitWith, ExitCode (..) )
 import System.IO (hPutStrLn, stderr)
 import DataStruct.VM (baseState, VMState (VMState, stack))
 import Compiler.Program (compileProgram)
-import Compiler.Include (validateIncludes, sortByDependencies, applySelectiveImports, IncludeError(..))
+import Compiler.Include (sortByDependencies, applySelectiveImports, validateIncludes, IncludeError(..))
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
 import AstParsing.BaseParsing (parseAst)
-import System.FilePath (dropExtension, takeFileName)
+import Parser (runParser)
+import System.FilePath (dropExtension, takeDirectory, makeRelative)
 import qualified Data.Set as S
-import AstParsing.ErrorMessage
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -24,8 +24,12 @@ handleArgs files = loadAndValidateFiles files >>= handleLoad
 
 loadAndValidateFiles :: [FilePath] -> IO (Either IncludeError [(String, [Ast])])
 loadAndValidateFiles filePaths =
-  mapM parseFile filePaths >>= processFiles
+  mapM (parseFile baseDir) filePaths >>= processFiles
   where
+    baseDir = case filePaths of
+      [] -> "."
+      (first:_) -> takeDirectory first
+
     processFiles parsedFiles = case sequence parsedFiles of
       Left err -> return $ Left err
       Right fileAsts -> validateAndSort fileAsts
@@ -38,18 +42,22 @@ loadAndValidateFiles filePaths =
       Left err -> return $ Left err
       Right sorted -> return $ Right $ applySelectiveImports sorted
 
-    providedFiles = S.fromList $ map (dropExtension . takeFileName) filePaths
+    providedFiles = S.fromList $ map (normalizeFilePath baseDir) filePaths
 
-parseFile :: FilePath -> IO (Either IncludeError (String, [Ast]))
-parseFile filePath =
+parseFile :: FilePath -> FilePath -> IO (Either IncludeError (String, [Ast]))
+parseFile baseDir filePath =
   readFile filePath >>= parseContent
   where
-    fileName = dropExtension $ takeFileName filePath
+    fileName = normalizeFilePath baseDir filePath
 
-    parseContent content = case printParsingResult content parseAst of
-      Right str ->
-        return $ Left $ ParseError filePath str
-      Left asts -> return $ Right (fileName, asts)
+    parseContent content = case runParser parseAst (content, (1, 1)) of
+      Left (_, scope, detail, (line, col)) ->
+        return $ Left $ ParseError filePath
+          (scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col)
+      Right (asts, _) -> return $ Right (fileName, asts)
+
+normalizeFilePath :: FilePath -> FilePath -> String
+normalizeFilePath baseDir path = dropExtension (makeRelative baseDir path)
 
 handleLoad :: Either IncludeError [(String, [Ast])] -> IO ()
 handleLoad (Left err) = printIncludeError err

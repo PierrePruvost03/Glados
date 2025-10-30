@@ -12,7 +12,10 @@ import AstParsing.Keywords.Keywords
 parseInclude :: Parser Ast
 parseInclude = wrap $ AInclude <$>
     (skip *> parseString symbolInclude  *>
-        (parseName <|> fatal "Include" "missing include name"))
+        (parseIncludePath <|> fatal "Include" "missing include name"))
         <*> ((skip *> parseString symbolIncludeIn
             *> parseManyWithSeparator (skip *> parseName <* skip) symbolIncludeSep
              <* (parseString symbolIncludeOut <|> fatal "Include" ("missing char \"" <> symbolIncludeOut <> "\""))) <|> pure [])
+
+parseIncludePath :: Parser String
+parseIncludePath = skip *> parseSomeUntilAnyNotChar "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_/-." <* skip

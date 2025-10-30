@@ -6,6 +6,7 @@ module Compiler.Include
     validateIncludes,
     sortByDependencies,
     applySelectiveImports,
+    resolveIncludesRec,
     IncludeError(..),
   ) where
 
