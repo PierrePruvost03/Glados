@@ -47,7 +47,7 @@ if __name__ == "__main__":
     test_files = glob.glob("functionnal_tests/tests/*.json")
 
     print(Fore.GREEN + "Building the project..." + Style.RESET_ALL)
-    os.system("rm glados && make")
+    os.system("rm -f glados && make")
     print(Fore.GREEN + "Running tests..." + Style.RESET_ALL)
     
     for test_file in test_files:
