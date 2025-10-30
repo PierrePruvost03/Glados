@@ -1,5 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
-module AstParsing.BaseParsing (parseAst, parseType, parseExpression, parseDeclaration) where
+module AstParsing.BaseParsing where
 
 import AstParsing.Include
 import AstParsing.Keywords.Keywords
