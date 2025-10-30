@@ -43,6 +43,11 @@ module Compiler.Types
   , validateReturnsInAst
   , checkMainSignature
   , stripWrap
+  , validateStructFieldAccess
+  , validateTupleIndexAccess
+  , validateAccess
+  , validateStructAccess
+  , validateStructDefinition
   ) where
 
 import DataStruct.Ast
@@ -77,6 +82,9 @@ data CompilerError
   | MissingReturn String LineCount
   | InvalidReturnType String LineCount
   | InvalidMainSignature String LineCount
+  | UnknownStructField String LineCount
+  | IndexOutOfBounds String LineCount
+  | UndefinedStruct String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -577,3 +585,106 @@ checkMainSignature funcType lc = case unwrapType funcType of
     TInt -> Right ()
     _ -> Left $ InvalidMainSignature "Main function must return Int" lc
   _ -> Left $ InvalidMainSignature "Main function must have no parameters and return Int" lc
+
+validateStructFieldAccess :: CompilerEnv -> String -> String -> LineCount -> Either CompilerError Type
+validateStructFieldAccess env structName fieldName lc =
+  case M.lookup structName (structDefs env) of
+    Nothing -> Left $ UndefinedStruct ("Struct '" ++ structName ++ "' is not defined") lc
+    Just fields ->
+      case lookup fieldName (map (\(ty, nm) -> (nm, ty)) fields) of
+        Nothing -> Left $ UnknownStructField 
+          ("Field '" ++ fieldName ++ "' does not exist in struct '" ++ structName ++ "'") lc
+        Just fieldType -> Right fieldType
+
+validateTupleIndexAccess :: [Type] -> AExpression -> LineCount -> Either CompilerError Type
+validateTupleIndexAccess ts idxExpr lc = case unwrapExpr idxExpr of
+  AValue val -> case unwrapValue val of
+    ANumber (AInteger i)
+      | i < 0 -> Left $ IndexOutOfBounds 
+          ("Tuple index " ++ show i ++ " is negative") lc
+      | i >= length ts -> Left $ IndexOutOfBounds 
+          ("Tuple index " ++ show i ++ " is out of bounds (tuple has " ++ show (length ts) ++ " elements)") lc
+      | otherwise -> Right (ts !! i)
+    _ -> Left $ InvalidArguments "Tuple index must be a constant integer" lc
+  _ -> Left $ InvalidArguments "Tuple index must be a constant integer" lc
+
+validateArrayIndexAccess :: Type -> AExpression -> AExpression -> LineCount -> Either CompilerError ()
+validateArrayIndexAccess elemType sizeExpr idxExpr lc = 
+  case (unwrapExpr sizeExpr, unwrapExpr idxExpr) of
+    (AValue sizeVal, AValue idxVal) -> 
+      case (unwrapValue sizeVal, unwrapValue idxVal) of
+        (ANumber (AInteger size), ANumber (AInteger idx))
+          | idx < 0 -> Left $ IndexOutOfBounds 
+              ("Array index " ++ show idx ++ " is negative") lc
+          | idx >= size -> Left $ IndexOutOfBounds 
+              ("Array index " ++ show idx ++ " is out of bounds (array size is " ++ show size ++ ")") lc
+          | otherwise -> Right ()
+        _ -> Right ()
+    _ -> Right ()
+
+validateAccess :: AstAccess -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateAccess acc env lc = case unwrapAccess acc of
+  AArrayAccess arrExpr idxExpr -> case inferType arrExpr env of
+    Just t -> case unwrapType (stripWrap (resolveType env t)) of
+      TArray elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lc
+      TVector elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lc
+      _ -> Left $ InvalidArguments "Array access on non-array type" lc
+    Nothing -> Right ()
+  AVectorAccess vecExpr idxExpr -> case inferType vecExpr env of
+    Just t -> case unwrapType (stripWrap (resolveType env t)) of
+      TVector elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lc
+      TArray elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lc
+      _ -> Left $ InvalidArguments "Vector access on non-vector type" lc
+    Nothing -> Right ()
+  ATupleAccess tupExpr idxExpr -> case inferType tupExpr env of
+    Just t -> case unwrapType (stripWrap (resolveType env t)) of
+      TTuple ts -> validateTupleIndexAccess ts idxExpr lc >>= \_ -> Right ()
+      _ -> Left $ InvalidArguments "Tuple access on non-tuple type" lc
+    Nothing -> Right ()
+  AStructAccess structExpr fields -> 
+    validateStructAccess structExpr fields env lc
+
+validateStructAccess :: AExpression -> [String] -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateStructAccess expr fields env lc = case inferType expr env of
+  Just t0 -> go t0 fields
+  Nothing -> Right ()
+  where
+    go _ [] = Right ()
+    go t (f:fs) = case unwrapType (stripWrap (resolveType env t)) of
+      TStruct sname ->
+        validateStructFieldAccess env sname f lc >>= \fieldType ->
+          go fieldType fs
+      _ -> Left $ InvalidArguments "Struct access on non-struct type" lc
+
+isPrimitiveType :: String -> Bool
+isPrimitiveType typeName = typeName `elem` ["Int", "Float", "String", "Char", "Bool", "Void", "Array", "Vector"]
+
+validateStructDefinition :: CompilerEnv -> String -> [(Type, String)] -> LineCount -> Either CompilerError ()
+validateStructDefinition env structName fields lc = 
+  mapM_ validateField fields
+  where
+    validateField (fieldType, fieldName) = validateTypeExists structName env fieldType lc
+    
+    validateTypeExists :: String -> CompilerEnv -> Type -> LineCount -> Either CompilerError ()
+    validateTypeExists sName env ty lc = case unwrapType ty of
+      TCustom typeName
+        | isPrimitiveType typeName -> Right ()
+        | otherwise -> case M.lookup typeName (typeAliases env) of
+            Just _ -> Right ()
+            Nothing -> case M.lookup typeName (structDefs env) of
+              Just _ -> Right ()
+              Nothing -> Left $ UndefinedStruct 
+                ("Type '" ++ typeName ++ "' used in struct '" ++ sName ++ "' is not defined") lc
+      TArray elemType _ -> validateTypeExists sName env elemType lc
+      TVector elemType _ -> validateTypeExists sName env elemType lc
+      TTuple types -> mapM_ (\t -> validateTypeExists sName env t lc) types
+      TKonst innerType -> validateTypeExists sName env innerType lc
+      TStrong innerType -> validateTypeExists sName env innerType lc
+      TKong innerType -> validateTypeExists sName env innerType lc
+      TRef innerType -> validateTypeExists sName env innerType lc
+      TStruct sname -> 
+        case M.lookup sname (structDefs env) of
+          Just _ -> Right ()
+          Nothing -> Left $ UndefinedStruct 
+            ("Struct '" ++ sname ++ "' used in struct '" ++ sName ++ "' is not defined") lc
+      _ -> Right ()

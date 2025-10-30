@@ -2,6 +2,7 @@ module KongCompilerTests (kongCompilerTests) where
 
 import Data.List (isInfixOf)
 import qualified Data.Vector as V
+import qualified Data.Map as M
 import Test.HUnit
 import Compiler.Program (compileWithEnv)
 import DataStruct.Ast
@@ -9,7 +10,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
-import Compiler.Types (CompilerError(..), emptyEnv)
+import Compiler.Types (CompilerError(..), emptyEnv, CompilerEnv(..))
 import Parser (LineCount)
 
 lc :: LineCount
@@ -227,7 +228,7 @@ testStructDeclarationAndAccess =
       , LoadRef
       , GetStruct "name"
       ])
-    ( compileWithEnv emptyEnv
+    ( compileWithEnv (emptyEnv { structDefs = M.fromList [("Person", [(wrapType TString, "name"), (wrapType TInt, "age")])] })
       ( wrapAst (ABlock
         [ wrapAst (AVarDecl (wrapType (TStruct "Person")) "person"
           (Just (wrapExpr (AValue (wrapValue (AStruct [ ("name", wrapExpr (AValue (wrapValue (AString "Ada"))))
@@ -450,8 +451,6 @@ testUnsupportedAst =
         )
     )
 
--- Additional tests for more coverage
-
 testCompileBuiltinMul :: Test
 testCompileBuiltinMul =
   TestCase
@@ -589,7 +588,7 @@ testOutOfBoundsArrayAccessCompiles :: Test
 testOutOfBoundsArrayAccessCompiles =
   TestCase
     ( assertBool
-        "should compile out of bounds array access (runtime error, not compile error)"
+        "should detect out of bounds array access at compile time (with constant index)"
         ( case compileWithEnv emptyEnv (wrapAst (ABlock [
             wrapAst (AVarDecl (wrapType (TArray (wrapType TInt) (wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))))) "arr"
               (Just (wrapExpr (AValue (wrapValue (AArray [
@@ -601,7 +600,8 @@ testOutOfBoundsArrayAccessCompiles =
               (wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))))
             )))))
           ])) of
-            Right _ -> True
+            Right _ -> False
+            Left (IndexOutOfBounds _ _) -> True
             Left _ -> False
         )
     )

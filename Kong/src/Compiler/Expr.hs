@@ -12,7 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAstLineCount, getAccessLineCount, getValueLineCount)
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, eqTypeNormalized, bothNumeric, checkFunctionReturn, validateReturnsInBody)
+import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, eqTypeNormalized, bothNumeric, checkFunctionReturn, validateReturnsInBody, validateAccess)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -316,19 +316,21 @@ checkAccessType (Just t) lc = case unwrapType t of
 checkAccessType Nothing lc = Left $ InvalidArguments "Unable to infer type for access" lc
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
-compileAccess access env = case unwrapAccess access of
-  AArrayAccess arrExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType arrExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr arrExpr env) <*> Right [GetList])
-  AVectorAccess vecExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType vecExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr vecExpr env) <*> Right [GetList])
-  ATupleAccess tupleExpr idx ->
-    matchAccess (getAccessLineCount access) (inferType tupleExpr env)
-      ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr tupleExpr env) <*> Right [GetList])
-  AStructAccess structExpr fieldPath ->
-    matchAccess (getAccessLineCount access) (inferType structExpr env)
-      ((++) <$> compileExpr structExpr env <*> Right (map GetStruct fieldPath))
+compileAccess access env = 
+  validateAccess access env (getAccessLineCount access) >>= \() ->
+    case unwrapAccess access of
+      AArrayAccess arrExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType arrExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr arrExpr env) <*> Right [GetList])
+      AVectorAccess vecExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType vecExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr vecExpr env) <*> Right [GetList])
+      ATupleAccess tupleExpr idx ->
+        matchAccess (getAccessLineCount access) (inferType tupleExpr env)
+          ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr tupleExpr env) <*> Right [GetList])
+      AStructAccess structExpr fieldPath ->
+        matchAccess (getAccessLineCount access) (inferType structExpr env)
+          ((++) <$> compileExpr structExpr env <*> Right (map GetStruct fieldPath))
 
 matchAccess :: LineCount -> Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr]
 matchAccess lc t (Right code) =
