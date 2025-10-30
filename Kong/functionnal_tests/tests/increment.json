@@ -1,0 +1,39 @@
+[
+    {
+        "script_file": "exemples/increment.kong",
+        "tests": {
+            "increment1": {
+                "description": "incrementing 67",
+                "expected": "68",
+                "vars": {
+                    "1": "Int a = 67;"
+                },
+                "input": "increment(a)"
+            },
+            "increment2": {
+                "description": "decrementing 67",
+                "expected": "66",
+                "vars": {
+                    "1": "Int a = 67;"
+                },
+                "input": "decrement(a)"
+            },
+            "increment3": {
+                "description": "adding 67 to 0",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 0;"
+                },
+                "input": "addSixtySeven(a)"
+            },
+            "increment4": {
+                "description": "adding 67 to 67",
+                "expected": "134",
+                "vars": {
+                    "1": "Int a = 67;"
+                },
+                "input": "addSixtySeven(a)"
+            }
+        }
+    }
+]

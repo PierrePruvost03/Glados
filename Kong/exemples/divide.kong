@@ -1,0 +1,3 @@
+Funk divide(Int a, Int b) -> Int {
+    Return a / b;
+}

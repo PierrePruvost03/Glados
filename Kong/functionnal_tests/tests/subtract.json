@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/subtract.kong",
+        "tests": {
+            "subtract1": {
+                "description": "subtracting 0 from 67",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 0;"
+                },
+                "input": "subtract(a, b)"
+            },
+            "subtract2": {
+                "description": "subtracting 67 from 134",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 134;",
+                    "2": "Int b = 67;"
+                },
+                "input": "subtract(a, b)"
+            },
+            "subtract3": {
+                "description": "subtracting 67 from 67",
+                "expected": "0",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 67;"
+                },
+                "input": "subtract(a, b)"
+            },
+            "subtract4": {
+                "description": "subtracting 100 from 67",
+                "expected": "-33",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 100;"
+                },
+                "input": "subtract(a, b)"
+            }
+        }
+    }
+]

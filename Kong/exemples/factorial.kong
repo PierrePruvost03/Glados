@@ -1,0 +1,9 @@
+Funk factorial(Int n) -> Int {
+    If (n `==` 0) {
+        Return 1;
+    }
+    If (n `==` 1) {
+        Return 1;
+    }
+    Return n * factorial(n - 1);
+}

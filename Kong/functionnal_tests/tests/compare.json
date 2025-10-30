@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/compare.kong",
+        "tests": {
+            "compare1": {
+                "description": "checking if 67 equals 67",
+                "expected": "True",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 67;"
+                },
+                "input": "isEqual(a, b)"
+            },
+            "compare2": {
+                "description": "checking if 67 is greater than 66",
+                "expected": "True",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 66;"
+                },
+                "input": "isGreater(a, b)"
+            },
+            "compare3": {
+                "description": "checking if 67 is less than 68",
+                "expected": "True",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 68;"
+                },
+                "input": "isLess(a, b)"
+            },
+            "compare4": {
+                "description": "checking if 67 is greater than 167",
+                "expected": "False",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 167;"
+                },
+                "input": "isGreater(a, b)"
+            }
+        }
+    }
+]

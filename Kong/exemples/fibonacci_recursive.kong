@@ -1,0 +1,10 @@
+Funk fibonacciRecHelper(Int n, Int a, Int b) -> Int {
+    If (n `==` 0) {
+        Return a;
+    }
+    Return fibonacciRecHelper(n - 1, b, a + b);
+}
+
+Funk fibonacciRecursive(Int n) -> Int {
+    Return fibonacciRecHelper(n, 0, 1);
+}

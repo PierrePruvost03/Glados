@@ -11,6 +11,7 @@ import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
 import AstParsing.BaseParsing (parseAst)
+import AstParsing.ErrorMessage (printParsingResult)
 import Parser (runParser)
 import System.FilePath (dropExtension, takeDirectory, makeRelative)
 import qualified Data.Set as S
@@ -52,11 +53,10 @@ parseFile baseDir filePath =
   where
     fileName = normalizeFilePath baseDir filePath
 
-    parseContent content = case runParser parseAst (content, (1, 1)) of
-      Left (_, scope, detail, (line, col)) ->
-        return $ Left $ ParseError filePath
-          (scope ++ ": " ++ detail ++ " at line " ++ show line ++ ", col " ++ show col)
-      Right (asts, _) -> return $ Right (fileName, asts)
+    parseContent content = case printParsingResult content parseAst of
+      Right str ->
+        return $ Left $ ParseError filePath str
+      Left asts -> return $ Right (fileName, asts)
 
 normalizeFilePath :: FilePath -> FilePath -> String
 normalizeFilePath baseDir path = dropExtension (makeRelative baseDir path)

@@ -1,0 +1,63 @@
+[
+    {
+        "script_file": "exemples/fibonacci_recursive.kong",
+        "tests": {
+            "fib_rec1": {
+                "description": "recursive fibonacci of 0",
+                "expected": "0",
+                "vars": {
+                    "1": "Int n = 0;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec2": {
+                "description": "recursive fibonacci of 1",
+                "expected": "1",
+                "vars": {
+                    "1": "Int n = 1;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec3": {
+                "description": "recursive fibonacci of 6",
+                "expected": "8",
+                "vars": {
+                    "1": "Int n = 6;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec4": {
+                "description": "recursive fibonacci of 7",
+                "expected": "13",
+                "vars": {
+                    "1": "Int n = 7;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec5": {
+                "description": "recursive fibonacci of 10",
+                "expected": "55",
+                "vars": {
+                    "1": "Int n = 10;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec6": {
+                "description": "recursive fibonacci of 20 (contains 67)",
+                "expected": "6765",
+                "vars": {
+                    "1": "Int n = 20;"
+                },
+                "input": "fibonacciRecursive(n)"
+            },
+            "fib_rec7": {
+                "description": "recursive fibonacci of 42",
+                "expected": "267914296",
+                "vars": {
+                    "1": "Int n = 42;"
+                },
+                "input": "fibonacciRecursive(n)"
+            }
+        }
+    }
+]
