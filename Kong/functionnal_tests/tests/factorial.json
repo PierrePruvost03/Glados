@@ -1,0 +1,55 @@
+[
+    {
+        "script_file": "exemples/factorial.kong",
+        "tests": {
+            "factorial1": {
+                "description": "factorial of 0 should be 1",
+                "expected": "1",
+                "vars": {
+                    "1": "Int n = 0;"
+                },
+                "input": "factorial(n)"
+            },
+            "factorial2": {
+                "description": "factorial of 1 should be 1",
+                "expected": "1",
+                "vars": {
+                    "1": "Int n = 1;"
+                },
+                "input": "factorial(n)"
+            },
+            "factorial3": {
+                "description": "factorial of 5 should be 120",
+                "expected": "120",
+                "vars": {
+                    "1": "Int n = 5;"
+                },
+                "input": "factorial(n)"
+            },
+            "factorial4": {
+                "description": "factorial of 6 should be 720",
+                "expected": "720",
+                "vars": {
+                    "1": "Int n = 6;"
+                },
+                "input": "factorial(n)"
+            },
+            "factorial5": {
+                "description": "factorial of 7 should be 5040 (contains 67 digits when large)",
+                "expected": "5040",
+                "vars": {
+                    "1": "Int n = 7;"
+                },
+                "input": "factorial(n)"
+            },
+            "factorial6": {
+                "description": "factorial of 10 should be 3628800",
+                "expected": "3628800",
+                "vars": {
+                    "1": "Int n = 10;"
+                },
+                "input": "factorial(n)"
+            }
+        }
+    }
+]

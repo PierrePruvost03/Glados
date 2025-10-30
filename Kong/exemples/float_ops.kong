@@ -1,0 +1,7 @@
+Funk addFloat(Float a, Float b) -> Float {
+    Return a + b;
+}
+
+Funk multiplyFloat(Float a, Float b) -> Float {
+    Return a * b;
+}
