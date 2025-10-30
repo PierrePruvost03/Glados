@@ -10,7 +10,7 @@ module Compiler.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import qualified Data.Map as M
 import Data.Char (isSpace)
 import qualified Data.Vector as V
@@ -24,9 +24,11 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
           compileAstWith compileExpr a sc >>= \(code', sc') -> Right (code ++ code', sc'))
       (Right ([], prebindKonsts asts env))
       asts
-  AVarDecl t name Nothing ->
-    Right (declareDefault env t name)
+  AVarDecl _ name Nothing ->
+    validateNoDuplicateDeclaration name env (getAstLineCount ast) >>
+    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (getAstLineCount ast))
   AVarDecl t name (Just initExpr) ->
+    validateNoDuplicateDeclaration name env (getAstLineCount ast) >>
     (case unwrapExpr initExpr of
       AValue val -> case unwrapValue val of
         ANumber num -> validateConstantBounds t num (getAstLineCount ast)
@@ -50,6 +52,7 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
   AReturn a ->
     compileAstWith compileExpr a env >>= \(code, sc) -> Right (code ++ [Ret], sc)
   AStruktDef name fdls ->
+    validateNoDuplicateStruct name env (getAstLineCount ast) >>
     case validateStructDefinition env name fdls (getAstLineCount ast) of
       Left err -> Left err
       Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })

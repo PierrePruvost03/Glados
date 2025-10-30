@@ -54,6 +54,8 @@ module Compiler.Types
   , validateKonstAssignment
   , validateArithmeticOperands
   , validateNonCallable
+  , validateNoDuplicateDeclaration
+  , validateNoDuplicateStruct
   ) where
 
 import DataStruct.Ast
@@ -97,6 +99,8 @@ data CompilerError
   | KonstModification String LineCount
   | NonCallableType String LineCount
   | IncompatibleOperands String LineCount
+  | DuplicateDeclaration String LineCount
+  | UninitializedVariable String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -783,3 +787,17 @@ validateKonstAssignment var env lc =
     Just t | isKonst t -> Left $ KonstModification 
       ("Cannot modify Konst variable '" ++ var ++ "'") lc
     _ -> Right ()
+
+validateNoDuplicateDeclaration :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateNoDuplicateDeclaration name env lc =
+  case M.lookup name (typeAliases env) of
+    Just _ -> Left $ DuplicateDeclaration 
+      ("Variable or function '" ++ name ++ "' is already declared in this scope") lc
+    Nothing -> Right ()
+
+validateNoDuplicateStruct :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateNoDuplicateStruct name env lc =
+  case M.lookup name (structDefs env) of
+    Just _ -> Left $ DuplicateDeclaration 
+      ("Struct '" ++ name ++ "' is already declared") lc
+    Nothing -> Right ()

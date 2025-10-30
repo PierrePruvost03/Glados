@@ -7,7 +7,7 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst, checkMainSignature, validateStructDefinition, getAstLineCount)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst, checkMainSignature, validateStructDefinition, getAstLineCount, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
 import Control.Monad (foldM)
@@ -72,11 +72,20 @@ buildAliasEnv :: [Ast] -> Either ProgramError CompilerEnv
 buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
   where
     stepAlias e a = case unwrapAst a of
-      ATypeAlias _ _ -> Right (insertTypeAlias e a)
-      AStruktDef name fields -> 
-        case validateStructDefinition e name fields (getAstLineCount a) of
+      ATypeAlias name _ -> 
+        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
           Left err -> Left (ProgramError "<global>" a err)
           Right () -> Right (insertTypeAlias e a)
+      AStruktDef name fields -> 
+        case validateNoDuplicateStruct name e (getAstLineCount a) of
+          Left err -> Left (ProgramError "<global>" a err)
+          Right () -> case validateStructDefinition e name fields (getAstLineCount a) of
+            Left err -> Left (ProgramError "<global>" a err)
+            Right () -> Right (insertTypeAlias e a)
+      AVarDecl _ name _ ->
+        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
+          Left err -> Left (ProgramError "<global>" a err)
+          Right () -> Right e
       _ -> Right e
 
 extractTopLevel :: [Ast] -> [Ast]
