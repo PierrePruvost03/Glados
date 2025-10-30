@@ -146,7 +146,7 @@ symbolFalse :: String
 symbolFalse = "false"
 
 allowedInfix :: String
-allowedInfix = "+-/:*^!%?&|="
+allowedInfix = "+-/:*^!%?&="
 
 symbolLineComment :: String
 symbolLineComment = "//"
