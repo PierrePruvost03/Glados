@@ -5,16 +5,16 @@ import System.Exit (exitSuccess, exitFailure, exitWith, ExitCode (..) )
 import System.IO (hPutStrLn, stderr)
 import DataStruct.VM (baseState, VMState (VMState, stack))
 import Compiler.Program (compileProgram)
-import Compiler.Include (validateIncludes, sortByDependencies, applySelectiveImports, IncludeError(..))
+import Compiler.Include (sortByDependencies, applySelectiveImports, validateIncludes, validateNoDuplicateSymbols, IncludeError(..))
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
 import DataStruct.Bytecode.Number (Number(VInt))
-import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
-import System.FilePath (dropExtension, takeFileName)
+import AstParsing.ErrorMessage (printParsingResult)
+import Parser (runParser)
+import System.FilePath (dropExtension, takeDirectory, makeRelative)
 import qualified Data.Set as S
-import AstParsing.ErrorMessage
 
 main :: IO ()
 main = getArgs >>= handleArgs
@@ -25,32 +25,41 @@ handleArgs files = loadAndValidateFiles files >>= handleLoad
 
 loadAndValidateFiles :: [FilePath] -> IO (Either IncludeError [(String, [Ast])])
 loadAndValidateFiles filePaths =
-  mapM parseFile filePaths >>= processFiles
+  mapM (parseFile baseDir) filePaths >>= processFiles
   where
+    baseDir = case filePaths of
+      [] -> "."
+      (first:_) -> takeDirectory first
+
     processFiles parsedFiles = case sequence parsedFiles of
       Left err -> return $ Left err
       Right fileAsts -> validateAndSort fileAsts
 
     validateAndSort fileAsts = case validateIncludes fileAsts providedFiles of
       Left err -> return $ Left err
-      Right _ -> sortAndFilter fileAsts
+      Right _ -> case validateNoDuplicateSymbols fileAsts of
+        Left err -> return $ Left err
+        Right _ -> sortAndFilter fileAsts
 
     sortAndFilter fileAsts = case sortByDependencies fileAsts of
       Left err -> return $ Left err
-      Right sorted -> return $ Right $ applySelectiveImports sorted
+      Right sorted -> return $ applySelectiveImports sorted
 
-    providedFiles = S.fromList $ map (dropExtension . takeFileName) filePaths
+    providedFiles = S.fromList $ map (normalizeFilePath baseDir) filePaths
 
-parseFile :: FilePath -> IO (Either IncludeError (String, [Ast]))
-parseFile filePath =
+parseFile :: FilePath -> FilePath -> IO (Either IncludeError (String, [Ast]))
+parseFile baseDir filePath =
   readFile filePath >>= parseContent
   where
-    fileName = dropExtension $ takeFileName filePath
+    fileName = normalizeFilePath baseDir filePath
 
     parseContent content = case printParsingResult content parseAst of
       Right str ->
         return $ Left $ ParseError filePath str
       Left asts -> return $ Right (fileName, asts)
+
+normalizeFilePath :: FilePath -> FilePath -> String
+normalizeFilePath baseDir path = dropExtension (makeRelative baseDir path)
 
 handleLoad :: Either IncludeError [(String, [Ast])] -> IO ()
 handleLoad (Left err) = printIncludeError err
@@ -71,6 +80,12 @@ printIncludeError (ParseError _ msg) =
 printIncludeError (MissingInclude file missing) =
     hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++
                      "' but it was not provided in compilation arguments") >> exitFailure
+printIncludeError (MissingSymbol requester included symbol) =
+    hPutStrLn stderr ("[Include error] File '" ++ requester ++ "' requests symbol '" ++ symbol ++
+                     "' from '" ++ included ++ "' but it does not exist") >> exitFailure
+printIncludeError (DuplicateSymbol symbol files) =
+    hPutStrLn stderr ("[Include error] Symbol '" ++ symbol ++ "' is defined in multiple files: " ++
+                     show files) >> exitFailure
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure

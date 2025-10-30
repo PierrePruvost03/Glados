@@ -16,6 +16,7 @@ data ExecError
     | InvalidCharConversion
     | InvalidStructAccess String
     | ImpossibleDivsionByZero
+    | ImpossibleModulusByZero
     | ExitException Int
 
 instance Show ExecError where
@@ -31,6 +32,8 @@ instance Show ExecError where
     show (InvalidCharConversion) = "Invalid Char Conversion, value cannot be computed as character"
     show (InvalidStructAccess s) = "Invalid struct access on field" <> show s
     show (ImpossibleDivsionByZero) = "Division by zero is an impossible operation"
+    show (ImpossibleModulusByZero) = "Modulus by zero is an impossible operation"
+    
     show _ = ""
 
 instance Exception ExecError

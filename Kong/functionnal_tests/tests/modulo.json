@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/modulo.kong",
+        "tests": {
+            "modulo1": {
+                "description": "67 modulo 10",
+                "expected": "7",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 10;"
+                },
+                "input": "modulo(a, b)"
+            },
+            "modulo2": {
+                "description": "67 modulo 67",
+                "expected": "0",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 67;"
+                },
+                "input": "modulo(a, b)"
+            },
+            "modulo3": {
+                "description": "167 modulo 67",
+                "expected": "33",
+                "vars": {
+                    "1": "Int a = 167;",
+                    "2": "Int b = 67;"
+                },
+                "input": "modulo(a, b)"
+            },
+            "modulo4": {
+                "description": "67 modulo 5",
+                "expected": "2",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 5;"
+                },
+                "input": "modulo(a, b)"
+            }
+        }
+    }
+]

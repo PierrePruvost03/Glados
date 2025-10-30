@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/multiply.kong",
+        "tests": {
+            "multiply1": {
+                "description": "multiplying 67 by 1",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 1;"
+                },
+                "input": "multiply(a, b)"
+            },
+            "multiply2": {
+                "description": "multiplying 67 by 2",
+                "expected": "134",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 2;"
+                },
+                "input": "multiply(a, b)"
+            },
+            "multiply3": {
+                "description": "multiplying 67 by 0",
+                "expected": "0",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 0;"
+                },
+                "input": "multiply(a, b)"
+            },
+            "multiply4": {
+                "description": "multiplying 67 by -1",
+                "expected": "-67",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = -1;"
+                },
+                "input": "multiply(a, b)"
+            }
+        }
+    }
+]

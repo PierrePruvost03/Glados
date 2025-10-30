@@ -1,0 +1,11 @@
+Funk increment(Int a) -> Int {
+    Return a + 1;
+}
+
+Funk decrement(Int a) -> Int {
+    Return a - 1;
+}
+
+Funk addSixtySeven(Int a) -> Int {
+    Return a + 67;
+}

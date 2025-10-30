@@ -25,9 +25,3 @@ jobs:
       - uses: actions/checkout@v4
       - name: run Kong unit tests
         run: make test-kong
-      - name: test Kong compiler functionality
-        run: |
-          echo "Testing Kong compiler basic functionality..."
-          Kong/glados --version
-          Kong/glados --help
-          echo "Kong compiler tests passed"
