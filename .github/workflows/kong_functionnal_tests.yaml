@@ -23,11 +23,10 @@ jobs:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - name: test Kong compiler functionality
+      - name: run Kong functional tests
         run: |
-          echo "Testing Kong compiler basic functionality..."
-          Kong/glados --version
-          Kong/glados --help
-          echo "Kong compiler tests passed"
-      - name: run Kong unit tests
-        run: make test-kong
+          sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install python3-venv -y
+          cd Kong/
+          functionnal_tests/install_requirements.sh
+          source .venv/bin/activate
+          python3 functionnal_tests/run.py
