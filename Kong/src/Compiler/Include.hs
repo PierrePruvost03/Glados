@@ -4,6 +4,7 @@ module Compiler.Include
   ( resolveIncludes,
     loadFileWithIncludes,
     validateIncludes,
+    validateNoDuplicateSymbols,
     sortByDependencies,
     applySelectiveImports,
     resolveIncludesRec,
@@ -26,6 +27,7 @@ data IncludeError
   | ParseError String String
   | MissingInclude String String  -- file who ask to include, missing file
   | MissingSymbol String String String  -- file who ask to include, included file, missing symbol
+  | DuplicateSymbol String [String]  -- symbol name, list of files defining it
   deriving (Show, Eq)
 
 resolveIncludes :: FilePath -> String -> IO (Either IncludeError [(String, [Ast])])
@@ -201,3 +203,23 @@ combineRequests :: Maybe [String] -> Maybe [String] -> Maybe [String]
 combineRequests Nothing _ = Nothing
 combineRequests _ Nothing = Nothing
 combineRequests (Just xs) (Just ys) = Just (xs ++ ys)
+
+validateNoDuplicateSymbols :: [(String, [Ast])] -> Either IncludeError ()
+validateNoDuplicateSymbols fileAsts =
+  case findDuplicateSymbols fileAsts of
+    [] -> Right ()
+    (symbol, files):_ -> Left $ DuplicateSymbol symbol files
+
+findDuplicateSymbols :: [(String, [Ast])] -> [(String, [String])]
+findDuplicateSymbols fileAsts =
+  [ (symbol, files)
+  | (symbol, files) <- M.toList symbolMap
+  , length files > 1
+  ]
+  where
+    symbolMap = M.fromListWith (++) 
+      [ (symbol, [fileName])
+      | (fileName, asts) <- fileAsts
+      , ast <- asts
+      , Just symbol <- [getSymbolName ast]
+      ]
