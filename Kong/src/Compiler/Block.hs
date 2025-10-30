@@ -10,7 +10,7 @@ module Compiler.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith)
 import qualified Data.Map as M
 import Data.Char (isSpace)
 import qualified Data.Vector as V
@@ -29,6 +29,11 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
   AVarDecl t name (Just initExpr) ->
     case inferType initExpr env of
       Just it
+        | isRefType t' -> 
+            case canInitializeRefWith env t' initExpr of
+              Right True -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
+              Right False -> Left $ InvalidArguments ("Cannot initialize reference of type " ++ show t' ++ " with expression of type " ++ show it) (getAstLineCount ast)
+              Left err -> Left err
         | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
         | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it) (getAstLineCount ast)
         where t' = resolveType env t

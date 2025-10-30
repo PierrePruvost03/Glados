@@ -28,6 +28,14 @@ module Compiler.Types
   , getTypeLineCount
   , getAccessLineCount
   , getValueLineCount
+  , isLValue
+  , isTemporaryValue
+  , checkReferenceValidity
+  , checkDereferenceValidity
+  , validateReferences
+  , isRefType
+  , extractRefType
+  , canInitializeRefWith
   ) where
 
 import DataStruct.Ast
@@ -57,6 +65,8 @@ data CompilerError
   | UnknownFunction String LineCount
   | InvalidArguments String LineCount
   | MissingMainFunction String
+  | InvalidReference String LineCount
+  | ReferenceToTemporary String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -179,12 +189,24 @@ extractRefType t = case unwrapType t of
   TKong ty -> extractRefType ty
   _ -> t
 
+canInitializeRefWith :: CompilerEnv -> Type -> AExpression -> Either CompilerError Bool
+canInitializeRefWith env refType expr
+  | not (isRefType refType) = Right False
+  | otherwise = 
+      case checkReferenceValidity expr (getExprLineCount expr) of
+        Left err -> Left err
+        Right () -> case inferType expr env of
+          Just exprType -> Right (eqTypeNormalized (extractRefType refType) exprType)
+          Nothing -> Right False
+
 getFunctionArgTypes :: M.Map String Type -> String -> Maybe [Type]
 getFunctionArgTypes envMap fname =
   case M.lookup fname envMap of
     Just t -> case unwrapType t of
       TKonst innerT -> case unwrapType innerT of
-        TTuple ts -> if null ts then Just [] else Just (init ts)
+        TTuple ts -> case ts of
+          [] -> Just []
+          _ -> Just (init ts)
         TFunc args _ -> Just args
         _ -> Nothing
       TFunc args _ -> Just args
@@ -196,7 +218,9 @@ getFunctionReturnType envMap fname =
   case M.lookup fname envMap of
     Just t -> case unwrapType t of
       TKonst innerT -> case unwrapType innerT of
-        TTuple ts -> if null ts then Nothing else Just (last ts)
+        TTuple ts -> case ts of
+          [] -> Nothing
+          _ -> Just (last ts)
         TFunc _ ret -> Just ret
         _ -> Nothing
       TFunc _ ret -> Just ret
@@ -360,3 +384,98 @@ getAccessLineCount (lc, _) = lc
 
 getValueLineCount :: AstValue -> LineCount
 getValueLineCount (lc, _) = lc
+
+isLValue :: AExpression -> Bool
+isLValue expr = case unwrapExpr expr of
+  AValue val -> case unwrapValue val of
+    AVarCall _ -> True
+    _ -> False
+  AAccess acc -> case unwrapAccess acc of
+    AArrayAccess _ _ -> True
+    AVectorAccess _ _ -> True
+    ATupleAccess _ _ -> True
+    AStructAccess _ _ -> True
+  _ -> False
+
+isTemporaryValue :: AExpression -> Bool
+isTemporaryValue expr = case unwrapExpr expr of
+  ACall _ _ -> True
+  ACast _ _ -> True
+  AValue val -> case unwrapValue val of
+    ANumber _ -> True
+    AString _ -> True
+    AStruct _ -> True
+    AArray _ -> True
+    AVector _ -> True
+    ATuple _ -> True
+    ALambda _ _ _ -> True
+    AVarCall _ -> False
+  AAccess _ -> False
+  AAttribution _ _ -> False
+  AMethodCall _ _ _ -> True
+
+checkReferenceValidity :: AExpression -> LineCount -> Either CompilerError ()
+checkReferenceValidity expr lc
+  | isTemporaryValue expr = 
+      Left $ ReferenceToTemporary 
+        ("Cannot create reference to temporary value: " ++ show expr) lc
+  | not (isLValue expr) = 
+      Left $ InvalidReference 
+        ("Cannot create reference to non-lvalue expression: " ++ show expr) lc
+  | otherwise = Right ()
+
+checkDereferenceValidity :: AExpression -> Type -> LineCount -> Either CompilerError ()
+checkDereferenceValidity _ exprType lc = 
+  case unwrapType (stripWrap exprType) of
+    TRef _ -> Right ()
+    _ -> Left $ InvalidReference 
+           ("Attempting to dereference non-reference type: " ++ show exprType) lc
+
+validateReferences :: AExpression -> CompilerEnv -> M.Map String Type -> Either CompilerError ()
+validateReferences expr env typeEnv = case unwrapExpr expr of
+  ACast targetType innerExpr ->
+    validateReferences innerExpr env typeEnv >>= \() ->
+      case unwrapType (stripWrap (resolveType env targetType)) of
+        TRef _ -> checkReferenceValidity innerExpr (getExprLineCount expr)
+        _ -> Right ()
+  ACall funcExpr args ->
+    validateReferences funcExpr env typeEnv >>= \() ->
+      mapM_ (\arg -> validateReferences arg env typeEnv) args >>= \() ->
+        case maybeFuncName funcExpr of
+          Just fname -> case getFunctionArgTypes typeEnv fname of
+            Just argTypes -> validateRefArgs args argTypes (getExprLineCount expr)
+            Nothing -> Right ()
+          Nothing -> Right ()
+  AAccess acc -> validateAccessReferences acc env typeEnv
+  AValue val -> case unwrapValue val of
+    ATuple exprs -> mapM_ (\e -> validateReferences e env typeEnv) exprs
+    AArray exprs -> mapM_ (\e -> validateReferences e env typeEnv) exprs
+    AVector exprs -> mapM_ (\e -> validateReferences e env typeEnv) exprs
+    AStruct structFields -> mapM_ (\(_, e) -> validateReferences e env typeEnv) structFields
+    _ -> Right ()
+  AAttribution _ rhs -> validateReferences rhs env typeEnv
+  AMethodCall obj _ args ->
+    validateReferences obj env typeEnv >>= \() ->
+      mapM_ (\arg -> validateReferences arg env typeEnv) args
+
+validateRefArgs :: [AExpression] -> [Type] -> LineCount -> Either CompilerError ()
+validateRefArgs [] [] _ = Right ()
+validateRefArgs (arg:args) (t:ts) lc =
+  case unwrapType (stripWrap t) of
+    TRef _ -> checkReferenceValidity arg lc >>= \() -> validateRefArgs args ts lc
+    _ -> validateRefArgs args ts lc
+validateRefArgs _ _ _ = Right ()
+
+validateAccessReferences :: AstAccess -> CompilerEnv -> M.Map String Type -> Either CompilerError ()
+validateAccessReferences acc env typeEnv = case unwrapAccess acc of
+  AArrayAccess arrExpr idxExpr ->
+    validateReferences arrExpr env typeEnv >>= \() ->
+      validateReferences idxExpr env typeEnv
+  AVectorAccess vecExpr idxExpr ->
+    validateReferences vecExpr env typeEnv >>= \() ->
+      validateReferences idxExpr env typeEnv
+  ATupleAccess tupExpr idxExpr ->
+    validateReferences tupExpr env typeEnv >>= \() ->
+      validateReferences idxExpr env typeEnv
+  AStructAccess structExpr _ -> 
+    validateReferences structExpr env typeEnv
