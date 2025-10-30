@@ -8,4 +8,4 @@ hie.yaml
 functionnal_tests/tmp/*.lsp
 **/*.log
 dist*
-**/tmp/
+**/tmp/*.kong

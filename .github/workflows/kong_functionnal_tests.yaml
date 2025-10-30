@@ -1,4 +1,4 @@
-name: Kong Compiler - Tests
+name: Kong Compiler - Functionnal Tests
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ env:
   STACK_ROOT: /tmp/stack-root
 
 jobs:
-  run_kong_tests:
+  run_kong_functionnal_tests:
     defaults: 
       run:
         shell: bash
