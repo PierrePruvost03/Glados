@@ -6,8 +6,9 @@ import Test.HUnit
 import Compiler.Program (compileWithEnv)
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
-import DataStruct.Bytecode.Number (Number(..))
+import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (Op(..))
+import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), emptyEnv)
 import qualified Data.Vector as V
 import qualified Data.Map as M
@@ -451,6 +452,281 @@ testUnsupportedAst =
         )
     )
 
+-- Additional tests for more coverage
+
+testCompileBuiltinMul :: Test
+testCompileBuiltinMul =
+  TestCase
+    ( assertEqual
+        "should compile builtin multiplication operation"
+        (Right [Push (VNumber (VInt 4)), Push (VNumber (VInt 3)), DoOp Mul])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "*")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 4))))])))))
+    )
+
+testCompileBuiltinDiv :: Test
+testCompileBuiltinDiv =
+  TestCase
+    ( assertEqual
+        "should compile builtin division operation"
+        (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 10)), DoOp Div])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "/")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))])))))
+    )
+
+testCompileBuiltinLessOrEqual :: Test
+testCompileBuiltinLessOrEqual =
+  TestCase
+    ( assertEqual
+        "should compile builtin less or equal comparison"
+        (Right [Push (VNumber (VInt 5)), Push (VNumber (VInt 3)), DoOp Le])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "<=")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 5))))])))))
+    )
+
+testCompileBuiltinLessThan :: Test
+testCompileBuiltinLessThan =
+  TestCase
+    ( assertEqual
+        "should compile builtin less than comparison"
+        (Right [Push (VNumber (VInt 5)), Push (VNumber (VInt 3)), DoOp Lt])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "<")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 5))))])))))
+    )
+
+testCompileBuiltinGreaterThan :: Test
+testCompileBuiltinGreaterThan =
+  TestCase
+    ( assertEqual
+        "should compile builtin greater than comparison"
+        (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 5)), DoOp Gt])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall ">")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 5)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))])))))
+    )
+
+testCompileBuiltinNotEqual :: Test
+testCompileBuiltinNotEqual =
+  TestCase
+    ( assertEqual
+        "should compile builtin not equal comparison"
+        (Right [Push (VNumber (VInt 5)), Push (VNumber (VInt 3)), DoOp Ne])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "!=")))) [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 5))))])))))
+    )
+
+testEmptyArray :: Test
+testEmptyArray =
+  TestCase
+    ( assertEqual
+        "should compile empty array literal"
+        (Right [CreateList 0])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AArray [])))))))
+    )
+
+testEmptyStruct :: Test
+testEmptyStruct =
+  TestCase
+    ( assertEqual
+        "should compile empty struct literal"
+        (Right [CreateStruct []])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AStruct [])))))))
+    )
+
+testNestedArrays :: Test
+testNestedArrays =
+  TestCase
+    ( assertEqual
+        "should compile nested array literals (reversed order)"
+        (Right [Push (VNumber (VInt 4)), Push (VNumber (VInt 3)), CreateList 2, Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), CreateList 2, CreateList 2])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AArray [
+          wrapExpr (AValue (wrapValue (AArray [wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))]))),
+          wrapExpr (AValue (wrapValue (AArray [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 4))))])))
+        ])))))))
+    )
+
+testMultipleVarDeclarations :: Test
+testMultipleVarDeclarations =
+  TestCase
+    ( assertEqual
+        "should compile multiple variable declarations in block"
+        (Right [
+          Push (VNumber (VInt 10)), Alloc, StoreRef, SetVar "x",
+          Push (VNumber (VInt 20)), Alloc, StoreRef, SetVar "y",
+          PushEnv "y", LoadRef, PushEnv "x", LoadRef, DoOp Add
+        ])
+        (compileWithEnv emptyEnv (wrapAst (ABlock [
+          wrapAst (AVarDecl (wrapType TInt) "x" (Just (wrapExpr (AValue (wrapValue (ANumber (AInteger 10))))))),
+          wrapAst (AVarDecl (wrapType TInt) "y" (Just (wrapExpr (AValue (wrapValue (ANumber (AInteger 20))))))),
+          wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "+")))) [
+            wrapExpr (AValue (wrapValue (AVarCall "x"))),
+            wrapExpr (AValue (wrapValue (AVarCall "y")))
+          ])))
+        ])))
+    )
+
+testKonstVariable :: Test
+testKonstVariable =
+  TestCase
+    ( assertEqual
+        "should compile konst variable without heap allocation"
+        (Right [Push (VNumber (VInt 42)), SetVar "x", PushEnv "x"])
+        (compileWithEnv emptyEnv (wrapAst (ABlock [
+          wrapAst (AVarDecl (wrapType (TKonst (wrapType TInt))) "x" (Just (wrapExpr (AValue (wrapValue (ANumber (AInteger 42))))))),
+          wrapAst (AExpress (wrapExpr (AValue (wrapValue (AVarCall "x")))))
+        ])))
+    )
+
+testStructFieldAccess :: Test
+testStructFieldAccess =
+  TestCase
+    ( assertBool
+        "should fail struct field access without type information"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AAccess (wrapAccess (AStructAccess 
+          (wrapExpr (AValue (wrapValue (AStruct [
+            ("name", wrapExpr (AValue (wrapValue (AString "Joe")))),
+            ("age", wrapExpr (AValue (wrapValue (ANumber (AInteger 42)))))
+          ]))))
+          ["name"]
+        )))))) of
+            Left (InvalidArguments _ _) -> True
+            _ -> False
+        )
+    )
+
+testOutOfBoundsArrayAccessCompiles :: Test
+testOutOfBoundsArrayAccessCompiles =
+  TestCase
+    ( assertBool
+        "should compile out of bounds array access (runtime error, not compile error)"
+        ( case compileWithEnv emptyEnv (wrapAst (ABlock [
+            wrapAst (AVarDecl (wrapType (TArray (wrapType TInt) (wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))))) "arr"
+              (Just (wrapExpr (AValue (wrapValue (AArray [
+                wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))),
+                wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))
+              ])))))),
+            wrapAst (AExpress (wrapExpr (AAccess (wrapAccess (AArrayAccess 
+              (wrapExpr (AValue (wrapValue (AVarCall "arr"))))
+              (wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))))
+            )))))
+          ])) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testMixedTypeComparison :: Test
+testMixedTypeComparison =
+  TestCase
+    ( assertBool
+        "should compile comparison of int and float (numeric compatible)"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+          (wrapExpr (AValue (wrapValue (AVarCall "=="))))
+          [
+            wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))),
+            wrapExpr (AValue (wrapValue (ANumber (AFloat 1.0))))
+          ]
+        )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testCastIntToFloat :: Test
+testCastIntToFloat =
+  TestCase
+    ( assertBool
+        "should compile cast from int to float"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACast (wrapType TFloat) (wrapExpr (AValue (wrapValue (ANumber (AInteger 42))))))))) of
+            Right [Push (VNumber (VInt 42)), Cast NTFloat] -> True
+            _ -> False
+        )
+    )
+
+testCastFloatToInt :: Test
+testCastFloatToInt =
+  TestCase
+    ( assertBool
+        "should compile cast from float to int"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACast (wrapType TInt) (wrapExpr (AValue (wrapValue (ANumber (AFloat 3.14))))))))) of
+            Right instrs -> case instrs of
+                [Push (VNumber (VFloat _)), Cast NTInt] -> True
+                _ -> False
+            _ -> False
+        )
+    )
+
+testEmptyBlock :: Test
+testEmptyBlock =
+  TestCase
+    ( assertEqual
+        "should compile empty block"
+        (Right [])
+        (compileWithEnv emptyEnv (wrapAst (ABlock [])))
+    )
+
+testReturnWithExpression :: Test
+testReturnWithExpression =
+  TestCase
+    ( assertEqual
+        "should compile return with complex expression"
+        (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 2)), DoOp Add, Ret])
+        (compileWithEnv emptyEnv (wrapAst (AReturn (wrapAst (AExpress (wrapExpr (ACall 
+          (wrapExpr (AValue (wrapValue (AVarCall "+"))))
+          [
+            wrapExpr (AValue (wrapValue (ANumber (AInteger 2)))),
+            wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))
+          ]
+        )))))))
+    )
+
+testStructDefinition :: Test
+testStructDefinition =
+  TestCase
+    ( assertEqual
+        "should compile struct definition"
+        (Right [])
+        (compileWithEnv emptyEnv (wrapAst (AStruktDef "Person" [
+          (wrapType TString, "name"),
+          (wrapType TInt, "age")
+        ])))
+    )
+
+testPrintString :: Test
+testPrintString =
+  TestCase
+    ( assertEqual
+        "should compile print with string"
+        (Right [Push (VList (V.fromList [VNumber (VChar 'h'), VNumber (VChar 'i')])), Syscall (Print 1)])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+          (wrapExpr (AValue (wrapValue (AVarCall "print"))))
+          [wrapExpr (AValue (wrapValue (AString "hi")))]
+        )))))
+    )
+
+testPrintMultipleArgs :: Test
+testPrintMultipleArgs =
+  TestCase
+    ( assertEqual
+        "should compile print with multiple arguments"
+        (Right [Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), Syscall (Print 2)])
+        (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+          (wrapExpr (AValue (wrapValue (AVarCall "print"))))
+          [
+            wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))),
+            wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))
+          ]
+        )))))
+    )
+
+testStringConcat :: Test
+testStringConcat =
+  TestCase
+    ( assertBool
+        "should compile string operations"
+        ( case compileWithEnv emptyEnv (wrapAst (ABlock [
+            wrapAst (AVarDecl (wrapType TString) "s1" (Just (wrapExpr (AValue (wrapValue (AString "hello")))))),
+            wrapAst (AVarDecl (wrapType TString) "s2" (Just (wrapExpr (AValue (wrapValue (AString "world")))))),
+            wrapAst (AExpress (wrapExpr (AValue (wrapValue (AVarCall "s1")))))
+          ])) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
 kongCompilerTests :: [Test]
 kongCompilerTests =
   [
@@ -481,5 +757,27 @@ kongCompilerTests =
     TestLabel "compile symbol" testCompileSymbol,
     TestLabel "compile return" testCompileReturn,
     TestLabel "compile block" testCompileBlock,
-    TestLabel "unsupported ast" testUnsupportedAst
+    TestLabel "unsupported ast" testUnsupportedAst,
+    TestLabel "compile builtin mul" testCompileBuiltinMul,
+    TestLabel "compile builtin div" testCompileBuiltinDiv,
+    TestLabel "compile builtin less or equal" testCompileBuiltinLessOrEqual,
+    TestLabel "compile builtin less than" testCompileBuiltinLessThan,
+    TestLabel "compile builtin greater than" testCompileBuiltinGreaterThan,
+    TestLabel "compile builtin not equal" testCompileBuiltinNotEqual,
+    TestLabel "empty array" testEmptyArray,
+    TestLabel "empty struct" testEmptyStruct,
+    TestLabel "nested arrays" testNestedArrays,
+    TestLabel "multiple var declarations" testMultipleVarDeclarations,
+    TestLabel "konst variable" testKonstVariable,
+    TestLabel "struct field access" testStructFieldAccess,
+    TestLabel "out of bounds array access compiles" testOutOfBoundsArrayAccessCompiles,
+    TestLabel "mixed type comparison" testMixedTypeComparison,
+    TestLabel "cast int to float" testCastIntToFloat,
+    TestLabel "cast float to int" testCastFloatToInt,
+    TestLabel "empty block" testEmptyBlock,
+    TestLabel "return with expression" testReturnWithExpression,
+    TestLabel "struct definition" testStructDefinition,
+    TestLabel "print string" testPrintString,
+    TestLabel "print multiple args" testPrintMultipleArgs,
+    TestLabel "string concat" testStringConcat
   ]
