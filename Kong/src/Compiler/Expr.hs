@@ -12,7 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAccessLineCount, getValueLineCount)
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment)
+import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -140,15 +140,14 @@ compileComparisonExpr fexp lhs rhs env lc =
 compileArithmeticExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileArithmeticExpr fexp lhs rhs env lc =
   case (inferType lhs env, inferType rhs env) of
-    (Just t1, Just t2)
-      | numericCompatible t1 t2 -> case maybeFuncName fexp of
-          Just opName ->
-            (case opName `elem` ["/", "%"] of
-              True -> validateDivisionByZero lhs rhs lc
-              False -> Right ()) >>
-            (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
-          Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lc
-      | otherwise -> Left $ InvalidArguments ("Arithmetic operation on incompatible types: " ++ show t1 ++ ", " ++ show t2) lc
+    (Just t1, Just t2) -> case maybeFuncName fexp of
+      Just opName ->
+        validateArithmeticOperands opName t1 t2 lc >>
+        (case opName `elem` ["/", "%"] of
+          True -> validateDivisionByZero lhs rhs lc
+          False -> Right ()) >>
+        (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
+      Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lc
     _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lc
 
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
@@ -157,7 +156,11 @@ compileFunctionCall fexp args env lc =
     Just name | name `elem` (comparisonOps ++ arithOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
-      matchFunctionCall name (M.lookup name (typeAliases env)) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
+      case M.lookup name (typeAliases env) of
+        Just varType -> 
+          validateNonCallable name varType lc >>
+          matchFunctionCall name (Just varType) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
+        Nothing -> matchFunctionCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lc
     Nothing ->
       (++) <$> (concat <$> mapM (`compileExpr` env) (reverse args))
            <*> ((++) <$> compileExpr fexp env <*> Right [Call])

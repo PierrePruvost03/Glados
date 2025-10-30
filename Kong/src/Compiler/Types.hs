@@ -52,6 +52,8 @@ module Compiler.Types
   , validateConstantBounds
   , isValidCast
   , validateKonstAssignment
+  , validateArithmeticOperands
+  , validateNonCallable
   ) where
 
 import DataStruct.Ast
@@ -93,6 +95,8 @@ data CompilerError
   | ConstantOverflow String LineCount
   | InvalidCast String LineCount
   | KonstModification String LineCount
+  | NonCallableType String LineCount
+  | IncompatibleOperands String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -132,6 +136,8 @@ checkComparisonTypes :: Type -> Type -> Either TypeError ()
 checkComparisonTypes t1 t2
   | eqTypeNormalized t1 t2 = Right ()
   | bothNumeric (stripWrap t1) (stripWrap t2) = Right ()
+  | isNonComparableType (stripWrap t1) || isNonComparableType (stripWrap t2) = 
+      Left $ InvalidComparison (show t1 ++ " (non-comparable type)") (show t2)
   | otherwise = Left $ InvalidComparison (show t1) (show t2)
 
 stripWrap :: Type -> Type
@@ -147,6 +153,14 @@ bothNumeric t1 t2 = case (unwrapType t1, unwrapType t2) of
   (TFloat, TFloat) -> True
   (TInt, TFloat) -> True
   (TFloat, TInt) -> True
+  _ -> False
+
+isNonComparableType :: Type -> Bool
+isNonComparableType t = case unwrapType t of
+  TArray _ _ -> True
+  TStruct _ -> True
+  TTuple _ -> True
+  TKonst _ -> True
   _ -> False
 
 eqTypeNormalized :: Type -> Type -> Bool
@@ -196,8 +210,10 @@ checkFunctionCallTypes lc (t:ts) (Just a:as)
   | typesEqual t a || numericCompatible t a = checkFunctionCallTypes lc ts as
   | isRefType t && typesEqual (extractRefType t) a = checkFunctionCallTypes lc ts as
   | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a) lc
+checkFunctionCallTypes lc (_:_) (Nothing:_) = Left $ InvalidArguments "Unable to infer argument type" lc
+checkFunctionCallTypes lc [] remaining@(_:_) = Left $ InvalidArguments ("Too many arguments: expected 0 more, got " ++ show (length remaining)) lc
+checkFunctionCallTypes lc remaining@(_:_) [] = Left $ InvalidArguments ("Too few arguments: expected " ++ show (length remaining) ++ " more") lc
 checkFunctionCallTypes _ [] [] = Right ()
-checkFunctionCallTypes lc _ _ = Left $ InvalidArguments "Function argument count or type mismatch" lc
 
 isRefType :: Type -> Bool
 isRefType t = case unwrapType t of
@@ -266,11 +282,15 @@ typesEqual = eqTypeNormalized
 numericCompatible :: Type -> Type -> Bool
 numericCompatible a b =
   case (unwrapType (stripWrap a), unwrapType (stripWrap b)) of
-    (TInt, TInt) -> True
-    (TFloat, TFloat) -> True
-    (TInt, TFloat) -> True
-    (TFloat, TInt) -> True
+    (t1, t2) | isOperableType t1 && isOperableType t2 -> True
     _ -> False
+  where
+    isOperableType t = case t of
+      TInt -> True
+      TFloat -> True
+      TChar -> True
+      TBool -> True
+      _ -> False
 
 isFloatType :: Type -> Bool
 isFloatType t = case unwrapType (stripWrap t) of
@@ -742,6 +762,20 @@ isValidCast sourceType targetType env lc =
       TChar -> True
       TFloat -> True
       _ -> False
+
+validateArithmeticOperands :: String -> Type -> Type -> LineCount -> Either CompilerError ()
+validateArithmeticOperands op t1 t2 lc =
+  case (stripWrap t1, stripWrap t2) of
+    (type1, type2) | numericCompatible type1 type2 -> Right ()
+    (type1, type2) -> Left $ IncompatibleOperands 
+      ("Arithmetic operator '" ++ op ++ "' cannot be applied to types " ++ show type1 ++ " and " ++ show type2) lc
+
+validateNonCallable :: String -> Type -> LineCount -> Either CompilerError ()
+validateNonCallable varName varType lc =
+  case unwrapType varType of
+    TKonst _ -> Right ()
+    _ -> Left $ NonCallableType 
+      ("'" ++ varName ++ "' of type " ++ show varType ++ " is not callable") lc
 
 validateKonstAssignment :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
 validateKonstAssignment var env lc = 
