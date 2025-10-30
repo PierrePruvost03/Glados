@@ -139,6 +139,8 @@ parseBaseType = parseConstType f
                  <|> TBool <$ parseString symbolBool
                  <|> TChar <$ parseString symbolChar
                  <|> TFloat <$ parseString symbolFloat
+                 <|> (getLineCount >>=
+                     \lc -> TVector (lc, TChar) (lc, AValue (lc, ANumber (AInteger 0))) <$ parseString symbolString)
                  <|> TTuple
                    <$> ( parseChar symbolTuple
                            *> parseMultiple parseType
@@ -210,13 +212,15 @@ parseType = parseRecParentType parseBaseType
 -- Expressions
 ------------------------------------------------
 parseStringValue :: Parser AstValue
-parseStringValue = wrap $ AString <$> parseBetween symbolStringDelimiter
+parseStringValue = wrap $ AVector <$> (f <$> getLineCount <*> parseBetween symbolStringDelimiter)
+    where
+        f lc l = map (\c -> (lc, AValue (lc, ANumber (AChar c)))) l
 
 parseNumberValue :: Parser AstValue
 parseNumberValue =
   wrap $
     ANumber
-      <$> (parseAstInt <|> parseAstFloat <|> parseAstBool <|> parseAstChar)
+      <$> (parseAstFloat <|> parseAstInt <|> parseAstBool <|> parseAstChar)
   where
     parseAstFloat = AFloat <$> parseFloat
     parseAstInt = AInteger <$> parseInt
