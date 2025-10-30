@@ -10,7 +10,7 @@ module Compiler.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith, validateStructDefinition)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds)
 import qualified Data.Map as M
 import Data.Char (isSpace)
 import qualified Data.Vector as V
@@ -27,6 +27,11 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
   AVarDecl t name Nothing ->
     Right (declareDefault env t name)
   AVarDecl t name (Just initExpr) ->
+    (case unwrapExpr initExpr of
+      AValue val -> case unwrapValue val of
+        ANumber num -> validateConstantBounds t num (getAstLineCount ast)
+        _ -> Right ()
+      _ -> Right ()) >>
     case inferType initExpr env of
       Just it
         | isRefType t' -> 

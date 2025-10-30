@@ -48,6 +48,10 @@ module Compiler.Types
   , validateAccess
   , validateStructAccess
   , validateStructDefinition
+  , validateDivisionByZero
+  , validateConstantBounds
+  , isValidCast
+  , validateKonstAssignment
   ) where
 
 import DataStruct.Ast
@@ -85,6 +89,10 @@ data CompilerError
   | UnknownStructField String LineCount
   | IndexOutOfBounds String LineCount
   | UndefinedStruct String LineCount
+  | DivisionByZero String LineCount
+  | ConstantOverflow String LineCount
+  | InvalidCast String LineCount
+  | KonstModification String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -590,8 +598,8 @@ validateStructFieldAccess :: CompilerEnv -> String -> String -> LineCount -> Eit
 validateStructFieldAccess env structName fieldName lc =
   case M.lookup structName (structDefs env) of
     Nothing -> Left $ UndefinedStruct ("Struct '" ++ structName ++ "' is not defined") lc
-    Just fields ->
-      case lookup fieldName (map (\(ty, nm) -> (nm, ty)) fields) of
+    Just fds ->
+      case lookup fieldName (map (\(ty, nm) -> (nm, ty)) fds) of
         Nothing -> Left $ UnknownStructField 
           ("Field '" ++ fieldName ++ "' does not exist in struct '" ++ structName ++ "'") lc
         Just fieldType -> Right fieldType
@@ -609,7 +617,7 @@ validateTupleIndexAccess ts idxExpr lc = case unwrapExpr idxExpr of
   _ -> Left $ InvalidArguments "Tuple index must be a constant integer" lc
 
 validateArrayIndexAccess :: Type -> AExpression -> AExpression -> LineCount -> Either CompilerError ()
-validateArrayIndexAccess elemType sizeExpr idxExpr lc = 
+validateArrayIndexAccess _ sizeExpr idxExpr lc = 
   case (unwrapExpr sizeExpr, unwrapExpr idxExpr) of
     (AValue sizeVal, AValue idxVal) -> 
       case (unwrapValue sizeVal, unwrapValue idxVal) of
@@ -641,12 +649,12 @@ validateAccess acc env lc = case unwrapAccess acc of
       TTuple ts -> validateTupleIndexAccess ts idxExpr lc >>= \_ -> Right ()
       _ -> Left $ InvalidArguments "Tuple access on non-tuple type" lc
     Nothing -> Right ()
-  AStructAccess structExpr fields -> 
-    validateStructAccess structExpr fields env lc
+  AStructAccess structExpr fds -> 
+    validateStructAccess structExpr fds env lc
 
 validateStructAccess :: AExpression -> [String] -> CompilerEnv -> LineCount -> Either CompilerError ()
-validateStructAccess expr fields env lc = case inferType expr env of
-  Just t0 -> go t0 fields
+validateStructAccess expr fds env lc = case inferType expr env of
+  Just t0 -> go t0 fds
   Nothing -> Right ()
   where
     go _ [] = Right ()
@@ -660,31 +668,84 @@ isPrimitiveType :: String -> Bool
 isPrimitiveType typeName = typeName `elem` ["Int", "Float", "String", "Char", "Bool", "Void", "Array", "Vector"]
 
 validateStructDefinition :: CompilerEnv -> String -> [(Type, String)] -> LineCount -> Either CompilerError ()
-validateStructDefinition env structName fields lc = 
-  mapM_ validateField fields
+validateStructDefinition env structName fds linec = 
+  mapM_ validateField fds
   where
-    validateField (fieldType, fieldName) = validateTypeExists structName env fieldType lc
+    validateField (fieldType, _) = validateTypeExists structName env fieldType linec
     
     validateTypeExists :: String -> CompilerEnv -> Type -> LineCount -> Either CompilerError ()
-    validateTypeExists sName env ty lc = case unwrapType ty of
+    validateTypeExists sName envir ty linecount = case unwrapType ty of
       TCustom typeName
         | isPrimitiveType typeName -> Right ()
-        | otherwise -> case M.lookup typeName (typeAliases env) of
+        | otherwise -> case M.lookup typeName (typeAliases envir) of
             Just _ -> Right ()
-            Nothing -> case M.lookup typeName (structDefs env) of
+            Nothing -> case M.lookup typeName (structDefs envir) of
               Just _ -> Right ()
               Nothing -> Left $ UndefinedStruct 
-                ("Type '" ++ typeName ++ "' used in struct '" ++ sName ++ "' is not defined") lc
-      TArray elemType _ -> validateTypeExists sName env elemType lc
-      TVector elemType _ -> validateTypeExists sName env elemType lc
-      TTuple types -> mapM_ (\t -> validateTypeExists sName env t lc) types
-      TKonst innerType -> validateTypeExists sName env innerType lc
-      TStrong innerType -> validateTypeExists sName env innerType lc
-      TKong innerType -> validateTypeExists sName env innerType lc
-      TRef innerType -> validateTypeExists sName env innerType lc
+                ("Type '" ++ typeName ++ "' used in struct '" ++ sName ++ "' is not defined") linecount
+      TArray elemType _ -> validateTypeExists sName envir elemType linecount
+      TVector elemType _ -> validateTypeExists sName envir elemType linecount
+      TTuple types -> mapM_ (\t -> validateTypeExists sName envir t linecount) types
+      TKonst innerType -> validateTypeExists sName envir innerType linecount
+      TStrong innerType -> validateTypeExists sName envir innerType linecount
+      TKong innerType -> validateTypeExists sName envir innerType linecount
+      TRef innerType -> validateTypeExists sName envir innerType linecount
       TStruct sname -> 
         case M.lookup sname (structDefs env) of
           Just _ -> Right ()
           Nothing -> Left $ UndefinedStruct 
-            ("Struct '" ++ sname ++ "' used in struct '" ++ sName ++ "' is not defined") lc
+            ("Struct '" ++ sname ++ "' used in struct '" ++ sName ++ "' is not defined") linecount
       _ -> Right ()
+
+validateDivisionByZero :: AExpression -> AExpression -> LineCount -> Either CompilerError ()
+validateDivisionByZero _lhs rhs lc = case unwrapExpr rhs of
+  AValue val -> case unwrapValue val of
+    ANumber (AInteger 0) -> Left $ DivisionByZero "Division by literal zero" lc
+    ANumber (AFloat 0.0) -> Left $ DivisionByZero "Division by literal zero" lc
+    _ -> Right ()
+  _ -> Right ()
+
+validateConstantBounds :: Type -> AstNumber -> LineCount -> Either CompilerError ()
+validateConstantBounds ty num lc = 
+  case (unwrapType ty, num) of
+    (TInt, AInteger n) 
+      | toInteger n < -2147483648 || toInteger n > 2147483647 -> 
+          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for int") lc
+    (TStrong innerT, AInteger n) -> case unwrapType innerT of
+      TInt | toInteger n < -9223372036854775808 || toInteger n > 9223372036854775807 -> 
+          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for long") lc
+      TKong innerInnerT -> case unwrapType innerInnerT of
+        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
+            Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned long") lc
+        _ -> Right ()
+      _ -> Right ()
+    (TKong innerT, AInteger n) -> case unwrapType innerT of
+      TInt | toInteger n < 0 || toInteger n > 4294967295 -> 
+          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned int") lc
+      TStrong innerInnerT -> case unwrapType innerInnerT of
+        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
+            Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned long") lc
+        _ -> Right ()
+      _ -> Right ()
+    _ -> Right ()
+
+isValidCast :: Type -> Type -> CompilerEnv -> LineCount -> Either CompilerError ()
+isValidCast sourceType targetType env lc =
+  case (unwrapType (stripWrap (resolveType env sourceType)), unwrapType (stripWrap (resolveType env targetType))) of
+    (s, t) | isNumericType' s && isNumericType' t -> Right ()
+    (s, t) -> Left $ InvalidCast 
+      ("Cannot cast from " ++ show s ++ " to " ++ show t) lc
+  where
+    isNumericType' t = case t of
+      TInt -> True
+      TBool -> True
+      TChar -> True
+      TFloat -> True
+      _ -> False
+
+validateKonstAssignment :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateKonstAssignment var env lc = 
+  case M.lookup var (typeAliases env) of
+    Just t | isKonst t -> Left $ KonstModification 
+      ("Cannot modify Konst variable '" ++ var ++ "'") lc
+    _ -> Right ()
