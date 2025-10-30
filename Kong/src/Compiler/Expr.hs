@@ -12,7 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAstLineCount, getAccessLineCount, getValueLineCount)
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, eqTypeNormalized, bothNumeric)
+import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, eqTypeNormalized, bothNumeric, checkFunctionReturn, validateReturnsInBody)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -281,15 +281,8 @@ tupleIndexType ts expr = case unwrapExpr expr of
 
 checkLambdaReturn :: Type -> [Ast] -> CompilerEnv -> Either CompilerError ()
 checkLambdaReturn expected bodyStmts scope =
-  case getReturnExpr bodyStmts of
-    Nothing -> Right ()
-    Just ast -> case unwrapAst ast of
-      AExpress e ->
-        case inferType e (extendScopeWithPrefixDecls bodyStmts scope) of
-             Just actual | eqTypeNormalized expected actual || bothNumeric expected actual -> Right ()
-                         | otherwise -> Left $ InvalidArguments ("Return type mismatch: expected " ++ show expected ++ ", got " ++ show actual) (getAstLineCount ast)
-             Nothing -> Right ()
-      _ -> Right ()
+  checkFunctionReturn expected bodyStmts ((0, 0)) >>= \() ->
+    validateReturnsInBody bodyStmts expected (extendScopeWithPrefixDecls bodyStmts scope)
 
 isReturnStmt :: Ast -> Bool
 isReturnStmt ast = case unwrapAst ast of

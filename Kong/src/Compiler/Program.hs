@@ -7,32 +7,38 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst, checkMainSignature)
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram fas =
-  selectResult allInstrs allErrs
+  selectResult allInstrs finalEnv allErrs
   where
-    (allInstrs, _, allErrs) = foldl compileInOrder ([], buildAliasEnv (concatMap snd fas), []) (expand fas)
+    (allInstrs, finalEnv, allErrs) = foldl compileInOrder ([], buildAliasEnv (concatMap snd fas), []) (expand fas)
     compileInOrder (accInstrs, accEnv, accErrs) (file, ast) =
       either
         (\err -> (accInstrs, enrichEnvWithAst accEnv ast, accErrs ++ [err]))
         (\instrs -> (accInstrs ++ instrs, enrichEnvWithAst accEnv ast, accErrs))
         (compilePairWithEnv accEnv (file, ast))
-    selectResult instrs [] = ensureMain instrs
-    selectResult _ errs = Left errs
+    selectResult instrs env [] = ensureMain instrs env
+    selectResult _ _ errs = Left errs
 
 enrichEnvWithAst :: CompilerEnv -> Ast -> CompilerEnv
 enrichEnvWithAst env ast = case unwrapAst ast of
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env
 
-ensureMain :: [Instr] -> Either [ProgramError] [Instr]
-ensureMain instrs
-  | hasMain instrs = Right (instrs ++ [PushEnv "main", Call, Ret])
-  | otherwise = Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "No 'main' function found.")]
+ensureMain :: [Instr] -> CompilerEnv -> Either [ProgramError] [Instr]
+ensureMain instrs env
+  | not (hasMain instrs) = Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "No 'main' function found.")]
+  | otherwise = 
+      case M.lookup "main" (typeAliases env) of
+        Just mainType -> 
+          case checkMainSignature mainType ((0, 0)) of
+            Right () -> Right (instrs ++ [PushEnv "main", Call, Ret])
+            Left err -> Left [ProgramError "<global>" ((0, 0), ABlock []) err]
+        Nothing -> Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "Main function type not found.")]
 
 hasMain :: [Instr] -> Bool
 hasMain = any isSetMain

@@ -36,6 +36,13 @@ module Compiler.Types
   , isRefType
   , extractRefType
   , canInitializeRefWith
+  , hasReturn
+  , checkFunctionReturn
+  , checkReturnType
+  , validateReturnsInBody
+  , validateReturnsInAst
+  , checkMainSignature
+  , stripWrap
   ) where
 
 import DataStruct.Ast
@@ -67,6 +74,9 @@ data CompilerError
   | MissingMainFunction String
   | InvalidReference String LineCount
   | ReferenceToTemporary String LineCount
+  | MissingReturn String LineCount
+  | InvalidReturnType String LineCount
+  | InvalidMainSignature String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -479,3 +489,91 @@ validateAccessReferences acc env typeEnv = case unwrapAccess acc of
       validateReferences idxExpr env typeEnv
   AStructAccess structExpr _ -> 
     validateReferences structExpr env typeEnv
+
+hasReturn :: Ast -> Bool
+hasReturn ast = case unwrapAst ast of
+  AReturn _ -> True
+  ABlock asts -> any hasReturn asts
+  AIf _ thenBranch elseBranch -> 
+    case elseBranch of
+      Just elseAst -> hasReturn thenBranch && hasReturn elseAst
+      Nothing -> False
+  ALoop _ _ _ _ -> False
+  _ -> False
+
+checkFunctionReturn :: Type -> [Ast] -> LineCount -> Either CompilerError ()
+checkFunctionReturn retType body lc = 
+  case unwrapType (stripWrap retType) of
+    TInt -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TFloat -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TBool -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TChar -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TString -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TArray _ _ -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TVector _ _ -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TTuple _ -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TStruct _ -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    TRef _ -> case any hasReturn body of
+      True -> Right ()
+      False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lc
+    _ -> Right ()
+
+checkReturnType :: AExpression -> Type -> CompilerEnv -> LineCount -> Either CompilerError ()
+checkReturnType expr expectedType env lc =
+  case inferType expr env of
+    Just actualType ->
+      case eqTypeNormalized expectedType actualType of
+        True -> Right ()
+        False -> case (bothNumeric expectedType actualType) of
+          True -> Right ()
+          False -> Left $ InvalidReturnType 
+            ("Return type mismatch: expected " ++ show expectedType ++ ", got " ++ show actualType) lc
+    Nothing -> Right ()
+
+validateReturnsInBody :: [Ast] -> Type -> CompilerEnv -> Either CompilerError ()
+validateReturnsInBody asts expectedType env = 
+  mapM_ (validateReturnsInAst expectedType env) asts
+
+validateReturnsInAst :: Type -> CompilerEnv -> Ast -> Either CompilerError ()
+validateReturnsInAst expectedType env ast = case unwrapAst ast of
+  AReturn returnAst -> case unwrapAst returnAst of
+    AExpress expr -> checkReturnType expr expectedType env (getAstLineCount ast)
+    _ -> Right ()
+  ABlock asts -> validateReturnsInBody asts expectedType env
+  AIf _ thenBranch elseBranch ->
+    validateReturnsInAst expectedType env thenBranch >>= \() ->
+      case elseBranch of
+        Just elseAst -> validateReturnsInAst expectedType env elseAst
+        Nothing -> Right ()
+  ALoop _ _ _ body -> validateReturnsInAst expectedType env body
+  _ -> Right ()
+
+checkMainSignature :: Type -> LineCount -> Either CompilerError ()
+checkMainSignature funcType lc = case unwrapType funcType of
+  TKonst innerT -> case unwrapType innerT of
+    TFunc [] retType -> case unwrapType (stripWrap retType) of
+      TInt -> Right ()
+      _ -> Left $ InvalidMainSignature "Main function must return Int" lc
+    _ -> Left $ InvalidMainSignature "Main function must have no parameters and return Int" lc
+  TFunc [] retType -> case unwrapType (stripWrap retType) of
+    TInt -> Right ()
+    _ -> Left $ InvalidMainSignature "Main function must return Int" lc
+  _ -> Left $ InvalidMainSignature "Main function must have no parameters and return Int" lc
