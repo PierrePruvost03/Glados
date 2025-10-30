@@ -6,11 +6,11 @@ import Data.Binary
 data Op
   = Add | Sub | Mul | Div
   | Equal | Lt | Gt | Le | Ge | Ne
-  | And | Or | Not
+  | And | Or | Not | Mod
   deriving (Eq, Ord, Show)
 
 builtinOps :: [String]
-builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!="]
+builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!=", "%"]
 
 stringToOp :: String -> Op
 stringToOp = \case
@@ -24,6 +24,7 @@ stringToOp = \case
   "<=" -> Le
   ">=" -> Ge
   "!=" -> Ne
+  "%" -> Mod
   op -> error $ "Unknown operator: " ++ op
 
 instance Binary Op where
@@ -41,6 +42,7 @@ instance Binary Op where
     put And = put (10 :: Word8)
     put Or = put (11 :: Word8)
     put Not = put (12 :: Word8)
+    put Mod = put (13 :: Word8)
     -- read
     get = (get :: Get Word8) >>= \case
         0 -> return Add
@@ -56,4 +58,5 @@ instance Binary Op where
         10 -> return And
         11 -> return Or
         12 -> return Not
+        13 -> return Mod
         _ -> fail "Unknown operation"
