@@ -10,8 +10,6 @@ import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), emptyEnv)
-import qualified Data.Vector as V
-import qualified Data.Map as M
 import Parser (LineCount)
 
 lc :: LineCount
