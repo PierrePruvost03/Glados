@@ -7,13 +7,23 @@ module DataStruct.Ast
     AstBool,
     AstChar,
     AstFloat,
-    Type (..),
-    AstValue (..),
-    Ast (..),
-    AExpression (..),
-    AstAccess (..),
+    Type,
+    TypeRaw (..),
+    AstValue,
+    AstValueRaw (..),
+    Ast,
+    AstRaw (..),
+    AExpression,
+    AExpressionRaw (..),
+    AstAccess,
+    AstAccessRaw (..),
+    Wrapper,
   )
 where
+
+import Parser (LineCount)
+
+type Wrapper a = (LineCount, a)
 
 -- Basic types
 type AstInt = Int
@@ -22,8 +32,10 @@ type AstBool = Bool
 type AstChar = Char
 type AstFloat = Float
 
+type Type = Wrapper TypeRaw
+
 -- Type system
-data Type
+data TypeRaw
   = TInt
   | TBool
   | TChar
@@ -49,7 +61,9 @@ data AstNumber
     | AFloat AstFloat
   deriving (Show, Eq)
 
-data AstValue
+type AstValue = Wrapper AstValueRaw
+
+data AstValueRaw
   = ANumber AstNumber
   | AString String
   | ATuple [AExpression]
@@ -60,7 +74,9 @@ data AstValue
   | ALambda [Ast] Type [Ast]
   deriving (Show, Eq)
 
-data AstAccess
+type AstAccess = Wrapper AstAccessRaw
+
+data AstAccessRaw
     = AArrayAccess {
         aVarName :: AExpression,
         aIndex :: AExpression
@@ -79,7 +95,9 @@ data AstAccess
     }
   deriving (Show, Eq)
 
-data AExpression
+type AExpression = Wrapper AExpressionRaw
+
+data AExpressionRaw
     = AValue AstValue
     | AAccess AstAccess
     | AAttribution
@@ -99,8 +117,10 @@ data AExpression
     deriving (Show, Eq)
 
 
+type Ast = Wrapper AstRaw
+
 -- Main AST
-data Ast
+data AstRaw
   -- Declarations & Definitions
   = AExpress AExpression
   | AStruktDef

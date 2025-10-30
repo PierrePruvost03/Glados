@@ -18,15 +18,29 @@ module Compiler.Types
   , comparisonOps
   , arithOps
   , bothNumeric
+  , unwrapAst
+  , unwrapExpr
+  , unwrapType
+  , unwrapAccess
+  , unwrapValue
+  , getAstLineCount
+  , getExprLineCount
+  , getTypeLineCount
+  , getAccessLineCount
+  , getValueLineCount
   ) where
 
 import DataStruct.Ast
+import Parser (LineCount)
 import qualified Data.Map as M
 import Compiler.TypeError (TypeError(..))
 
 maybeFuncName :: AExpression -> Maybe String
-maybeFuncName (AValue (AVarCall n)) = Just n
-maybeFuncName _ = Nothing
+maybeFuncName expr = case unwrapExpr expr of
+  AValue val -> case unwrapValue val of
+    AVarCall n -> Just n
+    _ -> Nothing
+  _ -> Nothing
 
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
@@ -37,11 +51,11 @@ emptyEnv :: CompilerEnv
 emptyEnv = CompilerEnv M.empty M.empty
 
 data CompilerError
-  = UnsupportedAst String
-  | IllegalAssignment String
-  | UnknownVariable String
-  | UnknownFunction String
-  | InvalidArguments String
+  = UnsupportedAst String LineCount
+  | IllegalAssignment String LineCount
+  | UnknownVariable String LineCount
+  | UnknownFunction String LineCount
+  | InvalidArguments String LineCount
   | MissingMainFunction String
   deriving (Show, Eq)
 
@@ -53,28 +67,30 @@ data ProgramError = ProgramError
 
 
 insertTypeAlias :: CompilerEnv -> Ast -> CompilerEnv
-insertTypeAlias env (ATypeAlias name ty) = env { typeAliases = M.insert name ty (typeAliases env) }
-insertTypeAlias env (AStruktDef name fds) = env { structDefs = M.insert name fds (structDefs env) }
-insertTypeAlias env _ = env
+insertTypeAlias env ast = case unwrapAst ast of
+  ATypeAlias name ty -> env { typeAliases = M.insert name ty (typeAliases env) }
+  AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
+  _ -> env
 
 resolveType :: CompilerEnv -> Type -> Type
-resolveType env t@(TCustom name) =
-  case M.lookup name (typeAliases env) of
-    Just realTy -> resolveType env realTy
-    Nothing -> case M.lookup name (structDefs env) of
-      Just _ -> TStruct name
-      Nothing -> t
-resolveType env (TKonst ty) = TKonst (resolveType env ty)
-resolveType env (TStrong ty) = TStrong (resolveType env ty)
-resolveType env (TKong ty) = TKong (resolveType env ty)
-resolveType env (TRef ty) = TRef (resolveType env ty)
-resolveType _ (TStruct s) = TStruct s
-resolveType _ (TTrait s) = TTrait s
-resolveType env (TArray ty e) = TArray (resolveType env ty) e
-resolveType env (TVector ty e) = TVector (resolveType env ty) e
-resolveType env (TTuple tys) = TTuple (map (resolveType env) tys)
-resolveType env (TFunc args ret) = TFunc (map (resolveType env) args) (resolveType env ret)
-resolveType _ t = t
+resolveType env t = case unwrapType t of
+  TCustom name ->
+    case M.lookup name (typeAliases env) of
+      Just realTy -> resolveType env realTy
+      Nothing -> case M.lookup name (structDefs env) of
+        Just _ -> (fst t, TStruct name)
+        Nothing -> t
+  TKonst ty -> (fst t, TKonst (resolveType env ty))
+  TStrong ty -> (fst t, TStrong (resolveType env ty))
+  TKong ty -> (fst t, TKong (resolveType env ty))
+  TRef ty -> (fst t, TRef (resolveType env ty))
+  TStruct s -> (fst t, TStruct s)
+  TTrait s -> (fst t, TTrait s)
+  TArray ty e -> (fst t, TArray (resolveType env ty) e)
+  TVector ty e -> (fst t, TVector (resolveType env ty) e)
+  TTuple tys -> (fst t, TTuple (map (resolveType env) tys))
+  TFunc args ret -> (fst t, TFunc (map (resolveType env) args) (resolveType env ret))
+  raw -> (fst t, raw)
 
 checkComparisonTypes :: Type -> Type -> Either TypeError ()
 checkComparisonTypes t1 t2
@@ -83,86 +99,123 @@ checkComparisonTypes t1 t2
   | otherwise = Left $ InvalidComparison (show t1) (show t2)
 
 stripWrap :: Type -> Type
-stripWrap (TKonst t) = stripWrap t
-stripWrap (TStrong t) = stripWrap t
-stripWrap (TKong t) = stripWrap t
-stripWrap t = t
+stripWrap t = case unwrapType t of
+  TKonst ty -> stripWrap ty
+  TStrong ty -> stripWrap ty
+  TKong ty -> stripWrap ty
+  _ -> t
 
 bothNumeric :: Type -> Type -> Bool
-bothNumeric TInt TInt = True
-bothNumeric TFloat TFloat = True
-bothNumeric TInt TFloat = True
-bothNumeric TFloat TInt = True
-bothNumeric _ _ = False
+bothNumeric t1 t2 = case (unwrapType t1, unwrapType t2) of
+  (TInt, TInt) -> True
+  (TFloat, TFloat) -> True
+  (TInt, TFloat) -> True
+  (TFloat, TInt) -> True
+  _ -> False
 
 eqTypeNormalized :: Type -> Type -> Bool
 eqTypeNormalized a b = normalize a == normalize b
 
 normalize :: Type -> Type
-normalize (TKonst t) = normalize t
-normalize (TStrong t) = normalize t
-normalize (TKong t) = normalize t
-normalize (TRef t) = TRef (normalize t)
-normalize (TArray t _) = TArray (normalize t) (AValue (ANumber (AInteger 0)))
-normalize (TVector t _) = TVector (normalize t) (AValue (ANumber (AInteger 0)))
-normalize (TTuple ts) = TTuple (map normalize ts)
-normalize t = t
+normalize t = case unwrapType t of
+  TKonst ty -> normalize ty
+  TStrong ty -> normalize ty
+  TKong ty -> normalize ty
+  TRef ty -> ((0, 0), TRef (normalize ty))
+  TArray ty e -> ((0, 0), TArray (normalize ty) (normalizeExpr e))
+  TVector ty e -> ((0, 0), TVector (normalize ty) (normalizeExpr e))
+  TTuple tys -> ((0, 0), TTuple (map normalize tys))
+  TFunc args ret -> ((0, 0), TFunc (map normalize args) (normalize ret))
+  raw -> ((0, 0), raw)
 
-checkFunctionCallTypes :: [Type] -> [Maybe Type] -> Either CompilerError ()
-checkFunctionCallTypes (t:ts) (Just a:as)
-  | typesEqual t a || numericCompatible t a = checkFunctionCallTypes ts as
-  | isRefType t && typesEqual (extractRefType t) a = checkFunctionCallTypes ts as
-  | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a)
-checkFunctionCallTypes [] [] = Right ()
-checkFunctionCallTypes _ _ = Left $ InvalidArguments "Function argument count or type mismatch"
+normalizeExpr :: AExpression -> AExpression
+normalizeExpr expr = case unwrapExpr expr of
+  AValue val -> ((0, 0), AValue (normalizeValue val))
+  AAccess acc -> ((0, 0), AAccess (normalizeAccess acc))
+  ACall fexp args -> ((0, 0), ACall (normalizeExpr fexp) (map normalizeExpr args))
+  ACast ty ex -> ((0, 0), ACast (normalize ty) (normalizeExpr ex))
+  AAttribution var rhs -> ((0, 0), AAttribution var (normalizeExpr rhs))
+  AMethodCall obj method args -> ((0, 0), AMethodCall (normalizeExpr obj) method (map normalizeExpr args))
+
+normalizeValue :: AstValue -> AstValue
+normalizeValue val = case unwrapValue val of
+  ANumber n -> ((0, 0), ANumber n)
+  AString s -> ((0, 0), AString s)
+  ATuple exprs -> ((0, 0), ATuple (map normalizeExpr exprs))
+  AArray exprs -> ((0, 0), AArray (map normalizeExpr exprs))
+  AVector exprs -> ((0, 0), AVector (map normalizeExpr exprs))
+  AStruct flds -> ((0, 0), AStruct (map (\(n, e) -> (n, normalizeExpr e)) flds))
+  ALambda params ret body -> ((0, 0), ALambda params ret body)
+  AVarCall v -> ((0, 0), AVarCall v)
+
+normalizeAccess :: AstAccess -> AstAccess
+normalizeAccess acc = case unwrapAccess acc of
+  AArrayAccess arr idx -> ((0, 0), AArrayAccess (normalizeExpr arr) (normalizeExpr idx))
+  AVectorAccess vec idx -> ((0, 0), AVectorAccess (normalizeExpr vec) (normalizeExpr idx))
+  ATupleAccess tup idx -> ((0, 0), ATupleAccess (normalizeExpr tup) (normalizeExpr idx))
+  AStructAccess str flds -> ((0, 0), AStructAccess (normalizeExpr str) flds)
+
+checkFunctionCallTypes :: LineCount -> [Type] -> [Maybe Type] -> Either CompilerError ()
+checkFunctionCallTypes lc (t:ts) (Just a:as)
+  | typesEqual t a || numericCompatible t a = checkFunctionCallTypes lc ts as
+  | isRefType t && typesEqual (extractRefType t) a = checkFunctionCallTypes lc ts as
+  | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a) lc
+checkFunctionCallTypes _ [] [] = Right ()
+checkFunctionCallTypes lc _ _ = Left $ InvalidArguments "Function argument count or type mismatch" lc
 
 isRefType :: Type -> Bool
-isRefType (TRef _) = True
-isRefType (TKonst t) = isRefType t
-isRefType (TStrong t) = isRefType t
-isRefType (TKong t) = isRefType t
-isRefType _ = False
+isRefType t = case unwrapType t of
+  TRef _ -> True
+  TKonst ty -> isRefType ty
+  TStrong ty -> isRefType ty
+  TKong ty -> isRefType ty
+  _ -> False
 
 extractRefType :: Type -> Type
-extractRefType (TRef t) = t
-extractRefType (TKonst t) = extractRefType t
-extractRefType (TStrong t) = extractRefType t
-extractRefType (TKong t) = extractRefType t
-extractRefType t = t
+extractRefType t = case unwrapType t of
+  TRef ty -> ty
+  TKonst ty -> extractRefType ty
+  TStrong ty -> extractRefType ty
+  TKong ty -> extractRefType ty
+  _ -> t
 
 getFunctionArgTypes :: M.Map String Type -> String -> Maybe [Type]
 getFunctionArgTypes envMap fname =
   case M.lookup fname envMap of
-    Just (TKonst (TTuple ts)) -> case ts of
-      [] -> Just []
-      _  -> Just (init ts)
-    Just (TKonst (TFunc args _)) -> Just args
-    Just (TFunc args _) -> Just args
+    Just t -> case unwrapType t of
+      TKonst innerT -> case unwrapType innerT of
+        TTuple ts -> if null ts then Just [] else Just (init ts)
+        TFunc args _ -> Just args
+        _ -> Nothing
+      TFunc args _ -> Just args
+      _ -> Nothing
     _ -> Nothing
 
 getFunctionReturnType :: M.Map String Type -> String -> Maybe Type
 getFunctionReturnType envMap fname =
   case M.lookup fname envMap of
-    Just (TKonst (TTuple ts)) -> case ts of
-      [] -> Nothing
-      _  -> Just (last ts)
-    Just (TKonst (TFunc _ ret)) -> Just ret
-    Just (TFunc _ ret) -> Just ret
+    Just t -> case unwrapType t of
+      TKonst innerT -> case unwrapType innerT of
+        TTuple ts -> if null ts then Nothing else Just (last ts)
+        TFunc _ ret -> Just ret
+        _ -> Nothing
+      TFunc _ ret -> Just ret
+      _ -> Nothing
     _ -> Nothing
 
-checkAssignmentType :: Maybe Type -> Maybe Type -> Either CompilerError ()
-checkAssignmentType (Just expected) (Just actual)
+checkAssignmentType :: LineCount -> Maybe Type -> Maybe Type -> Either CompilerError ()
+checkAssignmentType lc (Just expected) (Just actual)
   | eqTypeNormalized expected actual = Right ()
   | isRefType expected && eqTypeNormalized (extractRefType expected) actual = Right ()
-  | otherwise = Left $ IllegalAssignment ("Type mismatch on assignment: expected " ++ show expected ++ ", got " ++ show actual)
-checkAssignmentType _ _ = Left $ IllegalAssignment "Unable to infer types for assignment"
+  | otherwise = Left $ IllegalAssignment ("Type mismatch on assignment: expected " ++ show expected ++ ", got " ++ show actual) lc
+checkAssignmentType lc _ _ = Left $ IllegalAssignment "Unable to infer types for assignment" lc
 
 typesEqual :: Type -> Type -> Bool
 typesEqual = eqTypeNormalized
 
 numericCompatible :: Type -> Type -> Bool
 numericCompatible a b =
-  case (stripWrap a, stripWrap b) of
+  case (unwrapType (stripWrap a), unwrapType (stripWrap b)) of
     (TInt, TInt) -> True
     (TFloat, TFloat) -> True
     (TInt, TFloat) -> True
@@ -170,50 +223,52 @@ numericCompatible a b =
     _ -> False
 
 isFloatType :: Type -> Bool
-isFloatType t = case stripWrap t of
+isFloatType t = case unwrapType (stripWrap t) of
   TFloat -> True
   _ -> False
 
 isKonst :: Type -> Bool
-isKonst (TKonst _) = True
-isKonst _ = False
+isKonst t = case unwrapType t of
+  TKonst _ -> True
+  _ -> False
 
 inferType :: AExpression -> CompilerEnv -> Maybe Type
-inferType (AValue (ANumber (AInteger _))) _ = Just TInt
-inferType (AValue (ANumber (AFloat _))) _ = Just TFloat
-inferType (AValue (ANumber (ABool _))) _ = Just TBool
-inferType (AValue (ANumber (AChar _))) _ = Just TChar
-inferType (AValue (AString _)) _ = Just TString
-inferType (AValue (ALambda _ retType _)) _ = Just retType
-inferType (AValue (ATuple exprs)) env =
-  case traverse (\e -> inferType e env) exprs of
-    Just ts -> Just (TTuple ts)
-    Nothing -> Nothing
-inferType (AValue (AArray exprs)) env =
-  inferHomogeneousList TArray exprs env
-inferType (AValue (AVector exprs)) env =
-  inferHomogeneousList TVector exprs env
-inferType (AValue (AStruct _)) _ = Nothing
-inferType (AValue (AVarCall v)) env = 
-  case M.lookup v (typeAliases env) of
-    Just (TRef t) -> Just t
-    Just t -> Just t
-    Nothing -> Nothing
-inferType (AAttribution _ _) _ = Nothing
-inferType (AAccess acc) env = inferAccessType acc env
-inferType (ACast targetType _) env = Just (resolveType env targetType)
-inferType (ACall fexp [l, r]) env | maybeFuncName fexp `elem` map Just arithOps =
-  case (inferType l env, inferType r env) of
-    (Just t1, Just t2)
-      | numericCompatible t1 t2 && (isFloatType t1 || isFloatType t2) -> Just TFloat
-      | numericCompatible t1 t2 -> Just TInt
-    _ -> Nothing
-inferType (ACall fexp [_l, _r]) _env | maybeFuncName fexp `elem` map Just comparisonOps = Just TBool
-inferType (ACall fexp _) env
-  | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) = Nothing
-  | Just name <- maybeFuncName fexp = getFunctionReturnType (typeAliases env) name
-  | otherwise = Nothing
-inferType (AMethodCall _ _ _) _ = Nothing
+inferType expr env = case unwrapExpr expr of
+  AValue val -> case unwrapValue val of
+    ANumber (AInteger _) -> Just (getExprLineCount expr, TInt)
+    ANumber (AFloat _) -> Just (getExprLineCount expr, TFloat)
+    ANumber (ABool _) -> Just (getExprLineCount expr, TBool)
+    ANumber (AChar _) -> Just (getExprLineCount expr, TChar)
+    AString _ -> Just (getExprLineCount expr, TString)
+    ALambda _ retType _ -> Just retType
+    ATuple exprs ->
+      case traverse (\e -> inferType e env) exprs of
+        Just ts -> Just (getExprLineCount expr, TTuple ts)
+        Nothing -> Nothing
+    AArray exprs -> inferHomogeneousList (getExprLineCount expr) TArray exprs env
+    AVector exprs -> inferHomogeneousList (getExprLineCount expr) TVector exprs env
+    AStruct _ -> Nothing
+    AVarCall v ->
+      case M.lookup v (typeAliases env) of
+        Just t -> case unwrapType t of
+          TRef ty -> Just ty
+          _ -> Just t
+        Nothing -> Nothing
+  AAttribution _ _ -> Nothing
+  AAccess acc -> inferAccessType acc env
+  ACast targetType _ -> Just (resolveType env targetType)
+  ACall fexp [l, r] | maybeFuncName fexp `elem` map Just arithOps ->
+    case (inferType l env, inferType r env) of
+      (Just t1, Just t2)
+        | numericCompatible t1 t2 && (isFloatType t1 || isFloatType t2) -> Just (getExprLineCount expr, TFloat)
+        | numericCompatible t1 t2 -> Just (getExprLineCount expr, TInt)
+      _ -> Nothing
+  ACall fexp [_l, _r] | maybeFuncName fexp `elem` map Just comparisonOps -> Just (getExprLineCount expr, TBool)
+  ACall fexp _
+    | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) -> Nothing
+    | Just name <- maybeFuncName fexp -> getFunctionReturnType (typeAliases env) name
+    | otherwise -> Nothing
+  AMethodCall _ _ _ -> Nothing
 
 comparisonOps :: [String]
 comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
@@ -222,52 +277,86 @@ arithOps :: [String]
 arithOps = ["+", "-", "*", "/"]
 
 inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type
-inferAccessType (AArrayAccess arrExpr _) env =
-  case inferType arrExpr env of
-    Just t -> case stripWrap (resolveType env t) of
-      TArray et _ -> Just et
-      TVector et _ -> Just et
-      _ -> Nothing
-    Nothing -> Nothing
-inferAccessType (AVectorAccess vecExpr _) env =
-  case inferType vecExpr env of
-    Just t -> case stripWrap (resolveType env t) of
-      TVector et _ -> Just et
-      TArray et _ -> Just et
-      _ -> Nothing
-    Nothing -> Nothing
-inferAccessType (ATupleAccess tupleExpr idxExpr) env =
-  case inferType tupleExpr env of
-    Just t -> case stripWrap (resolveType env t) of
-      TTuple ts -> tupleIndexType' ts idxExpr
-      _ -> Nothing
-    Nothing -> Nothing
-inferAccessType (AStructAccess structExpr fields) env =
-  case inferType structExpr env of
-    Just t0 -> go t0 fields
-    Nothing -> Nothing
-  where
-    go t [] = Just (resolveType env t)
-    go t (f:fs) =
-      case stripWrap (resolveType env t) of
-        TStruct sname ->
-          case M.lookup sname (structDefs env) of
-            Just fds ->
-              case lookup f (map (\(ty, nm) -> (nm, ty)) fds) of
-                Just fty -> go fty fs
-                Nothing -> Nothing
-            Nothing -> Nothing
+inferAccessType acc env = case unwrapAccess acc of
+  AArrayAccess arrExpr _ ->
+    case inferType arrExpr env of
+      Just t -> case unwrapType (stripWrap (resolveType env t)) of
+        TArray et _ -> Just et
+        TVector et _ -> Just et
         _ -> Nothing
+      Nothing -> Nothing
+  AVectorAccess vecExpr _ ->
+    case inferType vecExpr env of
+      Just t -> case unwrapType (stripWrap (resolveType env t)) of
+        TVector et _ -> Just et
+        TArray et _ -> Just et
+        _ -> Nothing
+      Nothing -> Nothing
+  ATupleAccess tupleExpr idxExpr ->
+    case inferType tupleExpr env of
+      Just t -> case unwrapType (stripWrap (resolveType env t)) of
+        TTuple ts -> tupleIndexType' ts idxExpr
+        _ -> Nothing
+      Nothing -> Nothing
+  AStructAccess structExpr flds ->
+    case inferType structExpr env of
+      Just t0 -> go t0 flds
+      Nothing -> Nothing
+    where
+      go t [] = Just (resolveType env t)
+      go t (f:fs) =
+        case unwrapType (stripWrap (resolveType env t)) of
+          TStruct sname ->
+            case M.lookup sname (structDefs env) of
+              Just fds ->
+                case lookup f (map (\(ty, nm) -> (nm, ty)) fds) of
+                  Just fty -> go fty fs
+                  Nothing -> Nothing
+              Nothing -> Nothing
+          _ -> Nothing
 
 tupleIndexType' :: [Type] -> AExpression -> Maybe Type
-tupleIndexType' ts (AValue (ANumber (AInteger i)))
-  | i >= 0 && i < length ts = Just (ts !! i)
-  | otherwise = Nothing
-tupleIndexType' _ _ = Nothing
-
-inferHomogeneousList :: (Type -> AExpression -> Type) -> [AExpression] -> CompilerEnv -> Maybe Type
-inferHomogeneousList ctor exprs env =
-  case traverse (\e -> inferType e env) exprs of
-    Just [] -> Just (ctor TInt (AValue (ANumber (AInteger 0))))
-    Just (t:ts) | all (typesEqual t) ts -> Just (ctor t (AValue (ANumber (AInteger (length exprs)))))
+tupleIndexType' ts expr = case unwrapExpr expr of
+  AValue val -> case unwrapValue val of
+    ANumber (AInteger i)
+      | i >= 0 && i < length ts -> Just (ts !! i)
+      | otherwise -> Nothing
     _ -> Nothing
+  _ -> Nothing
+
+inferHomogeneousList :: LineCount -> (Type -> AExpression -> TypeRaw) -> [AExpression] -> CompilerEnv -> Maybe Type
+inferHomogeneousList lc ctor exprs env =
+  case traverse (\e -> inferType e env) exprs of
+    Just [] -> Just (lc, ctor (lc, TInt) ((lc, AValue (lc, ANumber (AInteger 0)))))
+    Just (t:ts) | all (typesEqual t) ts -> Just (lc, ctor t ((lc, AValue (lc, ANumber (AInteger (length exprs))))))
+    _ -> Nothing
+
+unwrapAst :: Ast -> AstRaw
+unwrapAst (_, raw) = raw
+
+unwrapExpr :: AExpression -> AExpressionRaw
+unwrapExpr (_, raw) = raw
+
+unwrapType :: Type -> TypeRaw
+unwrapType (_, raw) = raw
+
+unwrapAccess :: AstAccess -> AstAccessRaw
+unwrapAccess (_, raw) = raw
+
+unwrapValue :: AstValue -> AstValueRaw
+unwrapValue (_, raw) = raw
+
+getAstLineCount :: Ast -> LineCount
+getAstLineCount (lc, _) = lc
+
+getExprLineCount :: AExpression -> LineCount
+getExprLineCount (lc, _) = lc
+
+getTypeLineCount :: Type -> LineCount
+getTypeLineCount (lc, _) = lc
+
+getAccessLineCount :: AstAccess -> LineCount
+getAccessLineCount (lc, _) = lc
+
+getValueLineCount :: AstValue -> LineCount
+getValueLineCount (lc, _) = lc
