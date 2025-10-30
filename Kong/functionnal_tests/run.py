@@ -11,6 +11,7 @@ def gen_test_file(lisp_code: str, vars: list[str], input: str, test_name: str):
         f.write(f"Funk main() -> Int {{\n")
         f.write("".join(f"  {var}\n" for var in vars))
         f.write(f"  print({input});\n")
+        f.write(f"  Return 0;\n")
         f.write(f"}}\n")
 
 def read_tests(test_data: dict[str, str]):
@@ -30,7 +31,7 @@ def read_tests(test_data: dict[str, str]):
             print(Fore.GREEN + f"[SUCCESS]" + Style.RESET_ALL +  f" {test_description}" + Style.RESET_ALL)
             success_tests.append(test_description)
         else:
-            print(Fore.RED + f"[FAILED]"  + Style.RESET_ALL + f" {test_description}" + Style.RESET_ALL)
+            print(Fore.RED + f"[FAILED]"  + Style.RESET_ALL + f" ({test}) {test_description}" + Style.RESET_ALL)
             print(Back.RED + Fore.WHITE + f"Expected: {expected_output}" + Style.RESET_ALL)
             print(Back.RED + Fore.WHITE + f"Got: {output}" + Style.RESET_ALL)
             failed_tests.append(test_description)

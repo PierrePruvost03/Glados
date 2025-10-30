@@ -1,0 +1,19 @@
+Funk fibonacci(Int n) -> Int {
+    If (n `==` 0) {
+        Return 0;
+    }
+    If (n `==` 1) {
+        Return 1;
+    }
+    Int a = 0;
+    Int b = 1;
+    Int i = 2;
+    Int temp = 0;
+    While (i `<=` n) {
+        temp = a + b;
+        a = b;
+        b = temp;
+        i = i + 1;
+    }
+    Return b;
+}

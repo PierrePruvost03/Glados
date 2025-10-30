@@ -1,0 +1,39 @@
+[
+    {
+        "script_file": "exemples/power.kong",
+        "tests": {
+            "power1": {
+                "description": "squaring 67",
+                "expected": "4489",
+                "vars": {
+                    "1": "Int a = 67;"
+                },
+                "input": "square(a)"
+            },
+            "power2": {
+                "description": "cubing 67",
+                "expected": "300763",
+                "vars": {
+                    "1": "Int a = 67;"
+                },
+                "input": "cube(a)"
+            },
+            "power3": {
+                "description": "squaring -67",
+                "expected": "4489",
+                "vars": {
+                    "1": "Int a = -67;"
+                },
+                "input": "square(a)"
+            },
+            "power4": {
+                "description": "cubing -67",
+                "expected": "-300763",
+                "vars": {
+                    "1": "Int a = -67;"
+                },
+                "input": "cube(a)"
+            }
+        }
+    }
+]
