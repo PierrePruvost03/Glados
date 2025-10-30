@@ -6,6 +6,7 @@ module Compiler.Include
     validateIncludes,
     sortByDependencies,
     applySelectiveImports,
+    resolveIncludesRec,
     IncludeError(..),
   ) where
 
@@ -24,6 +25,7 @@ data IncludeError
   | CircularDependency String [String]
   | ParseError String String
   | MissingInclude String String  -- file who ask to include, missing file
+  | MissingSymbol String String String  -- file who ask to include, included file, missing symbol
   deriving (Show, Eq)
 
 resolveIncludes :: FilePath -> String -> IO (Either IncludeError [(String, [Ast])])
@@ -127,8 +129,11 @@ topologicalSort fileMap deps = fmap reverse $ topSort [] S.empty S.empty (M.keys
         newVisiting = S.insert node visiting
         newVisited = S.insert node visited
 
-applySelectiveImports :: [(String, [Ast])] -> [(String, [Ast])]
-applySelectiveImports fileAsts = fmap (filterFile requestMap) fileAsts
+applySelectiveImports :: [(String, [Ast])] -> Either IncludeError [(String, [Ast])]
+applySelectiveImports fileAsts = 
+  case validateSymbols fileAsts fileMap of
+    Left err -> Left err
+    Right _ -> Right $ fmap (filterFile requestMap) fileAsts
   where
     requestMap = M.fromListWith combineRequests
       [ (from, toMaybe items)
@@ -138,6 +143,8 @@ applySelectiveImports fileAsts = fmap (filterFile requestMap) fileAsts
           AInclude f i -> [(f, i)]
           _ -> []
       ]
+    
+    fileMap = M.fromList fileAsts
     
     toMaybe [] = Nothing
     toMaybe xs = Just xs
@@ -149,6 +156,34 @@ applySelectiveImports fileAsts = fmap (filterFile requestMap) fileAsts
         filterBySymbols asts' Nothing = asts'
         filterBySymbols asts' (Just requestedSymbols) =
           filter (symbolIsRequested $ S.fromList requestedSymbols) asts'
+
+validateSymbols :: [(String, [Ast])] -> M.Map String [Ast] -> Either IncludeError ()
+validateSymbols fileAsts fileMap =
+  case findMissingSymbols fileAsts fileMap of
+    [] -> Right ()
+    (requester, includedFile, missingSymbol):_ -> Left $ MissingSymbol requester includedFile missingSymbol
+
+findMissingSymbols :: [(String, [Ast])] -> M.Map String [Ast] -> [(String, String, String)]
+findMissingSymbols fileAsts fileMap =
+  [ (requesterFile, includedFile, symbol)
+  | (requesterFile, asts) <- fileAsts
+  , ast <- asts
+  , (includedFile, requestedSymbols) <- extractIncludeWithSymbols ast
+  , not (null requestedSymbols)
+  , symbol <- requestedSymbols
+  , symbol `notElem` getAvailableSymbols includedFile fileMap
+  ]
+
+extractIncludeWithSymbols :: Ast -> [(String, [String])]
+extractIncludeWithSymbols ast = case unwrapAst ast of
+  AInclude f i -> [(f, i)]
+  _ -> []
+
+getAvailableSymbols :: String -> M.Map String [Ast] -> [String]
+getAvailableSymbols fileName fileMap = maybe [] (mapMaybe getSymbolName) (M.lookup fileName fileMap)
+
+mapMaybe :: (a -> Maybe b) -> [a] -> [b]
+mapMaybe f = foldr (\x acc -> maybe acc (:acc) (f x)) []
 
 symbolIsRequested :: S.Set String -> Ast -> Bool
 symbolIsRequested symbols = maybe True (`S.member` symbols) . getSymbolName
