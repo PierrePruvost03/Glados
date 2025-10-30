@@ -1,0 +1,16 @@
+[
+    {
+        "script_file": "exemples/add.kong",
+        "tests": {
+            "add1": {
+                "description" : "adding two ints (six and seven)",
+                "expected": "13",
+                "vars": {
+                    "1": "Int a = 6;",
+                    "2": "Int b = 7;"
+                },
+                "input": "add(a, b)"
+            }
+        }
+    }
+]

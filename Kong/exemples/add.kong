@@ -1,0 +1,3 @@
+Funk add(Int a, Int b) -> Int {
+    Return a + b;
+}
