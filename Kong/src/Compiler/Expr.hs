@@ -12,7 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAccessLineCount, getValueLineCount)
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, numericCompatible, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
+import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -157,9 +157,9 @@ compileFunctionCall fexp args env lc =
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
-        Just varType -> 
-          validateNonCallable name varType lc >>
-          matchFunctionCall name (Just varType) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
+        Just vartype -> 
+          validateNonCallable name vartype lc >>
+          matchFunctionCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
         Nothing -> matchFunctionCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lc
     Nothing ->
       (++) <$> (concat <$> mapM (`compileExpr` env) (reverse args))

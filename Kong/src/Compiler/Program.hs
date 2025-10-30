@@ -76,10 +76,10 @@ buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
         case validateNoDuplicateDeclaration name e (getAstLineCount a) of
           Left err -> Left (ProgramError "<global>" a err)
           Right () -> Right (insertTypeAlias e a)
-      AStruktDef name fields -> 
+      AStruktDef name fds -> 
         case validateNoDuplicateStruct name e (getAstLineCount a) of
           Left err -> Left (ProgramError "<global>" a err)
-          Right () -> case validateStructDefinition e name fields (getAstLineCount a) of
+          Right () -> case validateStructDefinition e name fds (getAstLineCount a) of
             Left err -> Left (ProgramError "<global>" a err)
             Right () -> Right (insertTypeAlias e a)
       AVarDecl _ name _ ->

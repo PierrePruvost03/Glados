@@ -775,11 +775,11 @@ validateArithmeticOperands op t1 t2 lc =
       ("Arithmetic operator '" ++ op ++ "' cannot be applied to types " ++ show type1 ++ " and " ++ show type2) lc
 
 validateNonCallable :: String -> Type -> LineCount -> Either CompilerError ()
-validateNonCallable varName varType lc =
-  case unwrapType varType of
+validateNonCallable var t lc =
+  case unwrapType t of
     TKonst _ -> Right ()
     _ -> Left $ NonCallableType 
-      ("'" ++ varName ++ "' of type " ++ show varType ++ " is not callable") lc
+      ("'" ++ var ++ "' of type " ++ show t ++ " is not callable") lc
 
 validateKonstAssignment :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
 validateKonstAssignment var env lc = 
