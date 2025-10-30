@@ -40,7 +40,7 @@ loadAndValidateFiles filePaths =
 
     sortAndFilter fileAsts = case sortByDependencies fileAsts of
       Left err -> return $ Left err
-      Right sorted -> return $ Right $ applySelectiveImports sorted
+      Right sorted -> return $ applySelectiveImports sorted
 
     providedFiles = S.fromList $ map (normalizeFilePath baseDir) filePaths
 
@@ -78,6 +78,9 @@ printIncludeError (ParseError _ msg) =
 printIncludeError (MissingInclude file missing) =
     hPutStrLn stderr ("[Include error] File '" ++ file ++ "' includes '" ++ missing ++
                      "' but it was not provided in compilation arguments") >> exitFailure
+printIncludeError (MissingSymbol requester included symbol) =
+    hPutStrLn stderr ("[Include error] File '" ++ requester ++ "' requests symbol '" ++ symbol ++
+                     "' from '" ++ included ++ "' but it does not exist") >> exitFailure
 
 printCompileError :: Show e => e -> IO ()
 printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
