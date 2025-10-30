@@ -4,7 +4,7 @@ Inklude floor (floor)
 
 Funk round(Float a) -> Float {
     Int sign = 1;
-    Float modulo;
+    Float modulo = 0;
     If (a `<` 0) {
         sign = -1;
     }

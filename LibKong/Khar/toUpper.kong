@@ -1,8 +1,8 @@
 Inklude isLower (isLower)
 
 Funk toUpper(Khar k) -> Khar {
-    Int new_k;
-    Int transition;
+    Int new_k = 0;
+    Int transition = 0;
     If (isLower(k)) {
         new_k = Kast(Int, k);
         transition = Kast(Int, 'A') - Kast(Int, 'a');
