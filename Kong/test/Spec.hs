@@ -5,9 +5,10 @@ import Test.HUnit
 
 import KongCompilerTests (kongCompilerTests)
 import KongVMTests (kongVMTests)
+import BaseParsingTest(baseParsingTests)
 
 tests :: Test
-tests = TestList (kongCompilerTests <> kongVMTests)
+tests = TestList (kongCompilerTests <> kongVMTests <> baseParsingTests)
 
 main :: IO ()
 main = do
