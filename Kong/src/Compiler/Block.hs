@@ -10,14 +10,15 @@ module Compiler.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, unwrapAst, unwrapType, unwrapExpr, unwrapValue, getAstLineCount, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import Data.Char (isSpace)
 import qualified Data.Vector as V
 
 compileAstWith :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
                -> Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-compileAstWith compileExpr ast env = case unwrapAst ast of
+compileAstWith compileExpr ast env = case unwrap ast of
   ABlock asts ->
     foldl
       (\acc a -> acc >>= \(code, sc) ->
@@ -25,13 +26,13 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
       (Right ([], prebindKonsts asts env))
       asts
   AVarDecl _ name Nothing ->
-    validateNoDuplicateDeclaration name env (getAstLineCount ast) >>
-    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (getAstLineCount ast))
+    validateNoDuplicateDeclaration name env (lc ast) >>
+    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
   AVarDecl t name (Just initExpr) ->
-    validateNoDuplicateDeclaration name env (getAstLineCount ast) >>
-    (case unwrapExpr initExpr of
-      AValue val -> case unwrapValue val of
-        ANumber num -> validateConstantBounds t num (getAstLineCount ast)
+    validateNoDuplicateDeclaration name env (lc ast) >>
+    (case unwrap initExpr of
+      AValue val -> case unwrap val of
+        ANumber num -> validateConstantBounds t num (lc ast)
         _ -> Right ()
       _ -> Right ()) >>
     case inferType initExpr env of
@@ -39,10 +40,10 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
         | isRefType t' -> 
             case canInitializeRefWith env t' initExpr of
               Right True -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
-              Right False -> Left $ InvalidArguments ("Cannot initialize reference of type " ++ show t' ++ " with expression of type " ++ show it) (getAstLineCount ast)
+              Right False -> Left $ InvalidArguments ("Cannot initialize reference of type " ++ show t' ++ " with expression of type " ++ show it) (lc ast)
               Left err -> Left err
         | typesCompatible env t' it -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
-        | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it) (getAstLineCount ast)
+        | otherwise -> Left $ InvalidArguments ("Initializer type mismatch: expected " ++ show t' ++ ", got " ++ show it) (lc ast)
         where t' = resolveType env t
               env' = prebindVar t name env
       Nothing -> fmap (\exprCode -> declareWithValue env' t name exprCode) (compileExpr initExpr env')
@@ -52,31 +53,31 @@ compileAstWith compileExpr ast env = case unwrapAst ast of
   AReturn a ->
     compileAstWith compileExpr a env >>= \(code, sc) -> Right (code ++ [Ret], sc)
   AStruktDef name fdls ->
-    validateNoDuplicateStruct name env (getAstLineCount ast) >>
-    case validateStructDefinition env name fdls (getAstLineCount ast) of
+    validateNoDuplicateStruct name env (lc ast) >>
+    case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
       Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })
   ALoop _ _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileLoop compileExpr ast env)
   AIf _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr ast env)
-  other -> Left $ UnsupportedAst (show other) (getAstLineCount ast)
+  other -> Left $ UnsupportedAst (show other) (lc ast)
 
 typesCompatible :: CompilerEnv -> Type -> Type -> Bool
 typesCompatible env expected actual =
   eqTypeNormalized expected actual || bothNumeric (strip expected) (strip actual) || arrayAliasMatch
   where
-    strip t = case unwrapType t of
+    strip t = case unwrap t of
       TKonst x -> strip x
       TStrong x -> strip x
       TKong x -> strip x
       _ -> t
 
-    arrayAliasMatch = case (unwrapType (strip expected), unwrapType (strip actual)) of
+    arrayAliasMatch = case (unwrap (strip expected), unwrap (strip actual)) of
       (TVector customT sizeExpr, TArray eltT _) ->
-        case unwrapType customT of
-          TCustom "Array" -> case unwrapExpr sizeExpr of
-            AValue val -> case unwrapValue val of
+        case unwrap customT of
+          TCustom "Array" -> case unwrap sizeExpr of
+            AValue val -> case unwrap val of
               AVarCall tn -> eqTypeNormalized (resolveType env (fst customT, TCustom tn)) eltT
               _ -> False
             _ -> False
@@ -84,7 +85,7 @@ typesCompatible env expected actual =
       _ -> False
 
 declareDefault :: CompilerEnv -> Type -> String -> ([Instr], CompilerEnv)
-declareDefault env t name = case unwrapType t' of
+declareDefault env t name = case unwrap t' of
   TArray _ sizeExpr -> 
     case extractArraySize sizeExpr of
       Just size -> 
@@ -118,7 +119,7 @@ declareWithValue env t name exprCode
         n  = normalizeName name
 
 defaultValue :: Type -> Value
-defaultValue t = case unwrapType t of
+defaultValue t = case unwrap t of
   TInt -> VNumber $ VInt 0
   TBool -> VNumber $ VBool False
   TChar -> VNumber $ VChar '\0'
@@ -133,7 +134,7 @@ defaultValue t = case unwrapType t of
 
 compileLoop :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
             -> Ast -> CompilerEnv -> Either CompilerError [Instr]
-compileLoop compileExpr ast env = case unwrapAst ast of
+compileLoop compileExpr ast env = case unwrap ast of
   ALoop initAst cond incr body ->
     f initAst env >>= \(compiledInit, newenv) ->
       compileAstWith compileExpr cond newenv >>= \(compiledCond, newenv') ->
@@ -145,13 +146,13 @@ compileLoop compileExpr ast env = case unwrapAst ast of
     where
       f (Just a) newEnv = compileAstWith compileExpr a newEnv
       f Nothing newEnv = Right ([], newEnv)
-  _ -> Left $ UnsupportedAst "Loop not supported" (getAstLineCount ast)
+  _ -> Left $ UnsupportedAst "Loop not supported" (lc ast)
 
 compileIf :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
           -> Ast -> CompilerEnv -> Either CompilerError [Instr]
-compileIf compileExpr ast env = case unwrapAst ast of
+compileIf compileExpr ast env = case unwrap ast of
   AIf condAst thenBranch elseBranch ->
-    case unwrapAst condAst of
+    case unwrap condAst of
       AExpress cond ->
         compileExpr cond env >>= \compiledCond ->
           compileAstWith compileExpr thenBranch env >>= \(compiledThen, _) ->
@@ -162,21 +163,23 @@ compileIf compileExpr ast env = case unwrapAst ast of
         where
           f (Just a) = compileAstWith compileExpr a env
           f Nothing = Right ([], env)
-      _ -> Left $ UnsupportedAst "If condition must be an expression" (getAstLineCount ast)
-  _ -> Left $ UnsupportedAst "If statement not supported" (getAstLineCount ast)
+      _ -> Left $ UnsupportedAst "If condition must be an expression" (lc ast)
+  _ -> Left $ UnsupportedAst "If statement not supported" (lc ast)
 
 prebindVar :: Type -> String -> CompilerEnv -> CompilerEnv
-prebindVar t name env = case unwrapType t of
+prebindVar t name env = case unwrap t of
   TKonst _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env
 
 prebindKonsts :: [Ast] -> CompilerEnv -> CompilerEnv
 prebindKonsts asts env = foldl step env asts
   where
-    step e ast = case unwrapAst ast of
+    step :: CompilerEnv -> Ast -> CompilerEnv
+    step e ast = case unwrap ast of
       AVarDecl t n _ | isKonstType t -> e { typeAliases = M.insert n t (typeAliases e) }
       _ -> e
-    isKonstType t = case unwrapType t of
+    isKonstType :: Type -> Bool
+    isKonstType t = case unwrap t of
       TKonst _ -> True
       _ -> False
 
@@ -184,8 +187,8 @@ normalizeName :: String -> String
 normalizeName = reverse . dropWhile isSpace . reverse . dropWhile isSpace
 
 extractArraySize :: AExpression -> Maybe Int
-extractArraySize expr = case unwrapExpr expr of
-  AValue val -> case unwrapValue val of
+extractArraySize expr = case unwrap expr of
+  AValue val -> case unwrap val of
     ANumber (AInteger n) -> Just n
     _ -> Nothing
   _ -> Nothing

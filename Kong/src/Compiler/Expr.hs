@@ -10,7 +10,8 @@ import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, unwrapExpr, unwrapValue, unwrapAccess, unwrapType, unwrapAst, getExprLineCount, getAccessLineCount, getValueLineCount)
+import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
+import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.TypeError (prettyTypeError)
 import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import qualified Data.Map as M
@@ -20,78 +21,78 @@ import Compiler.Block (compileAstWith)
 import Parser (LineCount)
 
 maybeFuncName :: AExpression -> Maybe String
-maybeFuncName expr = case unwrapExpr expr of
-  AValue val -> case unwrapValue val of
+maybeFuncName expr = case unwrap expr of
+  AValue val -> case unwrap val of
     AVarCall n -> Just n
     _ -> Nothing
   _ -> Nothing
 
 compileExpr :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileExpr expr env = case unwrapExpr expr of
+compileExpr expr env = case unwrap expr of
   AAttribution var rhs ->
     case M.lookup var (typeAliases env) of
-      Nothing -> Left (UnknownVariable var (getExprLineCount expr))
+      Nothing -> Left (UnknownVariable var (lc expr))
       Just _ -> matchAssignment (M.lookup var (typeAliases env)) (inferType rhs env) (compileExpr rhs env)
     where
       matchAssignment t v (Right rhsCode) =
-        case checkAssignmentType (getExprLineCount expr) t v of
+        case checkAssignmentType (lc expr) t v of
           Right () -> Right (rhsCode ++ [PushEnv var, StoreRef])
           Left err -> Left err
       matchAssignment _ _ (Left err) = Left err
   AValue astValue -> compileValue astValue env
   AAccess access -> compileAccess access env
-  ACast targetType ex -> compileCast targetType ex env (getExprLineCount expr)
-  AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (getExprLineCount expr)
+  ACast targetType ex -> compileCast targetType ex env (lc expr)
+  AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (lc expr)
   ACall fexp [lhs, val] | maybeFuncName fexp == Just "=" ->
-    compileAssignmentExpr lhs val env (getExprLineCount expr)
+    compileAssignmentExpr lhs val env (lc expr)
   ACall fexp [lh, rh] | maybeFuncName fexp `elem` map Just comparisonOps ->
-    compileComparisonExpr fexp lh rh env (getExprLineCount expr)
+    compileComparisonExpr fexp lh rh env (lc expr)
   ACall fexp [lh, rh] | maybeFuncName fexp `elem` map Just arithOps ->
-    compileArithmeticExpr fexp lh rh env (getExprLineCount expr)
-  ACall fexp args | maybeFuncName fexp == Just "print" -> compilePrintCall args env (getExprLineCount expr)
-  ACall fexp args -> compileFunctionCall fexp args env (getExprLineCount expr)
+    compileArithmeticExpr fexp lh rh env (lc expr)
+  ACall fexp args | maybeFuncName fexp == Just "print" -> compilePrintCall args env (lc expr)
+  ACall fexp args -> compileFunctionCall fexp args env (lc expr)
 
 compileAssignmentExpr :: AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileAssignmentExpr lhs val env lc = case unwrapExpr lhs of
+compileAssignmentExpr lhs val env lnCount = case unwrap lhs of
   -- x = val
-  AValue lval -> case unwrapValue lval of
+  AValue lval -> case unwrap lval of
     AVarCall v ->
-      validateKonstAssignment v env lc >>
-      case checkAssignmentType lc (M.lookup v (typeAliases env)) (inferType val env) of
+      validateKonstAssignment v env lnCount >>
+      case checkAssignmentType lnCount (M.lookup v (typeAliases env)) (inferType val env) of
         Right () -> (++) <$> compileExpr val env <*> Right [PushEnv v, StoreRef]
         Left err -> Left err
-    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lc
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
   -- arr[idx] = val, vec<idx> = val, tup|idx| = val
-  AAccess acc -> case unwrapAccess acc of
-    AArrayAccess nameExpr idx -> compileIndexedAssignment nameExpr idx val env lc False
-    AVectorAccess nameExpr idx -> compileIndexedAssignment nameExpr idx val env lc False
-    ATupleAccess nameExpr idx -> compileTupleAssignment nameExpr idx val env lc
-    AStructAccess nameExpr [field] -> compileStructAssignment nameExpr field val env lc
-    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lc
-  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lc
+  AAccess acc -> case unwrap acc of
+    AArrayAccess nameExpr idx -> compileIndexedAssignment nameExpr idx val env lnCount False
+    AVectorAccess nameExpr idx -> compileIndexedAssignment nameExpr idx val env lnCount False
+    ATupleAccess nameExpr idx -> compileTupleAssignment nameExpr idx val env lnCount
+    AStructAccess nameExpr [field] -> compileStructAssignment nameExpr field val env lnCount
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
+  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
 
 compileIndexedAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Bool -> Either CompilerError [Instr]
-compileIndexedAssignment nameExpr idx val env lc _isTuple = case unwrapExpr nameExpr of
-  AValue nval -> case unwrapValue nval of
+compileIndexedAssignment nameExpr idx val env lnCount _isTuple = case unwrap nameExpr of
+  AValue nval -> case unwrap nval of
     AVarCall name ->
-      validateKonstAssignment name env lc >>
-      case checkAssignmentType lc (case lookupResolved env name of
+      validateKonstAssignment name env lnCount >>
+      case checkAssignmentType lnCount (case lookupResolved env name of
                                   Just rt -> elementTypeFromResolved rt
                                   Nothing -> Nothing)
                                (inferType val env) of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
                           <*> Right [SetList, PushEnv name, StoreRef]
         Left err -> Left err
-    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (base must be a variable)" lc
-  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (base must be a variable)" lc
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (base must be a variable)" lnCount
+  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (base must be a variable)" lnCount
 
 compileTupleAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileTupleAssignment nameExpr idx val env lc = case unwrapExpr nameExpr of
-  AValue nval -> case unwrapValue nval of
+compileTupleAssignment nameExpr idx val env lnCount = case unwrap nameExpr of
+  AValue nval -> case unwrap nval of
     AVarCall name ->
-      validateKonstAssignment name env lc >>
-      case checkAssignmentType lc (case lookupResolved env name of
-                                  Just t -> case unwrapType t of
+      validateKonstAssignment name env lnCount >>
+      case checkAssignmentType lnCount (case lookupResolved env name of
+                                  Just t -> case unwrap t of
                                     TTuple ts -> tupleIndexType ts idx
                                     _ -> Nothing
                                   _ -> Nothing)
@@ -99,16 +100,16 @@ compileTupleAssignment nameExpr idx val env lc = case unwrapExpr nameExpr of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
                           <*> Right [SetList, PushEnv name, StoreRef]
         Left err -> Left err
-    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (tuple base must be a variable)" lc
-  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (tuple base must be a variable)" lc
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (tuple base must be a variable)" lnCount
+  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (tuple base must be a variable)" lnCount
 
 compileStructAssignment :: AExpression -> String -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileStructAssignment nameExpr field val env lc = case unwrapExpr nameExpr of
-  AValue nval -> case unwrapValue nval of
+compileStructAssignment nameExpr field val env lnCount = case unwrap nameExpr of
+  AValue nval -> case unwrap nval of
     AVarCall name ->
-      validateKonstAssignment name env lc >>
-      case checkAssignmentType lc (case lookupResolved env name of
-                                  Just t -> case unwrapType t of
+      validateKonstAssignment name env lnCount >>
+      case checkAssignmentType lnCount (case lookupResolved env name of
+                                  Just t -> case unwrap t of
                                     TStruct sname ->
                                       case M.lookup sname (structDefs env) of
                                         Just fds -> lookup field (map (\(ty, nm) -> (nm, ty)) fds)
@@ -119,11 +120,11 @@ compileStructAssignment nameExpr field val env lc = case unwrapExpr nameExpr of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> Right (pushVarValue env name))
                           <*> Right [SetStruct field, PushEnv name, StoreRef]
         Left err -> Left err
-    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (struct base must be a variable)" lc
-  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (struct base must be a variable)" lc
+    _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (struct base must be a variable)" lnCount
+  _ -> Left $ InvalidArguments "Invalid left-hand side for assignment (struct base must be a variable)" lnCount
 
 compileComparisonExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileComparisonExpr fexp lhs rhs env lc =
+compileComparisonExpr fexp lhs rhs env lnCount =
   case (inferType lhs env, inferType rhs env) of
     (Just t1, Just t2) ->
       case (compileExpr lhs env, compileExpr rhs env) of
@@ -131,54 +132,54 @@ compileComparisonExpr fexp lhs rhs env lc =
           case checkComparisonTypes t1 t2 of
             Right () -> case maybeFuncName fexp of
               Just opName -> Right (rcode ++ lcode ++ [DoOp (stringToOp opName)])
-              Nothing -> Left $ InvalidArguments "Invalid comparison operator expression" lc
-            Left terr -> Left $ InvalidArguments (prettyTypeError terr) lc
+              Nothing -> Left $ InvalidArguments "Invalid comparison operator expression" lnCount
+            Left terr -> Left $ InvalidArguments (prettyTypeError terr) lnCount
         (Left e, _) -> Left e
         (_, Left e) -> Left e
-    _ -> Left $ InvalidArguments "Unable to infer types for comparison" lc
+    _ -> Left $ InvalidArguments "Unable to infer types for comparison" lnCount
 
 compileArithmeticExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileArithmeticExpr fexp lhs rhs env lc =
+compileArithmeticExpr fexp lhs rhs env lnCount =
   case (inferType lhs env, inferType rhs env) of
     (Just t1, Just t2) -> case maybeFuncName fexp of
       Just opName ->
-        validateArithmeticOperands opName t1 t2 lc >>
+        validateArithmeticOperands opName t1 t2 lnCount >>
         (case opName `elem` ["/", "%"] of
-          True -> validateDivisionByZero lhs rhs lc
+          True -> validateDivisionByZero lhs rhs lnCount
           False -> Right ()) >>
         (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
-      Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lc
-    _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lc
+      Nothing -> Left $ InvalidArguments "Invalid arithmetic operator expression" lnCount
+    _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lnCount
 
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileFunctionCall fexp args env lc =
+compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
     Just name | name `elem` (comparisonOps ++ arithOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
         Just vartype -> 
-          validateNonCallable name vartype lc >>
-          matchFunctionCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lc
-        Nothing -> matchFunctionCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lc
+          validateNonCallable name vartype lnCount >>
+          matchFunctionCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lnCount
+        Nothing -> matchFunctionCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lnCount
     Nothing ->
       (++) <$> (concat <$> mapM (`compileExpr` env) (reverse args))
            <*> ((++) <$> compileExpr fexp env <*> Right [Call])
 
 matchFunctionCall :: String -> Maybe Type -> Maybe [Type] -> [Maybe Type] -> Either CompilerError [[Instr]] -> LineCount -> Either CompilerError [Instr]
-matchFunctionCall funcName (Just t) (Just expectedTypes) argTypes (Right argInstrs) lc = case unwrapType t of
+matchFunctionCall funcName (Just t) (Just expectedTypes) argTypes (Right argInstrs) lnCount = case unwrap t of
   TKonst _ ->
-    case checkFunctionCallTypes lc expectedTypes argTypes of
+    case checkFunctionCallTypes lnCount expectedTypes argTypes of
       Right () -> Right (concat argInstrs ++ compileCall funcName)
       Left err -> Left err
-  _ -> Left $ UnknownFunction funcName lc
-matchFunctionCall _ (Just t) (Just _) _ (Left err) _lc = case unwrapType t of
+  _ -> Left $ UnknownFunction funcName lnCount
+matchFunctionCall _ (Just t) (Just _) _ (Left err) _lnCount = case unwrap t of
   TKonst _ -> Left err
   _ -> Left err
-matchFunctionCall funcName (Just t) Nothing _ _ lc = case unwrapType t of
-  TKonst _ -> Left $ UnknownFunction funcName lc
-  _ -> Left $ UnknownFunction funcName lc
-matchFunctionCall funcName _ _ _ _ lc = Left $ UnknownFunction funcName lc
+matchFunctionCall funcName (Just t) Nothing _ _ lnCount = case unwrap t of
+  TKonst _ -> Left $ UnknownFunction funcName lnCount
+  _ -> Left $ UnknownFunction funcName lnCount
+matchFunctionCall funcName _ _ _ _ lnCount = Left $ UnknownFunction funcName lnCount
 
 compileArgsForCall :: CompilerEnv -> Maybe [Type] -> [AExpression] -> Either CompilerError [[Instr]]
 compileArgsForCall env (Just expectedTypes) args =
@@ -192,7 +193,7 @@ compileArgForCall env expectedType arg
   | otherwise = compileExpr arg env
 
 isRefTypeWrapped :: Type -> Bool
-isRefTypeWrapped t = case unwrapType t of
+isRefTypeWrapped t = case unwrap t of
   TRef _ -> True
   TKonst ty -> isRefTypeWrapped ty
   TStrong ty -> isRefTypeWrapped ty
@@ -200,18 +201,18 @@ isRefTypeWrapped t = case unwrapType t of
   _ -> False
 
 compileAsReference :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileAsReference expr env = case unwrapExpr expr of
-  AValue val -> case unwrapValue val of
+compileAsReference expr env = case unwrap expr of
+  AValue val -> case unwrap val of
     AVarCall vname ->
       case M.lookup vname (typeAliases env) of
         Just _ -> Right [PushEnv vname]
-        Nothing -> Left (UnknownVariable vname (getExprLineCount expr))
+        Nothing -> Left (UnknownVariable vname (lc expr))
     _ -> compileExpr expr env
   _ -> compileExpr expr env
 
 compilePrintCall :: [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compilePrintCall [arg] env _ = case unwrapExpr arg of
-  AValue val -> case unwrapValue val of
+compilePrintCall [arg] env _ = case unwrap arg of
+  AValue val -> case unwrap val of
     AString s -> Right [Push (VList (V.fromList (map (VNumber . VChar) s))), Syscall (Print 1)]
     ATuple xs -> fmap (\instrs -> instrs ++ [Syscall (Print 1)]) (compileListLiteral xs env)
     AArray xs -> fmap (\instrs -> instrs ++ [Syscall (Print 1)]) (compileListLiteral xs env)
@@ -233,7 +234,7 @@ compileCall name
   | otherwise = [PushEnv name, Call]
 
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
-compileValue val env = case unwrapValue val of
+compileValue val env = case unwrap val of
   ANumber number -> Right [Push (VNumber (compileNumber number))]
   AString s -> Right [Push (VList (V.fromList (map (VNumber . VChar) s)))]
   ATuple exprs -> compileListLiteral exprs env
@@ -244,13 +245,14 @@ compileValue val env = case unwrapValue val of
     case checkLambdaReturn retType body env' of
       Left err -> Left err
       Right () ->
-        fmap makeLambda (compileAstWith compileExpr (getValueLineCount val, ABlock body) env')
+        fmap makeLambda (compileAstWith compileExpr (lc val, ABlock body) env')
     where
-      env' = foldl (\e p -> case unwrapAst p of { AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e }) env params
+      env' = foldl (\e p -> case unwrap p of { AVarDecl t n _ -> e { typeAliases = M.insert n t (typeAliases e) }; _ -> e }) env params
       paramNames = extractParamNames params
       globalNames = extractGlobalNames (typeAliases env)
       capturedNames = L.nub (paramNames ++ globalNames)
-      genParam p = case unwrapAst p of
+      genParam :: Ast -> [Instr]
+      genParam p = case unwrap p of
         AVarDecl t pname _
           | isRefTypeWrapped t -> [SetVar pname]
           | otherwise -> [Alloc, StoreRef, SetVar pname]
@@ -262,10 +264,10 @@ compileValue val env = case unwrapValue val of
         | isRefTypeWrapped (resolveType env t) -> Right [PushEnv vname, LoadRef]  -- References: load the address they point to
         | not (isKonst (resolveType env t)) -> Right [PushEnv vname, LoadRef]  -- Non-const vars
         | otherwise -> Right [PushEnv vname]  -- Const vars
-      Nothing -> Left (UnknownVariable vname (getValueLineCount val))
+      Nothing -> Left (UnknownVariable vname (lc val))
 
 elementTypeFromResolved :: Type -> Maybe Type
-elementTypeFromResolved t = case unwrapType t of
+elementTypeFromResolved t = case unwrap t of
   TArray et _ -> Just et
   TVector et _ -> Just et
   TKonst ty -> elementTypeFromResolved ty
@@ -280,8 +282,8 @@ lookupResolved env v =
     Nothing -> Nothing
 
 tupleIndexType :: [Type] -> AExpression -> Maybe Type
-tupleIndexType ts expr = case unwrapExpr expr of
-  AValue val -> case unwrapValue val of
+tupleIndexType ts expr = case unwrap expr of
+  AValue val -> case unwrap val of
     ANumber num -> case num of
       AInteger i
         | i >= 0 && i < length ts -> Just (ts !! i)
@@ -296,12 +298,12 @@ checkLambdaReturn expected bodyStmts scope =
     validateReturnsInBody bodyStmts expected (extendScopeWithPrefixDecls bodyStmts scope)
 
 isReturnStmt :: Ast -> Bool
-isReturnStmt ast = case unwrapAst ast of
+isReturnStmt ast = case unwrap ast of
   AReturn _ -> True
   _ -> False
 
 extendWithDecl :: CompilerEnv -> Ast -> CompilerEnv
-extendWithDecl env ast = case unwrapAst ast of
+extendWithDecl env ast = case unwrap ast of
   AVarDecl t n _ -> env { typeAliases = M.insert n t (typeAliases env) }
   _ -> env
 
@@ -309,37 +311,37 @@ extendScopeWithPrefixDecls :: [Ast] -> CompilerEnv -> CompilerEnv
 extendScopeWithPrefixDecls stmts env = foldl extendWithDecl env (takeWhile (not . isReturnStmt) stmts)
 
 checkAccessType :: Maybe Type -> LineCount -> Either CompilerError ()
-checkAccessType (Just t) lc = case unwrapType t of
+checkAccessType (Just t) lnCount = case unwrap t of
   TArray _ _ -> Right ()
   TVector _ _ -> Right ()
   TTuple _ -> Right ()
   TStruct _ -> Right ()
-  TKonst ty -> checkAccessType (Just ty) lc
-  TStrong ty -> checkAccessType (Just ty) lc
-  TKong ty -> checkAccessType (Just ty) lc
-  _ -> Left $ InvalidArguments "Invalid type for access (not a struct/array/vector)" lc
-checkAccessType Nothing lc = Left $ InvalidArguments "Unable to infer type for access" lc
+  TKonst ty -> checkAccessType (Just ty) lnCount
+  TStrong ty -> checkAccessType (Just ty) lnCount
+  TKong ty -> checkAccessType (Just ty) lnCount
+  _ -> Left $ InvalidArguments "Invalid type for access (not a struct/array/vector)" lnCount
+checkAccessType Nothing lnCount = Left $ InvalidArguments "Unable to infer type for access" lnCount
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
 compileAccess access env = 
-  validateAccess access env (getAccessLineCount access) >>= \() ->
-    case unwrapAccess access of
+  validateAccess access env (lc access) >>= \() ->
+    case unwrap access of
       AArrayAccess arrExpr idx ->
-        matchAccess (getAccessLineCount access) (inferType arrExpr env)
+        matchAccess (lc access) (inferType arrExpr env)
           ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr arrExpr env) <*> Right [GetList])
       AVectorAccess vecExpr idx ->
-        matchAccess (getAccessLineCount access) (inferType vecExpr env)
+        matchAccess (lc access) (inferType vecExpr env)
           ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr vecExpr env) <*> Right [GetList])
       ATupleAccess tupleExpr idx ->
-        matchAccess (getAccessLineCount access) (inferType tupleExpr env)
+        matchAccess (lc access) (inferType tupleExpr env)
           ((++) <$> ((++) <$> compileExpr idx env <*> compileExpr tupleExpr env) <*> Right [GetList])
       AStructAccess structExpr fieldPath ->
-        matchAccess (getAccessLineCount access) (inferType structExpr env)
+        matchAccess (lc access) (inferType structExpr env)
           ((++) <$> compileExpr structExpr env <*> Right (map GetStruct fieldPath))
 
 matchAccess :: LineCount -> Maybe Type -> Either CompilerError [Instr] -> Either CompilerError [Instr]
-matchAccess lc t (Right code) =
-  case checkAccessType t lc of
+matchAccess lnCount t (Right code) =
+  case checkAccessType t lnCount of
     Right () -> Right code
     Left err -> Left err
 matchAccess _ _ (Left err) = Left err
@@ -353,7 +355,8 @@ pushVarValue env vname
 extractParamNames :: [Ast] -> [String]
 extractParamNames = foldr step []
   where
-    step ast acc = case unwrapAst ast of
+    step :: Ast -> [String] -> [String]
+    step ast acc = case unwrap ast of
       AVarDecl _ name _ -> name : acc
       _ -> acc
 
@@ -380,20 +383,20 @@ compileStructLiteral fieldPairs env =
     fieldNames = map fst fieldPairs
 
 compileCast :: Type -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compileCast targetType expr env lc =
+compileCast targetType expr env lnCount =
   case inferType expr env of
     Just exprType ->
-      isValidCast exprType targetType env lc >>
+      isValidCast exprType targetType env lnCount >>
       case typeToNumberType (resolveType env targetType) of
         Just numType ->
           fmap (\exprCode -> exprCode ++ [Cast numType]) (compileExpr expr env)
         Nothing ->
-          Left $ InvalidCast ("Cannot cast to non-numeric type: " ++ show targetType) lc
+          Left $ InvalidCast ("Cannot cast to non-numeric type: " ++ show targetType) lnCount
     Nothing ->
-      Left $ InvalidArguments "Unable to infer type of expression being cast" lc
+      Left $ InvalidArguments "Unable to infer type of expression being cast" lnCount
 
 typeToNumberType :: Type -> Maybe NumberType
-typeToNumberType t = case unwrapType t of
+typeToNumberType t = case unwrap t of
   TInt -> Just NTInt
   TBool -> Just NTBool
   TChar -> Just NTChar

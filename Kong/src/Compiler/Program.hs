@@ -7,7 +7,8 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, unwrapAst, checkMainSignature, validateStructDefinition, getAstLineCount, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, checkMainSignature, validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
 import Control.Monad (foldM)
@@ -28,7 +29,7 @@ compileProgram fas =
         selectResult _ _ errs = Left errs
 
 enrichEnvWithAst :: CompilerEnv -> Ast -> CompilerEnv
-enrichEnvWithAst env ast = case unwrapAst ast of
+enrichEnvWithAst env ast = case unwrap ast of
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env
 
@@ -71,19 +72,19 @@ compileWithEnv env ast = fst <$> compileAst ast env
 buildAliasEnv :: [Ast] -> Either ProgramError CompilerEnv
 buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
   where
-    stepAlias e a = case unwrapAst a of
+    stepAlias e a = case unwrap a of
       ATypeAlias name _ -> 
-        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
+        case validateNoDuplicateDeclaration name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
           Right () -> Right (insertTypeAlias e a)
       AStruktDef name fds -> 
-        case validateNoDuplicateStruct name e (getAstLineCount a) of
+        case validateNoDuplicateStruct name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
-          Right () -> case validateStructDefinition e name fds (getAstLineCount a) of
+          Right () -> case validateStructDefinition e name fds (lc a) of
             Left err -> Left (ProgramError "<global>" a err)
             Right () -> Right (insertTypeAlias e a)
       AVarDecl _ name _ ->
-        case validateNoDuplicateDeclaration name e (getAstLineCount a) of
+        case validateNoDuplicateDeclaration name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
           Right () -> Right e
       _ -> Right e
@@ -92,6 +93,6 @@ extractTopLevel :: [Ast] -> [Ast]
 extractTopLevel = concatMap extractFromAst
 
 extractFromAst :: Ast -> [Ast]
-extractFromAst a = case unwrapAst a of
+extractFromAst a = case unwrap a of
   ABlock innerAsts -> concatMap extractFromAst innerAsts
   _ -> [a]
