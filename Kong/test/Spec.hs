@@ -4,11 +4,12 @@ import qualified System.Exit as Exit
 import Test.HUnit
 
 import KongCompilerTests (kongCompilerTests)
+import KongCompilerErrorTests (kongCompilerErrorTests)
 import KongVMTests (kongVMTests)
 import BaseParsingTest(baseParsingTests)
 
 tests :: Test
-tests = TestList (kongCompilerTests <> kongVMTests <> baseParsingTests)
+tests = TestList (kongCompilerTests <> kongCompilerErrorTests <> kongVMTests <> baseParsingTests)
 
 main :: IO ()
 main = do

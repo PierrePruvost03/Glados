@@ -12,25 +12,7 @@ import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (emptyEnv, CompilerEnv(..))
-import Parser (LineCount)
-
-lc :: LineCount
-lc = (0, 0)
-
-wrapAst :: AstRaw -> Ast
-wrapAst = (,) lc
-
-wrapExpr :: AExpressionRaw -> AExpression
-wrapExpr = (,) lc
-
-wrapValue :: AstValueRaw -> AstValue
-wrapValue = (,) lc
-
-wrapType :: TypeRaw -> Type
-wrapType = (,) lc
-
-wrapAccess :: AstAccessRaw -> AstAccess
-wrapAccess = (,) lc
+import TestHelpers
 
 testCompileInteger :: Test
 testCompileInteger =
@@ -726,6 +708,224 @@ testStringConcat =
         )
     )
 
+testIfElseCompile :: Test
+testIfElseCompile =
+  TestCase
+    ( assertBool
+        "should compile if-else statement"
+        ( case compileWithEnv emptyEnv (wrapAst (AIf 
+            (wrapAst (AExpress (wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "<"))))
+              [wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))),
+               wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))]))))
+            (wrapAst (AReturn (wrapAst (AExpress (wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))))))))
+            (Just (wrapAst (AReturn (wrapAst (AExpress (wrapExpr (AValue (wrapValue (ANumber (AInteger 0))))))))))
+          )) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testComplexArithmetic :: Test
+testComplexArithmetic =
+  TestCase
+    ( assertBool
+        "should compile complex arithmetic expression"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "+"))))
+            [
+              wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "*"))))
+                [wrapExpr (AValue (wrapValue (ANumber (AInteger 2)))),
+                 wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))]),
+              wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "/"))))
+                [wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))),
+                 wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))])
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testNestedFunctionCalls :: Test
+testNestedFunctionCalls =
+  TestCase
+    ( assertBool
+        "should compile nested function calls"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "print"))))
+            [wrapExpr (ACall (wrapExpr (AValue (wrapValue (AVarCall "+"))))
+              [wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))),
+               wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))])]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testMixedIntFloat :: Test
+testMixedIntFloat =
+  TestCase
+    ( assertBool
+        "should allow mixed int and float operations"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "+"))))
+            [
+              wrapExpr (AValue (wrapValue (ANumber (AInteger 5)))),
+              wrapExpr (AValue (wrapValue (ANumber (AFloat 3.5))))
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testCastCharToInt :: Test
+testCastCharToInt =
+  TestCase
+    ( assertBool
+        "should compile cast from char to int"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACast (wrapType TInt) 
+            (wrapExpr (AValue (wrapValue (ANumber (AChar 'A')))))
+          )))) of
+            Right [Push (VNumber (VChar 'A')), Cast NTInt] -> True
+            _ -> False
+        )
+    )
+
+testCastBoolToInt :: Test
+testCastBoolToInt =
+  TestCase
+    ( assertBool
+        "should compile cast from bool to int"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACast (wrapType TInt) 
+            (wrapExpr (AValue (wrapValue (ANumber (ABool True)))))
+          )))) of
+            Right [Push (VNumber (VBool True)), Cast NTInt] -> True
+            _ -> False
+        )
+    )
+
+testModuloOperation :: Test
+testModuloOperation =
+  TestCase
+    ( assertBool
+        "should compile modulo operation"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "%"))))
+            [
+              wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))),
+              wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testGreaterOrEqualOperation :: Test
+testGreaterOrEqualOperation =
+  TestCase
+    ( assertBool
+        "should compile >= operation"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall ">="))))
+            [
+              wrapExpr (AValue (wrapValue (ANumber (AInteger 5)))),
+              wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testLogicalAnd :: Test
+testLogicalAnd =
+  TestCase
+    ( assertBool
+        "should compile logical AND operation"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "&&"))))
+            [
+              wrapExpr (AValue (wrapValue (ANumber (ABool True)))),
+              wrapExpr (AValue (wrapValue (ANumber (ABool False))))
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testLogicalOr :: Test
+testLogicalOr =
+  TestCase
+    ( assertBool
+        "should compile logical OR operation"
+        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
+            (wrapExpr (AValue (wrapValue (AVarCall "||"))))
+            [
+              wrapExpr (AValue (wrapValue (ANumber (ABool True)))),
+              wrapExpr (AValue (wrapValue (ANumber (ABool False))))
+            ]
+          )))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testNestedStruct :: Test
+testNestedStruct =
+  TestCase
+    ( assertBool
+        "should compile nested struct"
+        ( case compileWithEnv 
+            (emptyEnv { 
+              structDefs = M.fromList [
+                ("Address", [(wrapType TString, "city"), (wrapType TInt, "zip")]),
+                ("Person", [(wrapType TString, "name"), (wrapType (TStruct "Address"), "address")])
+              ]
+            })
+            (wrapAst (AVarDecl (wrapType (TStruct "Person")) "p"
+              (Just (wrapExpr (AValue (wrapValue (AStruct [
+                ("name", wrapExpr (AValue (wrapValue (AString "Alice")))),
+                ("address", wrapExpr (AValue (wrapValue (AStruct [
+                  ("city", wrapExpr (AValue (wrapValue (AString "Paris")))),
+                  ("zip", wrapExpr (AValue (wrapValue (ANumber (AInteger 75001)))))
+                ]))))
+              ]))))))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+testArrayOfStructs :: Test
+testArrayOfStructs =
+  TestCase
+    ( assertBool
+        "should compile array of structs"
+        ( case compileWithEnv 
+            (emptyEnv { 
+              structDefs = M.fromList [("Point", [(wrapType TInt, "x"), (wrapType TInt, "y")])]
+            })
+            (wrapAst (AVarDecl 
+              (wrapType (TArray (wrapType (TStruct "Point")) (wrapExpr (AValue (wrapValue (ANumber (AInteger 2)))))))
+              "points"
+              (Just (wrapExpr (AValue (wrapValue (AArray [
+                wrapExpr (AValue (wrapValue (AStruct [
+                  ("x", wrapExpr (AValue (wrapValue (ANumber (AInteger 1))))),
+                  ("y", wrapExpr (AValue (wrapValue (ANumber (AInteger 2)))))
+                ]))),
+                wrapExpr (AValue (wrapValue (AStruct [
+                  ("x", wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))),
+                  ("y", wrapExpr (AValue (wrapValue (ANumber (AInteger 4)))))
+                ])))
+              ]))))))) of
+            Right _ -> True
+            Left _ -> False
+        )
+    )
+
+
 kongCompilerTests :: [Test]
 kongCompilerTests =
   [
@@ -778,5 +978,17 @@ kongCompilerTests =
     TestLabel "struct definition" testStructDefinition,
     TestLabel "print string" testPrintString,
     TestLabel "print multiple args" testPrintMultipleArgs,
-    TestLabel "string concat" testStringConcat
+    TestLabel "string concat" testStringConcat,
+    TestLabel "If/Else/Then" testIfElseCompile,
+    TestLabel "Complex arithmetic" testComplexArithmetic,
+    TestLabel "Function call" testNestedFunctionCalls,
+    TestLabel "Int float operation" testMixedIntFloat,
+    TestLabel "Cast char to int" testCastCharToInt,
+    TestLabel "Cast bool to int" testCastBoolToInt,
+    TestLabel "modulo operation" testModuloOperation,
+    TestLabel ">= operation" testGreaterOrEqualOperation,
+    TestLabel "And op" testLogicalAnd,
+    TestLabel "or op" testLogicalOr,
+    TestLabel "create Struct" testNestedStruct,
+    TestLabel "Array of Struct" testArrayOfStructs
   ]
