@@ -1,4 +1,4 @@
-module Compiler.Program
+module Compiler.BytecodeGen.Program
   ( compileProgram
   , resultsToEither
   , expand
@@ -12,7 +12,7 @@ import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv)
 import Compiler.Type.Return (checkMainSignature)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.Statements (compileAst)
+import Compiler.BytecodeGen.Statements (compileAst)
 import qualified Data.Map as M
 import Control.Monad (foldM)
 

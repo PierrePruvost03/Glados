@@ -1,4 +1,4 @@
-module Compiler.Expr
+module Compiler.BytecodeGen.Expr
   ( compileExpr
   , compileCall
   , compileValue
@@ -20,7 +20,7 @@ import Compiler.TypeError (prettyTypeError)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
-import Compiler.Block (compileAstWith)
+import Compiler.BytecodeGen.Block (compileAstWith)
 import Parser (LineCount)
 
 maybeFuncName :: AExpression -> Maybe String

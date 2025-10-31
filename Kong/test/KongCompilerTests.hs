@@ -4,13 +4,14 @@ import Data.List (isInfixOf)
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import Test.HUnit
-import Compiler.Program (compileWithEnv)
+import Compiler.BytecodeGen.Program (compileWithEnv)
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (Op(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
-import Compiler.Types (CompilerError(..), emptyEnv, CompilerEnv(..))
+import Compiler.Type.Error (CompilerError(..))
+import Compiler.Type.Inference (emptyEnv, CompilerEnv(..))
 import Parser (LineCount)
 
 lc :: LineCount

@@ -1,4 +1,4 @@
-module Compiler.Block
+module Compiler.BytecodeGen.Block
   ( compileAstWith
   , declareDefault
   , declareWithValue

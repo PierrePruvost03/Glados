@@ -1,4 +1,4 @@
-module Compiler.Statements
+module Compiler.BytecodeGen.Statements
   ( compileAst
   , extractParamNames
   , defaultValue
@@ -11,8 +11,8 @@ import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..))
 import Compiler.Type.Validation (validateStructDefinition)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.Expr (compileExpr)
-import Compiler.Block (declareDefault, declareWithValue, defaultValue, compileIf)
+import Compiler.BytecodeGen.Expr (compileExpr)
+import Compiler.BytecodeGen.Block (declareDefault, declareWithValue, defaultValue, compileIf)
 import qualified Data.Map as M
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
