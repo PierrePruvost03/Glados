@@ -11,17 +11,31 @@ module Compiler.BytecodeGen.Expr.Helpers
   , isReturnStmt
   , extendWithDecl
   , extendScopeWithPrefixDecls
+  , isAssignmentCall
+  , isComparisonCall
+  , isArithmeticCall
+  , isPrintCall
+  , extractVariableName
+  , buildLambdaEnv
+  , getCapturedNames
+  , compileLambdaParams
+  , isDivisionOp
+  , isFunctionType
+  , addPrintSyscall
   ) where
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..), NumberType(..))
-import DataStruct.Bytecode.Value (Instr(..))
+import DataStruct.Bytecode.Value (Instr(..), Value(..))
+import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), resolveType)
 import Compiler.Type.Checks (isKonst)
 import Compiler.Type.Return (checkFunctionReturn, validateReturnsInBody)
 import Compiler.Unwrap (Unwrappable(..))
+import Compiler.BytecodeGen.Utils (extractParamNames, extractGlobalNames)
 import qualified Data.Map as M
+import qualified Data.List as L
 import Parser (LineCount)
 
 -- Extract function name from an expression if it's a simple variable call
@@ -118,3 +132,57 @@ extendWithDecl env ast = case unwrap ast of
 -- Extend scope with all declarations before the first return statement
 extendScopeWithPrefixDecls :: [Ast] -> CompilerEnv -> CompilerEnv
 extendScopeWithPrefixDecls stmts env = foldl extendWithDecl env (takeWhile (not . isReturnStmt) stmts)
+
+isAssignmentCall :: AExpression -> Bool
+isAssignmentCall fexp = maybeFuncName fexp == Just "="
+
+isComparisonCall :: AExpression -> [String] -> Bool
+isComparisonCall fexp ops = maybeFuncName fexp `elem` map Just ops
+
+isArithmeticCall :: AExpression -> [String] -> Bool
+isArithmeticCall fexp ops = maybeFuncName fexp `elem` map Just ops
+
+isPrintCall :: AExpression -> Bool
+isPrintCall fexp = maybeFuncName fexp == Just "print"
+
+-- Extract variable name from an expression if it's a simple variable
+extractVariableName :: AExpression -> Maybe String
+extractVariableName expr = case unwrap expr of
+  AValue val -> case unwrap val of
+    AVarCall name -> Just name
+    _ -> Nothing
+  _ -> Nothing
+
+
+-- Build environment with lambda parameters added to type aliases
+buildLambdaEnv :: [Ast] -> CompilerEnv -> CompilerEnv
+buildLambdaEnv params env = foldl extendWithDecl env params
+
+-- Get captured variable names (params + globals) for lambda closure
+getCapturedNames :: [Ast] -> CompilerEnv -> [String]
+getCapturedNames params env = L.nub (extractParamNames params ++ extractGlobalNames (typeAliases env))
+
+-- Compile lambda parameter setup instructions
+compileLambdaParams :: [Ast] -> [Instr]
+compileLambdaParams params = concatMap compileSingleParam params
+
+-- Helper to compile a single parameter setup
+compileSingleParam :: Ast -> [Instr]
+compileSingleParam p = case unwrap p of
+  AVarDecl t pname _
+    | isRefTypeWrapped t -> [SetVar pname]
+    | otherwise -> [Alloc, StoreRef, SetVar pname]
+  _ -> []
+
+isDivisionOp :: String -> Bool
+isDivisionOp op = op `elem` ["/", "%"]
+
+-- Check if a type is a function type (TKonst)
+isFunctionType :: Type -> Bool
+isFunctionType t = case unwrap t of
+  TKonst _ -> True
+  _ -> False
+
+-- Add a print syscall to compiled instructions
+addPrintSyscall :: Int -> [Instr] -> [Instr]
+addPrintSyscall n instrs = instrs ++ [Syscall (Print n)]
