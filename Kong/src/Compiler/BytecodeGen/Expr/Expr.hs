@@ -3,6 +3,8 @@ module Compiler.BytecodeGen.Expr.Expr
   , compileCall
   , compileValue
   , compileAccess
+  , compileIf
+  , compileLoop
   ) where
 
 import DataStruct.Ast
@@ -17,8 +19,8 @@ import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, va
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
-import Compiler.BytecodeGen.Block.Block (compileAstWith)
 import Compiler.BytecodeGen.Expr.Helpers
+import Compiler.BytecodeGen.Block.Helpers (declareWithValue)
 import Parser (LineCount)
 
 
@@ -252,12 +254,37 @@ compileValue val env = case unwrap val of
   AStruct structFields -> compileStructLiteral structFields env
   ALambda params retType body ->
     checkLambdaReturn retType body lambdaEnv >>= \() ->
-      fmap makeLambdaValue (compileAstWith compileExpr (lc val, ABlock body) lambdaEnv)
+      fmap makeLambdaValue (compileBlockForLambda body lambdaEnv)
     where
       lambdaEnv = buildLambdaEnv params env
       capturedNames = getCapturedNames params env
       paramInstrs = compileLambdaParams params
       makeLambdaValue (bodyCode, _) = [Push (VFunction capturedNames (V.fromList (paramInstrs ++ bodyCode)))]
+      
+      -- Compile a block of statements for a lambda body
+      -- Simplified version that only handles what's needed inside lambdas
+      compileBlockForLambda :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
+      compileBlockForLambda asts env' = 
+        foldl
+          (\acc a -> acc >>= \(code, sc) ->
+              compileSingleAst a sc >>= \(code', sc') -> Right (code ++ code', sc'))
+          (Right ([], env'))
+          asts
+      
+      -- Compile a single AST node inside a lambda
+      compileSingleAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
+      compileSingleAst ast env' = case unwrap ast of
+        ABlock innerAsts -> compileBlockForLambda innerAsts env'
+        AVarDecl t name (Just initExpr) ->
+          compileExpr initExpr env' >>= \initCode ->
+            Right (declareWithValue env' t name initCode)
+        AVarDecl _ name Nothing ->
+          Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))
+        AExpress expr -> fmap (\instrs -> (instrs, env')) (compileExpr expr env')
+        AReturn expr -> compileSingleAst expr env' >>= \(instrs, _) -> Right (instrs ++ [Ret], env')
+        AIf _ _ _ -> fmap (\instrs -> (instrs, env')) (compileIf compileExpr compileSingleAst ast env')
+        ALoop _ _ _ _ -> fmap (\instrs -> (instrs, env')) (compileLoop compileExpr compileSingleAst ast env')
+        other -> Left $ UnsupportedAst ("Unsupported in lambda: " ++ show other) (lc ast)
   AVarCall vname ->
     case M.lookup vname (typeAliases env) of
       Just t
@@ -323,3 +350,41 @@ compileCast targetType expr env lnCount =
           Left $ InvalidCast exprType targetType lnCount
     Nothing ->
       Left $ InvalidArguments "Unable to infer type of expression being cast" lnCount
+
+
+-- CONTROL FLOW (IF, LOOP)
+
+-- Compile an if-else statement into bytecode with conditional jumps
+compileIf :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+          -> (Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv))
+          -> Ast -> CompilerEnv -> Either CompilerError [Instr]
+compileIf exprCompiler astCompiler ast env = case unwrap ast of
+  AIf condAst thenBranch elseBranch ->
+    case unwrap condAst of
+      AExpress cond ->
+        exprCompiler cond env >>= \compiledCond ->
+          astCompiler thenBranch env >>= \(compiledThen, _) ->
+            case elseBranch of
+              Just elseAst ->
+                astCompiler elseAst env >>= \(compiledElse, _) ->
+                  Right (compiledCond ++ [JumpIfFalse (length compiledThen + 2)] ++ compiledThen ++ [Jump (length compiledElse + 1)] ++ compiledElse)
+              Nothing ->
+                Right (compiledCond ++ [JumpIfFalse (length compiledThen + 1)] ++ compiledThen)
+      _ -> Left $ UnsupportedAst "If condition must be an expression" (lc ast)
+  _ -> Left $ UnsupportedAst "If statement not supported" (lc ast)
+
+-- Compile a loop (for/while) into bytecode instructions
+compileLoop :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+            -> (Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv))
+            -> Ast -> CompilerEnv -> Either CompilerError [Instr]
+compileLoop _exprCompiler astCompiler ast env = case unwrap ast of
+  ALoop initAst cond incr body ->
+    f initAst env >>= \(compiledInit, newenv) ->
+      astCompiler cond newenv >>= \(compiledCond, newenv') ->
+        f incr newenv' >>= \(compiledIncr, newenv'') ->
+          astCompiler body newenv'' >>= \(compiledBody, _) ->
+            Right (compiledInit ++ compiledCond ++ [JumpIfFalse (length compiledBody + length compiledIncr + 2)] ++ compiledBody ++ compiledIncr ++ [Jump (- (length compiledBody + length compiledIncr + length compiledCond + 2))])
+    where
+      f (Just a) newEnv = astCompiler a newEnv
+      f Nothing newEnv = Right ([], newEnv)
+  _ -> Left $ UnsupportedAst "Loop not supported" (lc ast)

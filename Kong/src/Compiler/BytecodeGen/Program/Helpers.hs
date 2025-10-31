@@ -21,7 +21,7 @@ import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv)
 import Compiler.Type.Return (checkMainSignature)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.BytecodeGen.Statements (compileAst)
+import Compiler.BytecodeGen.Block.Block (compileAst)
 import qualified Data.Map as M
 
 -- Check if main function exists and validate its signature

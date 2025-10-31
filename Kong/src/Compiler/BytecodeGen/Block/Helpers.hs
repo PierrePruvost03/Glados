@@ -4,11 +4,12 @@ module Compiler.BytecodeGen.Block.Helpers
   , checkArrayAliasMatch
   , validateInitializerValue
   , compileVarInitialization
+  , declareWithValue
   ) where
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Type.Checks (bothNumeric, isRefType)
+import Compiler.Type.Checks (bothNumeric, isRefType, isKonst)
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), resolveType, inferType)
 import Compiler.Type.Normalization (eqTypeNormalized)
@@ -17,6 +18,14 @@ import Compiler.Type.Validation (validateConstantBounds)
 import Compiler.Unwrap (Unwrappable(..))
 import Parser (LineCount)
 import qualified Data.Map as M
+
+-- Declare a variable with its value
+declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
+declareWithValue env t name exprCode
+  | isKonst t' = (exprCode ++ [SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  where 
+    t' = resolveType env t
 
 -- Check if two types are compatible for assignment/initialization
 typesCompatible :: CompilerEnv -> Type -> Type -> Bool
@@ -76,12 +85,12 @@ compileVarInitialization :: (AExpression -> CompilerEnv -> Either CompilerError 
                          -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                          -> LineCount 
                          -> Either CompilerError ([Instr], CompilerEnv)
-compileVarInitialization compileExpr vType vName initExpr env declareWithValue lineCount =
+compileVarInitialization compileExpr vType vName initExpr env declareFunc lineCount =
   case inferType initExpr newEnv of
     Just inferredType -> 
-      compileWithTypeCheck compileExpr vType vName initExpr newEnv declareWithValue resolvedType inferredType lineCount
+      compileWithTypeCheck compileExpr vType vName initExpr newEnv declareFunc resolvedType inferredType lineCount
     Nothing -> 
-      compileWithoutTypeCheck compileExpr vType vName initExpr newEnv declareWithValue
+      compileWithoutTypeCheck compileExpr vType vName initExpr newEnv declareFunc
   where
     resolvedType = resolveType env vType
     newEnv = extendEnvWithVar env vType vName
@@ -92,12 +101,12 @@ compileWithTypeCheck :: (AExpression -> CompilerEnv -> Either CompilerError [Ins
                      -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                      -> Type -> Type -> LineCount
                      -> Either CompilerError ([Instr], CompilerEnv)
-compileWithTypeCheck compileExpr vType vName initExpr env declareWithValue resolvedType inferredType lineCount
+compileWithTypeCheck compileExpr vType vName initExpr env declareFunc resolvedType inferredType lineCount
   | isRefType resolvedType = 
       validateRefInit env resolvedType initExpr inferredType lineCount >>
-      compileAndDeclare compileExpr vType vName initExpr env declareWithValue
+      compileAndDeclare compileExpr vType vName initExpr env declareFunc
   | typesCompatible env resolvedType inferredType = 
-      compileAndDeclare compileExpr vType vName initExpr env declareWithValue
+      compileAndDeclare compileExpr vType vName initExpr env declareFunc
   | otherwise = 
       typeMismatchError resolvedType inferredType lineCount
 
@@ -106,16 +115,16 @@ compileWithoutTypeCheck :: (AExpression -> CompilerEnv -> Either CompilerError [
                         -> Type -> String -> AExpression -> CompilerEnv
                         -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                         -> Either CompilerError ([Instr], CompilerEnv)
-compileWithoutTypeCheck compileExpr vType vName initExpr env declareWithValue =
-  compileAndDeclare compileExpr vType vName initExpr env declareWithValue
+compileWithoutTypeCheck compileExpr vType vName initExpr env declareFunc =
+  compileAndDeclare compileExpr vType vName initExpr env declareFunc
 
 -- Compile expression and declare variable
 compileAndDeclare :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
                   -> Type -> String -> AExpression -> CompilerEnv
                   -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                   -> Either CompilerError ([Instr], CompilerEnv)
-compileAndDeclare compileExpr vType vName initExpr env declareWithValue =
-  fmap (declareWithValue env vType vName) (compileExpr initExpr env)
+compileAndDeclare compileExpr vType vName initExpr env declareFunc =
+  fmap (declareFunc env vType vName) (compileExpr initExpr env)
 
 -- Extend environment with a new variable binding
 extendEnvWithVar :: CompilerEnv -> Type -> String -> CompilerEnv
