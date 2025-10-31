@@ -7,6 +7,7 @@ import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..))
 import Compiler.Type.Validation (validateStructDefinition)
+import Compiler.Type.Normalization (typeToString)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Expr.Expr (compileExpr)
 import Compiler.BytecodeGen.Block.Block (declareWithValue, compileIf)
@@ -31,6 +32,10 @@ compileAst ast env = case unwrap ast of
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
       Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })
+  ATraitDef name methods ->
+    Right ([], env { traitDefs = M.insert name methods (traitDefs env) })
+  ATraitImpl traitName implType methods ->
+    compileTraitImpl traitName implType methods env
   AInclude _ _ ->
     Right ([], env)
   raw -> Left $ UnsupportedAst (show raw) (lc ast)
@@ -41,3 +46,11 @@ compileBlock (ast:rest) env =
   compileAst ast env >>= \(instrs1, env1) ->
     compileBlock rest env1 >>= \(instrs2, env2) ->
       Right (instrs1 ++ instrs2, env2)
+
+compileTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
+compileTraitImpl traitName implType methods env = 
+  compileBlock methods 
+    (env { traitImpls = M.insert 
+             (traitName, typeToString implType) 
+             (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+             (traitImpls env) })

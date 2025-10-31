@@ -14,6 +14,7 @@ import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
 import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, checkComparisonTypes)
 import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
+import Compiler.Type.Normalization (typeToString, stripWrap)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
@@ -35,7 +36,7 @@ compileExpr expr env = case unwrap expr of
   AValue astValue -> compileValue astValue env
   AAccess access -> compileAccess access env
   ACast targetType ex -> compileCast targetType ex env (lc expr)
-  AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (lc expr)
+  AMethodCall obj methodName args -> compileMethodCall obj methodName args env (lc expr)
   ACall fexp [lhs, val] | isAssignmentCall fexp ->
     compileAssignmentExpr lhs val env (lc expr)
   ACall fexp [lh, rh] | isComparisonCall fexp comparisonOps ->
@@ -307,3 +308,16 @@ compileCast targetType expr env lnCount =
           Left $ InvalidCast exprType targetType lnCount
     Nothing ->
       Left $ InvalidArguments "Unable to infer type of expression being cast" lnCount
+
+-- Compile a method call (obj.method(args))
+compileMethodCall :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileMethodCall obj methodName args env lnCount =
+  case inferType obj env of
+    Just objType ->
+      compileFunctionCall 
+        (lc obj, AValue (lc obj, AVarCall (typeToString (stripWrap objType) ++ "$" ++ methodName))) 
+        (obj : args)
+        env 
+        lnCount
+    Nothing ->
+      Left $ InvalidArguments ("Unable to infer type of object for method call '" ++ methodName ++ "'") lnCount

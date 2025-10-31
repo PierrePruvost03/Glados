@@ -5,6 +5,7 @@ module Compiler.Type.Normalization
   , normalizeExpr
   , normalizeValue
   , normalizeAccess
+  , typeToString
   ) where
 
 import DataStruct.Ast
@@ -61,3 +62,21 @@ normalizeAccess acc = case unwrap acc of
 -- Check if two types are equal after normalization
 eqTypeNormalized :: Type -> Type -> Bool
 eqTypeNormalized a b = normalize a == normalize b
+
+-- Get a clean string representation of a type for trait method names
+typeToString :: Type -> String
+typeToString t = case unwrap (normalize t) of
+  TInt -> "Int"
+  TBool -> "Bool"
+  TChar -> "Char"
+  TString -> "String"
+  TFloat -> "Float"
+  TStruct name -> name
+  TTrait name -> name
+  TArray ty _ -> typeToString ty ++ "[]"
+  TVector ty _ -> typeToString ty ++ "<>"
+  TTuple tys -> "|" ++ unwords (map typeToString tys) ++ "|"
+  TCustom name -> name
+  TFunc args ret -> "(" ++ unwords (map typeToString args) ++ "->" ++ typeToString ret ++ ")"
+  TRef ty -> "&" ++ typeToString ty
+  _ -> show (unwrap t)
