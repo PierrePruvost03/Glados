@@ -14,9 +14,10 @@ module Compiler.Type.Checks
   ) where
 
 import DataStruct.Ast
+import Parser (LineCount)
 import Compiler.Unwrap (Unwrappable(..))
 import Compiler.Type.Normalization (stripWrap, eqTypeNormalized)
-import Compiler.TypeError (TypeError(..))
+import Compiler.Type.Error (CompilerError(..))
 
 isFloatType :: Type -> Bool
 isFloatType t = case unwrap (stripWrap t) of
@@ -105,13 +106,11 @@ arithOps :: [String]
 arithOps = ["+", "-", "*", "/", "%"]
 
 -- Check if two types can be compared (must be equal or both numeric, and not non-comparable)
-checkComparisonTypes :: Type -> Type -> Either TypeError ()
-checkComparisonTypes t1 t2
+checkComparisonTypes :: Type -> Type -> LineCount -> Either CompilerError ()
+checkComparisonTypes t1 t2 lc
   | eqTypeNormalized t1 t2 = Right ()
   | bothNumeric (stripWrap t1) (stripWrap t2) = Right ()
-  | isNonComparableType (stripWrap t1) || isNonComparableType (stripWrap t2) = 
-      Left $ InvalidComparison (show t1 ++ " (non-comparable type)") (show t2)
-  | otherwise = Left $ InvalidComparison (show t1) (show t2)
+  | otherwise = Left $ InvalidComparison t1 t2 lc
 
 -- Check if a type cannot be compared (arrays, structs, tuples are non-comparable)
 isNonComparableType :: Type -> Bool

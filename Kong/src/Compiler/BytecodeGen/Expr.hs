@@ -16,7 +16,6 @@ import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, checkComparisonTy
 import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import Compiler.Type.Return (checkFunctionReturn, validateReturnsInBody)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.TypeError (prettyTypeError)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -132,11 +131,11 @@ compileComparisonExpr fexp lhs rhs env lnCount =
     (Just t1, Just t2) ->
       case (compileExpr lhs env, compileExpr rhs env) of
         (Right lcode, Right rcode) ->
-          case checkComparisonTypes t1 t2 of
+          case checkComparisonTypes t1 t2 lnCount of
             Right () -> case maybeFuncName fexp of
               Just opName -> Right (rcode ++ lcode ++ [DoOp (stringToOp opName)])
-              Nothing -> Left $ InvalidArguments "Invalid comparison operator expression" lnCount
-            Left terr -> Left $ InvalidArguments (prettyTypeError terr) lnCount
+              Nothing -> Left $ InvalidLeftHandSide lnCount
+            Left err -> Left err
         (Left e, _) -> Left e
         (_, Left e) -> Left e
     _ -> Left $ InvalidArguments "Unable to infer types for comparison" lnCount
@@ -383,7 +382,7 @@ compileCast targetType expr env lnCount =
         Just numType ->
           fmap (\exprCode -> exprCode ++ [Cast numType]) (compileExpr expr env)
         Nothing ->
-          Left $ InvalidCast ("Cannot cast to non-numeric type: " ++ show targetType) lnCount
+          Left $ InvalidCast exprType targetType lnCount
     Nothing ->
       Left $ InvalidArguments "Unable to infer type of expression being cast" lnCount
 

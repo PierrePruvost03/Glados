@@ -34,7 +34,7 @@ checkFunctionReturn retType body lineCount
   | isNonVoidType (unwrap (stripWrap retType)) = 
       case any hasReturn body of
         True -> Right ()
-        False -> Left $ MissingReturn "Function with non-void return type must have a return statement" lineCount
+        False -> Left $ MissingReturn lineCount
   | otherwise = Right ()
 
 isNonVoidType :: TypeRaw -> Bool

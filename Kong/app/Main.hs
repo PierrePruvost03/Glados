@@ -6,6 +6,7 @@ import System.IO (hPutStrLn, stderr)
 import DataStruct.VM (baseState, VMState (VMState, stack))
 import Compiler.BytecodeGen.Program (compileProgram)
 import Compiler.Include (sortByDependencies, applySelectiveImports, validateIncludes, validateNoDuplicateSymbols, IncludeError(..))
+import Compiler.Type.Error (ProgramError(..), prettyError)
 import VM.Execution (exec)
 import DataStruct.Ast (Ast)
 import DataStruct.Bytecode.Value (Instr(..), Value (VNumber))
@@ -87,8 +88,12 @@ printIncludeError (DuplicateSymbol symbol files) =
     hPutStrLn stderr ("[Include error] Symbol '" ++ symbol ++ "' is defined in multiple files: " ++
                      show files) >> exitFailure
 
-printCompileError :: Show e => e -> IO ()
-printCompileError errs = hPutStrLn stderr ("[Compilation error] " ++ show errs) >> exitFailure
+printCompileError :: [ProgramError] -> IO ()
+printCompileError errs = do
+    hPutStrLn stderr "[Compilation error]"
+    mapM_ (\(ProgramError file _ err) -> 
+        hPutStrLn stderr $ "  In file '" ++ file ++ "': " ++ prettyError err) errs
+    exitFailure
 
 handleExec :: [Instr] -> IO ()
 handleExec instrs = do

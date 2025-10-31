@@ -29,11 +29,10 @@ import Compiler.Type.Error (CompilerError(..))
 validateStructFieldAccess :: CompilerEnv -> String -> String -> LineCount -> Either CompilerError Type
 validateStructFieldAccess env structName fieldName lnCount =
   case M.lookup structName (structDefs env) of
-    Nothing -> Left $ UndefinedStruct ("Struct '" ++ structName ++ "' is not defined") lnCount
+    Nothing -> Left $ UndefinedStruct structName "" lnCount
     Just fds ->
       case lookup fieldName (map (\(ty, nm) -> (nm, ty)) fds) of
-        Nothing -> Left $ UnknownStructField 
-          ("Field '" ++ fieldName ++ "' does not exist in struct '" ++ structName ++ "'") lnCount
+        Nothing -> Left $ UnknownStructField structName fieldName lnCount
         Just fieldType -> Right fieldType
 
 -- Validate tuple element access by index (index must be constant integer within bounds)
@@ -41,10 +40,8 @@ validateTupleIndexAccess :: [Type] -> AExpression -> LineCount -> Either Compile
 validateTupleIndexAccess ts idxExpr lineCount = case unwrap idxExpr of
   AValue val -> case unwrap val of
     ANumber (AInteger i)
-      | i < 0 -> Left $ IndexOutOfBounds 
-          ("Tuple index " ++ show i ++ " is negative") lineCount
-      | i >= length ts -> Left $ IndexOutOfBounds 
-          ("Tuple index " ++ show i ++ " is out of bounds (tuple has " ++ show (length ts) ++ " elements)") lineCount
+      | i < 0 -> Left $ NegativeIndex i lineCount
+      | i >= length ts -> Left $ IndexOutOfBounds i (length ts) lineCount
       | otherwise -> Right (ts !! i)
     _ -> Left $ InvalidArguments "Tuple index must be a constant integer" lineCount
   _ -> Left $ InvalidArguments "Tuple index must be a constant integer" lineCount
@@ -56,10 +53,8 @@ validateArrayIndexAccess _ sizeExpr idxExpr lineCount =
     (AValue sizeVal, AValue idxVal) -> 
       case (unwrap sizeVal, unwrap idxVal) of
         (ANumber (AInteger size), ANumber (AInteger idx))
-          | idx < 0 -> Left $ IndexOutOfBounds 
-              ("Array index " ++ show idx ++ " is negative") lineCount
-          | idx >= size -> Left $ IndexOutOfBounds 
-              ("Array index " ++ show idx ++ " is out of bounds (array size is " ++ show size ++ ")") lineCount
+          | idx < 0 -> Left $ NegativeIndex idx lineCount
+          | idx >= size -> Left $ IndexOutOfBounds idx size lineCount
           | otherwise -> Right ()
         _ -> Right ()
     _ -> Right ()
@@ -123,7 +118,7 @@ validateTypeExists sName env ty lnCount = case unwrap ty of
   TRef innerType -> validateTypeExists sName env innerType lnCount
   TStruct sname -> case M.lookup sname (structDefs env) of
     Just _ -> Right ()
-    Nothing -> Left $ UndefinedStruct ("Struct '" ++ sname ++ " used in struct '" ++ sName ++ "' is not defined") lnCount
+    Nothing -> Left $ UndefinedStruct sname sName lnCount
   _ -> Right ()
 
 -- accept primitives, aliases or defined structs
@@ -134,14 +129,14 @@ validateCustomType sName env typeName lnCount
       Just _ -> Right ()
       Nothing -> case M.lookup typeName (structDefs env) of
         Just _ -> Right ()
-        Nothing -> Left $ UndefinedStruct ("Type '" ++ typeName ++ " used in struct '" ++ sName ++ "' is not defined") lnCount
+        Nothing -> Left $ UndefinedStruct typeName sName lnCount
 
 -- Check that division is not by zero
 validateDivisionByZero :: AExpression -> AExpression -> LineCount -> Either CompilerError ()
 validateDivisionByZero _lhs rhs lineCount = case unwrap rhs of
   AValue val -> case unwrap val of
-    ANumber (AInteger 0) -> Left $ DivisionByZero "Division by zero" lineCount
-    ANumber (AFloat 0.0) -> Left $ DivisionByZero "Division by zero" lineCount
+    ANumber (AInteger 0) -> Left $ DivisionByZero lineCount
+    ANumber (AFloat 0.0) -> Left $ DivisionByZero lineCount
     _ -> Right ()
   _ -> Right ()
 
@@ -151,21 +146,21 @@ validateConstantBounds ty num lineCount =
   case (unwrap ty, num) of
     (TInt, AInteger n) 
       | toInteger n < -2147483648 || toInteger n > 2147483647 -> 
-          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for int") lineCount
+          Left $ ConstantOverflow (toInteger n) "int" lineCount
     (TStrong innerT, AInteger n) -> case unwrap innerT of
       TInt | toInteger n < -9223372036854775808 || toInteger n > 9223372036854775807 -> 
-          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for long") lineCount
+          Left $ ConstantOverflow (toInteger n) "long" lineCount
       TKong innerInnerT -> case unwrap innerInnerT of
         TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
-            Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned long") lineCount
+            Left $ ConstantOverflow (toInteger n) "unsigned long" lineCount
         _ -> Right ()
       _ -> Right ()
     (TKong innerT, AInteger n) -> case unwrap innerT of
       TInt | toInteger n < 0 || toInteger n > 4294967295 -> 
-          Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned int") lineCount
+          Left $ ConstantOverflow (toInteger n) "unsigned int" lineCount
       TStrong innerInnerT -> case unwrap innerInnerT of
         TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
-            Left $ ConstantOverflow ("Integer constant " ++ show n ++ " out of bounds for unsigned long") lineCount
+            Left $ ConstantOverflow (toInteger n) "unsigned long" lineCount
         _ -> Right ()
       _ -> Right ()
     _ -> Right ()
@@ -175,8 +170,7 @@ isValidCast :: Type -> Type -> CompilerEnv -> LineCount -> Either CompilerError 
 isValidCast sourceType targetType env lineCount =
   case (unwrap (stripWrap (resolveType env sourceType)), unwrap (stripWrap (resolveType env targetType))) of
     (s, t) | isNumericType' s && isNumericType' t -> Right ()
-    (s, t) -> Left $ InvalidCast 
-      ("Cannot cast from " ++ show s ++ " to " ++ show t) lineCount
+    _ -> Left $ InvalidCast sourceType targetType lineCount
   where
     isNumericType' t = case t of
       TInt -> True
@@ -190,39 +184,34 @@ validateArithmeticOperands :: String -> Type -> Type -> LineCount -> Either Comp
 validateArithmeticOperands op t1 t2 lineCount =
   case (stripWrap t1, stripWrap t2) of
     (type1, type2) | numericCompatible type1 type2 -> Right ()
-    (type1, type2) -> Left $ IncompatibleOperands 
-      ("Arithmetic operator '" ++ op ++ "' cannot be applied to types " ++ show type1 ++ " and " ++ show type2) lineCount
+    (type1, type2) -> Left $ IncompatibleOperands op type1 type2 lineCount
 
 -- Check that a variable called as a function is actually callable
 validateNonCallable :: String -> Type -> LineCount -> Either CompilerError ()
 validateNonCallable var t lineCount =
   case unwrap t of
     TKonst _ -> Right ()
-    _ -> Left $ NonCallableType 
-      ("'" ++ var ++ "' of type " ++ show t ++ " is not callable") lineCount
+    _ -> Left $ NonCallableType var t lineCount
 
 -- Check that user trying to modify a constant variable
 validateKonstAssignment :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
 validateKonstAssignment var env lineCount = 
   case M.lookup var (typeAliases env) of
-    Just t | isKonst t -> Left $ KonstModification 
-      ("Cannot modify Konst variable '" ++ var ++ "'") lineCount
+    Just t | isKonst t -> Left $ KonstModification var lineCount
     _ -> Right ()
 
 -- Check that a variable/function name is not already declared in current scope
 validateNoDuplicateDeclaration :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
 validateNoDuplicateDeclaration name env lineCount =
   case M.lookup name (typeAliases env) of
-    Just _ -> Left $ DuplicateDeclaration 
-      ("Variable or function '" ++ name ++ "' is already declared in this scope") lineCount
+    Just _ -> Left $ DuplicateDeclaration name "Variable or function" lineCount
     Nothing -> Right ()
 
 -- Check that a struct name is not already declared
 validateNoDuplicateStruct :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
 validateNoDuplicateStruct name env lineCount =
   case M.lookup name (structDefs env) of
-    Just _ -> Left $ DuplicateDeclaration 
-      ("Struct '" ++ name ++ "' is already declared") lineCount
+    Just _ -> Left $ DuplicateDeclaration name "Struct" lineCount
     Nothing -> Right ()
 
 -- Check that function call arguments match expected parameter types

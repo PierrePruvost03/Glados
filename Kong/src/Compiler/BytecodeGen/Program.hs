@@ -14,11 +14,10 @@ import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDe
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Statements (compileAst)
 import qualified Data.Map as M
-import Control.Monad (foldM)
 
 compileProgram :: [(String, [Ast])] -> Either [ProgramError] [Instr]
 compileProgram fas =
-  either (Left . (:[])) processWithEnv (buildAliasEnv (concatMap snd fas))
+  either Left processWithEnv (buildAliasEnv (concatMap snd fas))
   where
     processWithEnv initialEnv = selectResult allInstrs finalEnv allErrs
       where
@@ -37,15 +36,14 @@ enrichEnvWithAst env ast = case unwrap ast of
   _ -> env
 
 ensureMain :: [Instr] -> CompilerEnv -> Either [ProgramError] [Instr]
-ensureMain instrs env
-  | not (hasMain instrs) = Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "No 'main' function found.")]
-  | otherwise = 
-      case M.lookup "main" (typeAliases env) of
-        Just mainType -> 
-          case checkMainSignature mainType ((0, 0)) of
-            Right () -> Right (instrs ++ [PushEnv "main", Call, Ret])
-            Left err -> Left [ProgramError "<global>" ((0, 0), ABlock []) err]
-        Nothing -> Left [ProgramError "<global>" ((0, 0), ABlock []) (MissingMainFunction "Main function type not found.")]
+ensureMain instrs env = case hasMain instrs of
+  False -> Left [ProgramError "<global>" ((0, 0), ABlock []) MissingMainFunction]
+  True -> case M.lookup "main" (typeAliases env) of
+    Nothing -> Left [ProgramError "<global>" ((0, 0), ABlock []) MissingMainFunction]
+    Just mainType -> 
+      either (\err -> Left [ProgramError "<global>" ((0, 0), ABlock []) err])
+             (\() -> Right (instrs ++ [PushEnv "main", Call, Ret]))
+             (checkMainSignature mainType ((0, 0)))
 
 hasMain :: [Instr] -> Bool
 hasMain = any isSetMain
@@ -72,25 +70,29 @@ step (Right is) (Right js) = Right (is ++ js)
 compileWithEnv :: CompilerEnv -> Ast -> Either CompilerError [Instr]
 compileWithEnv env ast = fst <$> compileAst ast env
 
-buildAliasEnv :: [Ast] -> Either ProgramError CompilerEnv
-buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
+buildAliasEnv :: [Ast] -> Either [ProgramError] CompilerEnv
+buildAliasEnv asts = 
+  (\(env, errs) -> case errs of
+    [] -> Right env
+    _ -> Left errs)
+  (foldl stepAlias (emptyEnv, []) (extractTopLevel asts))
   where
-    stepAlias e a = case unwrap a of
+    stepAlias (e, errs) a = case unwrap a of
       ATypeAlias name _ -> 
-        case validateNoDuplicateDeclaration name e (lc a) of
-          Left err -> Left (ProgramError "<global>" a err)
-          Right () -> Right (insertInEnv e a)
+        either (\err -> (e, errs ++ [ProgramError "<global>" a err]))
+               (\() -> (insertInEnv e a, errs))
+               (validateNoDuplicateDeclaration name e (lc a))
       AStruktDef name fds -> 
-        case validateNoDuplicateStruct name e (lc a) of
-          Left err -> Left (ProgramError "<global>" a err)
-          Right () -> case validateStructDefinition e name fds (lc a) of
-            Left err -> Left (ProgramError "<global>" a err)
-            Right () -> Right (insertInEnv e a)
+        either (\err -> (e, errs ++ [ProgramError "<global>" a err]))
+               (\() -> either (\err -> (e, errs ++ [ProgramError "<global>" a err]))
+                              (\() -> (insertInEnv e a, errs))
+                              (validateStructDefinition e name fds (lc a)))
+               (validateNoDuplicateStruct name e (lc a))
       AVarDecl _ name _ ->
-        case validateNoDuplicateDeclaration name e (lc a) of
-          Left err -> Left (ProgramError "<global>" a err)
-          Right () -> Right e
-      _ -> Right e
+        either (\err -> (e, errs ++ [ProgramError "<global>" a err]))
+               (\() -> (e, errs))
+               (validateNoDuplicateDeclaration name e (lc a))
+      _ -> (e, errs)
 
 extractTopLevel :: [Ast] -> [Ast]
 extractTopLevel = concatMap extractFromAst

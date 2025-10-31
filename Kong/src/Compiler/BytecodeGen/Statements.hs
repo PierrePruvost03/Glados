@@ -41,12 +41,11 @@ extractGlobalNames :: M.Map String a -> [String]
 extractGlobalNames = M.keys
 
 compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-compileBlock asts env =
-  foldl (\acc ast ->
-    acc >>= \(prevInstrs, currentEnv) ->
-      compileAst ast currentEnv >>= \(newInstrs, nextEnv) ->
-        Right (prevInstrs ++ newInstrs, nextEnv)
-  ) (Right ([], prebindKonsts asts env)) asts
+compileBlock [] env = Right ([], env)
+compileBlock (ast:rest) env = 
+  compileAst ast env >>= \(instrs1, env1) ->
+    compileBlock rest env1 >>= \(instrs2, env2) ->
+      Right (instrs1 ++ instrs2, env2)
 
 extractParamNames :: [Ast] -> [String]
 extractParamNames = foldr extractParam []
