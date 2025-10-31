@@ -8,16 +8,16 @@ import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..))
 import Compiler.Type.Validation (validateStructDefinition)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.BytecodeGen.Expr (compileExpr)
-import Compiler.BytecodeGen.Block (declareDefault, declareWithValue, compileIf)
+import Compiler.BytecodeGen.Expr.Expr (compileExpr)
+import Compiler.BytecodeGen.Block.Block (declareWithValue, compileIf)
 import Compiler.BytecodeGen.Utils (prebindVar)
 import qualified Data.Map as M
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst ast env = case unwrap ast of
   ABlock asts -> compileBlock asts env
-  AVarDecl t name Nothing ->
-    Right (declareDefault env t name)
+  AVarDecl _ name Nothing ->
+    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
   AVarDecl t name (Just initExpr) ->
     fmap (declareWithValue (prebindVar t name env) t name)
          (compileExpr initExpr (prebindVar t name env))

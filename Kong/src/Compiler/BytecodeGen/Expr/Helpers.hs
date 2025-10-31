@@ -26,7 +26,7 @@ module Compiler.BytecodeGen.Expr.Helpers
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..), NumberType(..))
-import DataStruct.Bytecode.Value (Instr(..), Value(..))
+import DataStruct.Bytecode.Value (Instr(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), resolveType)

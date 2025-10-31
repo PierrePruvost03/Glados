@@ -4,7 +4,7 @@ import Data.List (isInfixOf)
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import Test.HUnit
-import Compiler.BytecodeGen.Program (compileWithEnv)
+import Compiler.BytecodeGen.Program.Program (compileWithEnv)
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..), NumberType(..))
@@ -335,8 +335,8 @@ testCompileVarDecl :: Test
 testCompileVarDecl =
   TestCase
   ( assertEqual
-    "should compile mutable variable declaration to heap-backed storage"
-    (Right [Push (VNumber (VInt 0)), Alloc, StoreRef, SetVar "x"])
+    "should reject uninitialized variable declaration"
+    (Left (UninitializedVariable "Variable 'x' must be initialized at declaration" (0,0)))
     (compileWithEnv emptyEnv (wrapAst (AVarDecl (wrapType TInt) "x" Nothing)))
   )
 

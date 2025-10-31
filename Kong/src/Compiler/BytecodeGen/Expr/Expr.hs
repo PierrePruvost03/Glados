@@ -1,4 +1,4 @@
-module Compiler.BytecodeGen.Expr
+module Compiler.BytecodeGen.Expr.Expr
   ( compileExpr
   , compileCall
   , compileValue
@@ -17,7 +17,7 @@ import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, va
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
-import Compiler.BytecodeGen.Block (compileAstWith)
+import Compiler.BytecodeGen.Block.Block (compileAstWith)
 import Compiler.BytecodeGen.Expr.Helpers
 import Parser (LineCount)
 
