@@ -62,6 +62,12 @@ maybeFuncName expr = case unwrap expr of
     _ -> Nothing
   _ -> Nothing
 
+-- Extract the type from a parameter (AVarDecl)
+extractParamType :: Ast -> Maybe Type
+extractParamType param = case unwrap param of
+  AVarDecl t _ _ -> Just t
+  _ -> Nothing
+
 -- Infer the type of an expression
 inferType :: AExpression -> CompilerEnv -> Maybe Type
 inferType expr env = case unwrap expr of
@@ -71,7 +77,10 @@ inferType expr env = case unwrap expr of
     ANumber (ABool _) -> Just (lc expr, TBool)
     ANumber (AChar _) -> Just (lc expr, TChar)
     AString _ -> Just (lc expr, TString)
-    ALambda _ retType _ -> Just retType
+    ALambda params retType _ -> 
+      case traverse extractParamType params of
+        Just paramTypes -> Just (lc expr, TFunc paramTypes retType)
+        Nothing -> Nothing
     ATuple exprs ->
       case traverse (\e -> inferType e env) exprs of
         Just ts -> Just (lc expr, TTuple ts)

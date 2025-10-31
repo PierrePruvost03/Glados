@@ -33,7 +33,6 @@ compileAst ast env = case unwrap ast of
   AIf ifC ifT ifE ->
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr (lc ast, AIf ifC ifT ifE) env)
   AStruktDef name fdls ->
-    validateNoDuplicateStruct name env (lc ast) >>
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
       Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })
