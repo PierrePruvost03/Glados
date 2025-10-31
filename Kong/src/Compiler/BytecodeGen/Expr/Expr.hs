@@ -137,11 +137,12 @@ compileComparisonExpr fexp lhs rhs env lnCount =
 compileArithmeticExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileArithmeticExpr fexp lhs rhs env lnCount =
   case (inferType lhs env, inferType rhs env, maybeFuncName fexp) of
+    (Just t1, Just t2, Just opName) | isDivisionOp opName ->
+      validateArithmeticOperands opName t1 t2 lnCount >>
+      validateDivisionByZero lhs rhs lnCount >>
+      (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
     (Just t1, Just t2, Just opName) ->
       validateArithmeticOperands opName t1 t2 lnCount >>
-      (case isDivisionOp opName of
-        True -> validateDivisionByZero lhs rhs lnCount
-        False -> Right ()) >>
       (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
     (Just _, Just _, Nothing) -> Left $ InvalidArguments "Invalid arithmetic operator expression" lnCount
     _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lnCount
@@ -160,7 +161,11 @@ compileLogicalExpr fexp lhs rhs env lnCount =
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
-    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps ++ ["open","read","write","close","exit"]) ->
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps), length args /= 2 ->
+      Left $ ArgumentCountMismatch 2 (length args) lnCount
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps) ->
+      fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
+    Just name | name `elem` ["open","read","write","close","exit"] ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of

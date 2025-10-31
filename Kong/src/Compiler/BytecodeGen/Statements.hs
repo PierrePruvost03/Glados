@@ -6,7 +6,8 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..))
-import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateStruct, validateNoDuplicateDeclaration)
+import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateStruct, validateNoDuplicateDeclaration, checkAssignmentType)
+import Compiler.Type.Inference (inferType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Expr.Expr (compileExpr)
 import Compiler.BytecodeGen.Block.Block (declareWithValue, compileIf)
@@ -20,6 +21,9 @@ compileAst ast env = case unwrap ast of
     Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
   AVarDecl t name (Just initExpr) ->
     validateNoDuplicateDeclaration name env (lc ast) >>
+    (case inferType initExpr (prebindVar t name env) of
+      Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
+      Nothing -> Right ()) >>
     fmap (declareWithValue (prebindVar t name env) t name)
          (compileExpr initExpr (prebindVar t name env))
   AExpress expr ->

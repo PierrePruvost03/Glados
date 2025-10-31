@@ -107,7 +107,7 @@ arithOps :: [String]
 arithOps = ["+", "-", "*", "/", "%"]
 
 logicalOps :: [String]
-logicalOps = ["and", "or"]
+logicalOps = ["&&", "||"]
 
 -- Check if two types can be compared (must be equal or both numeric, and not non-comparable)
 checkComparisonTypes :: Type -> Type -> LineCount -> Either CompilerError ()
