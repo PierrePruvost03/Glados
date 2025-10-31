@@ -10,7 +10,12 @@ module Compiler.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Number (Number(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType, isKonst, inferType, eqTypeNormalized, bothNumeric, isRefType, canInitializeRefWith, validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Type.Error (CompilerError(..))
+import Compiler.Type.Inference (CompilerEnv(..), resolveType, inferType)
+import Compiler.Type.Checks (isKonst, bothNumeric, isRefType)
+import Compiler.Type.Normalization (eqTypeNormalized)
+import Compiler.Type.Reference (canInitializeRefWith)
+import Compiler.Type.Validation (validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import Data.Char (isSpace)

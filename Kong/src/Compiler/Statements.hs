@@ -7,7 +7,9 @@ module Compiler.Statements
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), validateStructDefinition)
+import Compiler.Type.Error (CompilerError(..))
+import Compiler.Type.Inference (CompilerEnv(..))
+import Compiler.Type.Validation (validateStructDefinition)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.Expr (compileExpr)
 import Compiler.Block (declareDefault, declareWithValue, defaultValue, compileIf)

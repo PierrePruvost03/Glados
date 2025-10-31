@@ -10,10 +10,13 @@ import DataStruct.Bytecode.Number (Number(..), NumberType(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
-import Compiler.Types (CompilerError(..), CompilerEnv(..), resolveType)
+import Compiler.Type.Error (CompilerError(..))
+import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
+import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, checkComparisonTypes)
+import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
+import Compiler.Type.Return (checkFunctionReturn, validateReturnsInBody)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.TypeError (prettyTypeError)
-import Compiler.Types (isKonst, checkComparisonTypes, inferType, checkAssignmentType, comparisonOps, arithOps, getFunctionArgTypes, checkFunctionCallTypes, checkFunctionReturn, validateReturnsInBody, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
@@ -93,7 +96,7 @@ compileTupleAssignment nameExpr idx val env lnCount = case unwrap nameExpr of
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (case lookupResolved env name of
                                   Just t -> case unwrap t of
-                                    TTuple ts -> tupleIndexType ts idx
+                                    TTuple ts -> getTupleIndexType ts idx
                                     _ -> Nothing
                                   _ -> Nothing)
                                (inferType val env) of
@@ -280,17 +283,6 @@ lookupResolved env v =
   case M.lookup v (typeAliases env) of
     Just t  -> Just (resolveType env t)
     Nothing -> Nothing
-
-tupleIndexType :: [Type] -> AExpression -> Maybe Type
-tupleIndexType ts expr = case unwrap expr of
-  AValue val -> case unwrap val of
-    ANumber num -> case num of
-      AInteger i
-        | i >= 0 && i < length ts -> Just (ts !! i)
-        | otherwise -> Nothing
-      _ -> Nothing
-    _ -> Nothing
-  _ -> Nothing
 
 checkLambdaReturn :: Type -> [Ast] -> CompilerEnv -> Either CompilerError ()
 checkLambdaReturn expected bodyStmts scope =

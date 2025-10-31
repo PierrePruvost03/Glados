@@ -7,7 +7,10 @@ module Compiler.Program
 
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
-import Compiler.Types (ProgramError(..), CompilerError(..), CompilerEnv(..), emptyEnv, insertTypeAlias, checkMainSignature, validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
+import Compiler.Type.Error (ProgramError(..), CompilerError(..))
+import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv)
+import Compiler.Type.Return (checkMainSignature)
+import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.Statements (compileAst)
 import qualified Data.Map as M
@@ -76,13 +79,13 @@ buildAliasEnv asts = foldM stepAlias emptyEnv (extractTopLevel asts)
       ATypeAlias name _ -> 
         case validateNoDuplicateDeclaration name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
-          Right () -> Right (insertTypeAlias e a)
+          Right () -> Right (insertInEnv e a)
       AStruktDef name fds -> 
         case validateNoDuplicateStruct name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
           Right () -> case validateStructDefinition e name fds (lc a) of
             Left err -> Left (ProgramError "<global>" a err)
-            Right () -> Right (insertTypeAlias e a)
+            Right () -> Right (insertInEnv e a)
       AVarDecl _ name _ ->
         case validateNoDuplicateDeclaration name e (lc a) of
           Left err -> Left (ProgramError "<global>" a err)
