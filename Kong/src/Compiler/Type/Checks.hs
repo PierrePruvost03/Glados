@@ -9,6 +9,7 @@ module Compiler.Type.Checks
   , isTemporaryValue
   , comparisonOps
   , arithOps
+  , logicalOps
   , checkComparisonTypes
   , isNonComparableType
   ) where
@@ -104,6 +105,9 @@ comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
 
 arithOps :: [String]
 arithOps = ["+", "-", "*", "/", "%"]
+
+logicalOps :: [String]
+logicalOps = ["and", "or"]
 
 -- Check if two types can be compared (must be equal or both numeric, and not non-comparable)
 checkComparisonTypes :: Type -> Type -> LineCount -> Either CompilerError ()

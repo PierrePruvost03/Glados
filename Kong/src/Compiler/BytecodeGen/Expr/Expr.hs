@@ -12,7 +12,7 @@ import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
-import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, checkComparisonTypes)
+import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, logicalOps, checkComparisonTypes)
 import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
@@ -30,6 +30,7 @@ compileExpr expr env = case unwrap expr of
     case M.lookup var (typeAliases env) of
       Nothing -> Left (UnknownVariable var (lc expr))
       Just vType ->
+        validateKonstAssignment var env (lc expr) >>
         checkAssignmentType (lc expr) (Just vType) (inferType rhs env) >>
         fmap (\code -> code ++ [PushEnv var, StoreRef]) (compileExpr rhs env)
   AValue astValue -> compileValue astValue env
@@ -40,6 +41,8 @@ compileExpr expr env = case unwrap expr of
     compileAssignmentExpr lhs val env (lc expr)
   ACall fexp [lh, rh] | isComparisonCall fexp comparisonOps ->
     compileComparisonExpr fexp lh rh env (lc expr)
+  ACall fexp [lh, rh] | isLogicalCall fexp logicalOps ->
+    compileLogicalExpr fexp lh rh env (lc expr)
   ACall fexp [lh, rh] | isArithmeticCall fexp arithOps ->
     compileArithmeticExpr fexp lh rh env (lc expr)
   ACall fexp args | isPrintCall fexp -> 
@@ -143,13 +146,21 @@ compileArithmeticExpr fexp lhs rhs env lnCount =
     (Just _, Just _, Nothing) -> Left $ InvalidArguments "Invalid arithmetic operator expression" lnCount
     _ -> Left $ InvalidArguments "Unable to infer types for arithmetic operation" lnCount
 
+compileLogicalExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileLogicalExpr fexp lhs rhs env lnCount =
+  case (inferType lhs env, inferType rhs env, maybeFuncName fexp) of
+    (Just _, Just _, Just opName) ->
+      (++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)])
+    (Just _, Just _, Nothing) -> Left $ InvalidArguments "Invalid logical operator expression" lnCount
+    _ -> Left $ InvalidArguments "Unable to infer types for logical operation" lnCount
+
 
 -- FUNCTION CALLS
 
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
-    Just name | name `elem` (comparisonOps ++ arithOps ++ ["open","read","write","close","exit"]) ->
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of

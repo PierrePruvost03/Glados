@@ -16,7 +16,7 @@ import Parser (LineCount)
 import qualified Data.Map as M
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.Type.Normalization (stripWrap, eqTypeNormalized)
-import Compiler.Type.Checks (isFloatType, numericCompatible, comparisonOps, arithOps)
+import Compiler.Type.Checks (isFloatType, numericCompatible, comparisonOps, arithOps, logicalOps)
 
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
@@ -95,6 +95,7 @@ inferType expr env = case unwrap expr of
         | numericCompatible t1 t2 -> Just (lc expr, TInt)
       _ -> Nothing
   ACall fexp [_l, _r] | maybeFuncName fexp `elem` map Just comparisonOps -> Just (lc expr, TBool)
+  ACall fexp [_l, _r] | maybeFuncName fexp `elem` map Just logicalOps -> Just (lc expr, TBool)
   ACall fexp _
     | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) -> Nothing
     | Just name <- maybeFuncName fexp -> getFunctionReturnType (typeAliases env) name

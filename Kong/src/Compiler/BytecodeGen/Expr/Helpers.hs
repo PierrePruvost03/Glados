@@ -14,6 +14,7 @@ module Compiler.BytecodeGen.Expr.Helpers
   , isAssignmentCall
   , isComparisonCall
   , isArithmeticCall
+  , isLogicalCall
   , isPrintCall
   , extractVariableName
   , buildLambdaEnv
@@ -141,6 +142,9 @@ isComparisonCall fexp ops = maybeFuncName fexp `elem` map Just ops
 
 isArithmeticCall :: AExpression -> [String] -> Bool
 isArithmeticCall fexp ops = maybeFuncName fexp `elem` map Just ops
+
+isLogicalCall :: AExpression -> [String] -> Bool
+isLogicalCall fexp ops = maybeFuncName fexp `elem` map Just ops
 
 isPrintCall :: AExpression -> Bool
 isPrintCall fexp = maybeFuncName fexp == Just "print"
