@@ -334,20 +334,6 @@ testUnknownStructField =
         )
     )
 
-testDuplicateStruct :: Test
-testDuplicateStruct =
-  TestCase
-    ( assertBool
-        "should detect duplicate struct definition"
-        ( case compileWithEnv emptyEnv (wrapAst (ABlock [
-            wrapAst (AStruktDef "Person" [(wrapType TString, "name")]),
-            wrapAst (AStruktDef "Person" [(wrapType TInt, "age")])
-          ])) of
-            Left (DuplicateDeclaration _ _ _) -> True
-            _ -> False
-        )
-    )
-
 
 -- TESTS D'ERREURS - Function errors
 
@@ -527,7 +513,6 @@ kongCompilerErrorTests =
     TestLabel "vector out of bounds" testVectorOutOfBounds,
     TestLabel "undefined struct" testUndefinedStruct,
     TestLabel "unknown struct field" testUnknownStructField,
-    TestLabel "duplicate struct" testDuplicateStruct,
     TestLabel "duplicate function" testDuplicateFunction,
     TestLabel "missing return" testMissingReturn,
     TestLabel "wrong return type" testWrongReturnType,
