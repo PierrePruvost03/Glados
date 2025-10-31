@@ -602,7 +602,7 @@ testOutOfBoundsArrayAccessCompiles =
             )))))
           ])) of
             Right _ -> False
-            Left (IndexOutOfBounds _ _) -> True
+            Left (IndexOutOfBounds _ _ _) -> True
             Left _ -> False
         )
     )

@@ -1,8 +1,5 @@
 module Compiler.BytecodeGen.Statements
   ( compileAst
-  , extractParamNames
-  , defaultValue
-  , extractGlobalNames
   ) where
 
 import DataStruct.Ast
@@ -12,7 +9,8 @@ import Compiler.Type.Inference (CompilerEnv(..))
 import Compiler.Type.Validation (validateStructDefinition)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Expr (compileExpr)
-import Compiler.BytecodeGen.Block (declareDefault, declareWithValue, defaultValue, compileIf)
+import Compiler.BytecodeGen.Block (declareDefault, declareWithValue, compileIf)
+import Compiler.BytecodeGen.Utils (prebindVar)
 import qualified Data.Map as M
 
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
@@ -37,37 +35,9 @@ compileAst ast env = case unwrap ast of
     Right ([], env)
   raw -> Left $ UnsupportedAst (show raw) (lc ast)
 
-extractGlobalNames :: M.Map String a -> [String]
-extractGlobalNames = M.keys
-
 compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileBlock [] env = Right ([], env)
 compileBlock (ast:rest) env = 
   compileAst ast env >>= \(instrs1, env1) ->
     compileBlock rest env1 >>= \(instrs2, env2) ->
       Right (instrs1 ++ instrs2, env2)
-
-extractParamNames :: [Ast] -> [String]
-extractParamNames = foldr extractParam []
-  where
-    extractParam :: Ast -> [String] -> [String]
-    extractParam ast acc = case unwrap ast of
-      AVarDecl _ name _ -> name : acc
-      _ -> acc
-
-prebindVar :: Type -> String -> CompilerEnv -> CompilerEnv
-prebindVar t name env = case unwrap t of
-  TKonst _ -> env { typeAliases = M.insert name t (typeAliases env) }
-  _ -> env
-
-prebindKonsts :: [Ast] -> CompilerEnv -> CompilerEnv
-prebindKonsts asts env = foldl step env asts
-  where
-    step :: CompilerEnv -> Ast -> CompilerEnv
-    step e ast = case unwrap ast of
-      AVarDecl t n _ | isKonstType t -> e { typeAliases = M.insert n t (typeAliases e) }
-      _ -> e
-    isKonstType :: Type -> Bool
-    isKonstType t = case unwrap t of
-      TKonst _ -> True
-      _ -> False

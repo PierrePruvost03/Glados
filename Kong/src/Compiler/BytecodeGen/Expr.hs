@@ -20,6 +20,7 @@ import qualified Data.Map as M
 import qualified Data.Vector as V
 import qualified Data.List as L
 import Compiler.BytecodeGen.Block (compileAstWith)
+import Compiler.BytecodeGen.Utils (extractParamNames, extractGlobalNames)
 import Parser (LineCount)
 
 maybeFuncName :: AExpression -> Maybe String
@@ -342,17 +343,6 @@ pushVarValue env vname
   | Just t <- M.lookup vname (typeAliases env)
   , not (isKonst (resolveType env t)) = [PushEnv vname, LoadRef]
   | otherwise = [PushEnv vname]
-
-extractParamNames :: [Ast] -> [String]
-extractParamNames = foldr step []
-  where
-    step :: Ast -> [String] -> [String]
-    step ast acc = case unwrap ast of
-      AVarDecl _ name _ -> name : acc
-      _ -> acc
-
-extractGlobalNames :: M.Map String a -> [String]
-extractGlobalNames = M.keys
 
 compileNumber :: AstNumber -> Number
 compileNumber (AInteger n) = VInt n

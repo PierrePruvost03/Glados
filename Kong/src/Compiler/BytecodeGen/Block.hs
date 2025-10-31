@@ -17,8 +17,8 @@ import Compiler.Type.Normalization (eqTypeNormalized)
 import Compiler.Type.Reference (canInitializeRefWith)
 import Compiler.Type.Validation (validateStructDefinition, validateConstantBounds, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
+import Compiler.BytecodeGen.Utils (prebindVar, prebindKonsts, extractArraySize)
 import qualified Data.Map as M
-import Data.Char (isSpace)
 import qualified Data.Vector as V
 
 compileAstWith :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
@@ -94,34 +94,34 @@ declareDefault env t name = case unwrap t' of
   TArray _ sizeExpr -> 
     case extractArraySize sizeExpr of
       Just size -> 
-        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar n], 
-         env { typeAliases = M.insert n t' (typeAliases env) })
+        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar name], 
+         env { typeAliases = M.insert name t' (typeAliases env) })
       Nothing -> 
-        ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
-         env { typeAliases = M.insert n t' (typeAliases env) })
+        ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], 
+         env { typeAliases = M.insert name t' (typeAliases env) })
   TVector _ sizeExpr -> 
     case extractArraySize sizeExpr of
       Just size -> 
-        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar n], 
-         env { typeAliases = M.insert n t' (typeAliases env) })
+        (replicate size (Push VEmpty) ++ [CreateList size, Alloc, StoreRef, SetVar name], 
+         env { typeAliases = M.insert name t' (typeAliases env) })
       Nothing -> 
-        ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
-         env { typeAliases = M.insert n t' (typeAliases env) })
+        ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], 
+         env { typeAliases = M.insert name t' (typeAliases env) })
   _ | isKonst t' -> 
-      ([Push (defaultValue t'), SetVar n], 
-       env { typeAliases = M.insert n t' (typeAliases env) })
+      ([Push (defaultValue t'), SetVar name], 
+       env { typeAliases = M.insert name t' (typeAliases env) })
     | otherwise -> 
-      ([Push (defaultValue t'), Alloc, StoreRef, SetVar n], 
-       env { typeAliases = M.insert n t' (typeAliases env) })
-  where t' = resolveType env t
-        n  = normalizeName name
+      ([Push (defaultValue t'), Alloc, StoreRef, SetVar name], 
+       env { typeAliases = M.insert name t' (typeAliases env) })
+  where 
+    t' = resolveType env t
 
 declareWithValue :: CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv)
 declareWithValue env t name exprCode
-  | isKonst t' = (exprCode ++ [SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
-  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar n], env { typeAliases = M.insert n t' (typeAliases env) })
-  where t' = resolveType env t
-        n  = normalizeName name
+  | isKonst t' = (exprCode ++ [SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  | otherwise = (exprCode ++ [Alloc, StoreRef, SetVar name], env { typeAliases = M.insert name t' (typeAliases env) })
+  where 
+    t' = resolveType env t
 
 defaultValue :: Type -> Value
 defaultValue t = case unwrap t of
@@ -170,30 +170,3 @@ compileIf compileExpr ast env = case unwrap ast of
           f Nothing = Right ([], env)
       _ -> Left $ UnsupportedAst "If condition must be an expression" (lc ast)
   _ -> Left $ UnsupportedAst "If statement not supported" (lc ast)
-
-prebindVar :: Type -> String -> CompilerEnv -> CompilerEnv
-prebindVar t name env = case unwrap t of
-  TKonst _ -> env { typeAliases = M.insert name t (typeAliases env) }
-  _ -> env
-
-prebindKonsts :: [Ast] -> CompilerEnv -> CompilerEnv
-prebindKonsts asts env = foldl step env asts
-  where
-    step :: CompilerEnv -> Ast -> CompilerEnv
-    step e ast = case unwrap ast of
-      AVarDecl t n _ | isKonstType t -> e { typeAliases = M.insert n t (typeAliases e) }
-      _ -> e
-    isKonstType :: Type -> Bool
-    isKonstType t = case unwrap t of
-      TKonst _ -> True
-      _ -> False
-
-normalizeName :: String -> String
-normalizeName = reverse . dropWhile isSpace . reverse . dropWhile isSpace
-
-extractArraySize :: AExpression -> Maybe Int
-extractArraySize expr = case unwrap expr of
-  AValue val -> case unwrap val of
-    ANumber (AInteger n) -> Just n
-    _ -> Nothing
-  _ -> Nothing
