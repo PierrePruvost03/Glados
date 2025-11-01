@@ -72,5 +72,20 @@ baseState instr = VMState {stack = [], env = M.fromList ([
                 Length,
                 Ret
             ])
+        ),
+        ("++", VFunction [] (V.fromList [
+                SetVar "i",
+                PushEnv "i",
+                LoadRef,
+                SetVar "tmp",
+                PushEnv "i",
+                LoadRef,
+                Push (VNumber (VInt 1)),
+                DoOp Add,
+                PushEnv "i",
+                StoreRef,
+                PushEnv "tmp",
+                Ret
+            ])
         )
     ]), heap = V.empty, code = V.fromList instr, ip = 0}

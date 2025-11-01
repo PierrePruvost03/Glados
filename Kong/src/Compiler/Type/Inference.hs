@@ -26,7 +26,11 @@ data CompilerEnv = CompilerEnv
   } deriving (Show, Eq)
 
 emptyEnv :: CompilerEnv
-emptyEnv = initBuiltinFunctions (CompilerEnv M.empty M.empty M.empty M.empty)
+emptyEnv = initBuiltinFunctions (CompilerEnv
+    (M.fromList [("++", (l, TFunc [(l, TRef (l, TInt))] (l, TInt)))])
+    M.empty M.empty M.empty)
+    where
+        l = (0,0)
 
 -- Initialize environment with builtin functions (push, pop, len)
 initBuiltinFunctions :: CompilerEnv -> CompilerEnv
