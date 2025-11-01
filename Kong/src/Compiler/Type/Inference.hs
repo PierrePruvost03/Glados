@@ -26,13 +26,9 @@ data CompilerEnv = CompilerEnv
   } deriving (Show, Eq)
 
 emptyEnv :: CompilerEnv
-emptyEnv = initBuiltinFunctions (CompilerEnv
-    (M.fromList [("++", (l, TFunc [(l, TRef (l, TInt))] (l, TInt)))])
-    M.empty M.empty M.empty)
-    where
-        l = (0,0)
+emptyEnv = initBuiltinFunctions (CompilerEnv M.empty M.empty M.empty M.empty)
 
--- Initialize environment with builtin functions (push, pop, len)
+-- Initialize environment with builtin functions (push, pop, len, ++)
 initBuiltinFunctions :: CompilerEnv -> CompilerEnv
 initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env) }
   where
@@ -44,6 +40,7 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
       [ ("$push", (lc0, TKonst (lc0, TFunc [genericVec, genericT] (lc0, TInt))))
       , ("$pop", (lc0, TKonst (lc0, TFunc [genericVec] genericT)))
       , ("$len", (lc0, TKonst (lc0, TFunc [genericVec] (lc0, TInt))))
+      , ("++", (lc0, TKonst (lc0, TFunc [(lc0, TRef (lc0, TInt))] (lc0, TInt))))
       ]
 
 -- Insert a type alias or struct definition into the environment
