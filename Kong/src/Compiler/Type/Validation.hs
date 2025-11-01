@@ -225,10 +225,44 @@ checkFunctionCallTypes lnCount [] remaining@(_:_) = Left $ InvalidArguments ("To
 checkFunctionCallTypes lnCount remaining@(_:_) [] = Left $ InvalidArguments ("Too few arguments: expected " ++ show (length remaining) ++ " more") lnCount
 checkFunctionCallTypes _ [] [] = Right ()
 
--- Check that assignment types match (with reference unwrapping support)
+-- Check that assignment types match (with reference unwrapping support and vector size flexibility)
 checkAssignmentType :: LineCount -> Maybe Type -> Maybe Type -> Either CompilerError ()
 checkAssignmentType lnCount (Just expected) (Just actual)
   | eqTypeNormalized expected actual = Right ()
   | isRefType expected && eqTypeNormalized (extractRefType expected) actual = Right ()
+  | checkVectorSizeFlexibility expected actual = Right ()
   | otherwise = Left $ IllegalAssignment ("Type mismatch on assignment: expected " ++ show expected ++ ", got " ++ show actual) lnCount
 checkAssignmentType lnCount _ _ = Left $ IllegalAssignment "Unable to infer types for assignment" lnCount
+
+-- Check if vector assignment is flexible (size 0 accepts any size, and any size accepts size 0)
+checkVectorSizeFlexibility :: Type -> Type -> Bool
+checkVectorSizeFlexibility expected actual =
+  case (unwrap (stripWrapForAssignment expected), unwrap (stripWrapForAssignment actual)) of
+    (TVector expectedElemType expectedSizeExpr, TVector actualElemType actualSizeExpr) ->
+      -- Elements are compatible (or one is TInt for empty vector)
+      (eqTypeNormalized expectedElemType actualElemType || 
+       (isZeroSize actualSizeExpr && isTInt actualElemType) ||
+       (isZeroSize expectedSizeExpr && isTInt expectedElemType))
+      &&
+      -- Expected has size 0 (dynamic size) or actual has size 0 (empty literal)
+      (isZeroSize expectedSizeExpr || isZeroSize actualSizeExpr)
+    _ -> False
+  where
+    isZeroSize :: AExpression -> Bool
+    isZeroSize sizeExpr = case unwrap sizeExpr of
+      AValue val -> case unwrap val of
+        ANumber (AInteger 0) -> True
+        _ -> False
+      _ -> False
+    isTInt :: Type -> Bool
+    isTInt t = case unwrap t of
+      TInt -> True
+      _ -> False
+
+-- Strip type wrappers for assignment checking (similar to stripTypeWrappers)
+stripWrapForAssignment :: Type -> Type
+stripWrapForAssignment t = case unwrap t of
+  TKonst x -> stripWrapForAssignment x
+  TStrong x -> stripWrapForAssignment x
+  TKong x -> stripWrapForAssignment x
+  _ -> t
