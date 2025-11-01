@@ -5,7 +5,7 @@
 ## Makefile for glados
 ##
 
-NAME	= glados
+NAME	= glados-lisp
 
 STACKNAME	=	glados-lisp-exe
 
