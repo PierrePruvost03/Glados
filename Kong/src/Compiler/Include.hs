@@ -12,7 +12,7 @@ module Compiler.Include
   ) where
 
 import DataStruct.Ast
-import Compiler.Types (unwrapAst)
+import Compiler.Unwrap (Unwrappable(..))
 import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
 import System.FilePath (takeDirectory, (</>), takeFileName, dropExtension, addExtension)
@@ -78,12 +78,13 @@ processInclude baseDir processing cache (Right acc) includeFile =
 extractIncludes :: [Ast] -> [String]
 extractIncludes = foldr extractInclude []
   where
-    extractInclude ast = case unwrapAst ast of
+    extractInclude :: Ast -> [String] -> [String]
+    extractInclude ast = case unwrap ast of
       AInclude from _ -> (from :)
       _ -> id
 
 isInclude :: Ast -> Bool
-isInclude ast = case unwrapAst ast of
+isInclude ast = case unwrap ast of
   AInclude _ _ -> True
   _ -> False
 
@@ -141,7 +142,7 @@ applySelectiveImports fileAsts =
       [ (from, toMaybe items)
       | (_, asts) <- fileAsts
       , ast <- asts
-      , (from, items) <- case unwrapAst ast of
+      , (from, items) <- case unwrap ast of
           AInclude f i -> [(f, i)]
           _ -> []
       ]
@@ -177,7 +178,7 @@ findMissingSymbols fileAsts fileMap =
   ]
 
 extractIncludeWithSymbols :: Ast -> [(String, [String])]
-extractIncludeWithSymbols ast = case unwrapAst ast of
+extractIncludeWithSymbols ast = case unwrap ast of
   AInclude f i -> [(f, i)]
   _ -> []
 
@@ -191,7 +192,7 @@ symbolIsRequested :: S.Set String -> Ast -> Bool
 symbolIsRequested symbols = maybe True (`S.member` symbols) . getSymbolName
 
 getSymbolName :: Ast -> Maybe String
-getSymbolName ast = case unwrapAst ast of
+getSymbolName ast = case unwrap ast of
   AVarDecl _ name _ -> Just name
   AStruktDef name _ -> Just name
   ATypeAlias name _ -> Just name

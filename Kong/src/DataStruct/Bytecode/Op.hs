@@ -10,7 +10,7 @@ data Op
   deriving (Eq, Ord, Show)
 
 builtinOps :: [String]
-builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!=", "%"]
+builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!=", "%", "&&", "||"]
 
 stringToOp :: String -> Op
 stringToOp = \case
@@ -25,6 +25,9 @@ stringToOp = \case
   ">=" -> Ge
   "!=" -> Ne
   "%" -> Mod
+  "&&" -> And
+  "||" -> Or
+  "!" -> Not
   op -> error $ "Unknown operator: " ++ op
 
 instance Binary Op where
