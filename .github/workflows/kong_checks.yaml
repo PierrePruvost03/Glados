@@ -22,4 +22,4 @@ jobs:
       - name: build Kong compiler
         run: make kong
       - name: check Kong binary exists
-        run: test -f Kong/glados
+        run: test -f Kong/glados-kong

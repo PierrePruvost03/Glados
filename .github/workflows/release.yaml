@@ -28,8 +28,8 @@ jobs:
         run: make all
       - name: Verify binaries exist
         run: |
-          test -f Kong/glados && echo "✅ Kong binary built"
-          test -f LispInterpreter/glados && echo "✅ Lisp binary built"
+          test -f Kong/glados-kong && echo "✅ Kong binary built"
+          test -f LispInterpreter/glados-lisp && echo "✅ Lisp binary built"
       - name: Extract tag name
         id: tag
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT

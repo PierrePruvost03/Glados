@@ -23,13 +23,9 @@ jobs:
         run: make all
       - name: verify all binaries exist
         run: |
-          test -f LispInterpreter/glados
-          test -f Kong/glados
+          test -f LispInterpreter/glados-lisp
+          test -f Kong/glados-kong
           echo "Both binaries exist!"
-      - name: test LISP interpreter
-        run: |
-          echo "(+ 1 2)" | LispInterpreter/glados
-          echo "LISP interpreter works!"
 
   run_all_tests:
     runs-on: ubuntu-latest
