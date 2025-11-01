@@ -1,0 +1,8 @@
+Funk isUpper(Khar k) -> Bool {
+    If (k `>=` 'A') {
+        If (k `<=` 'Z') {
+            Return True;
+        }
+    }
+    Return False;
+}
