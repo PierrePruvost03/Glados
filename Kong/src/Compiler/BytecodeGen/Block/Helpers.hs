@@ -5,16 +5,18 @@ module Compiler.BytecodeGen.Block.Helpers
   , validateInitializerValue
   , compileVarInitialization
   , declareWithValue
+  , canInitializeVectorWithDefault
   ) where
 
 import DataStruct.Ast
-import DataStruct.Bytecode.Value (Instr(..))
+import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import Compiler.Type.Checks (bothNumeric, isRefType, isKonst)
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), resolveType, inferType)
 import Compiler.Type.Normalization (eqTypeNormalized)
 import Compiler.Type.Reference (canInitializeRefWith)
 import Compiler.Type.Validation (validateConstantBounds)
+import Compiler.BytecodeGen.Utils (extractArraySize)
 import Compiler.Unwrap (Unwrappable(..))
 import Parser (LineCount)
 import qualified Data.Map as M
@@ -29,11 +31,37 @@ declareWithValue env t name exprCode
 
 -- Check if two types are compatible for assignment/initialization
 typesCompatible :: CompilerEnv -> Type -> Type -> Bool
-typesCompatible env expected actual
-  | eqTypeNormalized expected actual = True
-  | bothNumeric (stripTypeWrappers expected) (stripTypeWrappers actual) = True
-  | checkArrayAliasMatch env expected actual = True
-  | otherwise = False
+typesCompatible env expected actual =
+  eqTypeNormalized expected actual 
+  || bothNumeric (stripTypeWrappers expected) (stripTypeWrappers actual) 
+  || checkArrayAliasMatch env expected actual
+  || checkVectorSizeCompatibility expected actual
+
+-- Check if vector types are compatible (size 0 in expected means dynamic size)
+checkVectorSizeCompatibility :: Type -> Type -> Bool
+checkVectorSizeCompatibility expected actual =
+  case (unwrap (stripTypeWrappers expected), unwrap (stripTypeWrappers actual)) of
+    (TVector expectedElemType expectedSizeExpr, TVector actualElemType _) ->
+      eqTypeNormalized expectedElemType actualElemType && isZeroSize expectedSizeExpr
+    _ -> False
+  where
+    isZeroSize :: AExpression -> Bool
+    isZeroSize sizeExpr = case unwrap sizeExpr of
+      AValue val -> case unwrap val of
+        ANumber (AInteger 0) -> True
+        _ -> False
+      _ -> False
+
+-- Check if a type can be initialized with a default value and generate the instructions
+canInitializeVectorWithDefault :: Type -> Maybe [Instr]
+canInitializeVectorWithDefault t = case unwrap t of
+  TVector _ sizeExpr -> case extractArraySize sizeExpr of
+    Just size -> Just (replicate size (Push VEmpty) ++ [CreateList size])
+    Nothing -> Nothing  -- Dynamic size vectors (size 0) cannot be auto-initialized
+  TArray _ sizeExpr -> case extractArraySize sizeExpr of
+    Just size -> Just (replicate size (Push VEmpty) ++ [CreateList size])
+    Nothing -> Nothing
+  _ -> Nothing
 
 -- Remove type wrappers (TKonst, TStrong, TKong) from a type
 stripTypeWrappers :: Type -> Type

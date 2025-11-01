@@ -23,6 +23,8 @@ import qualified Data.Map as M
 import qualified Data.Vector as V
 import Compiler.BytecodeGen.Expr.Helpers (compileNumberWithType, addPrintSyscall, checkLambdaReturn, buildLambdaEnv, getCapturedNames, compileLambdaParams, lookupResolved, elementTypeFromResolved, extractVariableName, pushVarValue, checkAccessType, typeToNumberType, isRefTypeWrapped, isDivisionOp, isAssignmentCall, isComparisonCall, isLogicalCall, isArithmeticCall, isPrintCall, isFunctionType, maybeFuncName)
 import Compiler.BytecodeGen.Block.Helpers (declareWithValue, validateInitializerValue)
+import Compiler.BytecodeGen.Expr.Helpers
+import Compiler.BytecodeGen.Block.Helpers (declareWithValue, canInitializeVectorWithDefault)
 import Parser (LineCount)
 
 -- MAIN EXPRESSION COMPILER - DISPATCHER
@@ -289,8 +291,10 @@ compileValueWithType val env expectedType = case unwrap val of
             Nothing -> Right ()) >>
           compileExprWithType initExpr env' (Just t) >>= \initCode ->
             Right (declareWithValue env' t name initCode)
-        AVarDecl _ name Nothing ->
-          Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))
+        AVarDecl t name Nothing ->
+          case canInitializeVectorWithDefault t of
+            Just initInstrs -> Right (declareWithValue env' t name initInstrs)
+            Nothing -> Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))
         AExpress expr -> fmap (\instrs -> (instrs, env')) (compileExpr expr env')
         AReturn expr -> compileSingleAst expr env' >>= \(instrs, _) -> Right (instrs ++ [Ret], env')
         AIf _ _ _ -> fmap (\instrs -> (instrs, env')) (compileIf compileExpr compileSingleAst ast env')

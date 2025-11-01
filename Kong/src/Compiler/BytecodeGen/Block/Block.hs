@@ -10,17 +10,19 @@ import Compiler.Type.Normalization (typeToString)
 import Compiler.Type.Inference (CompilerEnv(..), inferType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.BytecodeGen.Expr.Expr (compileExpr, compileExprWithType, compileIf, compileLoop)
-import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue)
+import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue, canInitializeVectorWithDefault)
+import Compiler.BytecodeGen.Expr.Expr
 import qualified Data.Map as M
 
 -- Compile AST with default expression compiler
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst ast env = case unwrap ast of
   ABlock asts -> compileBlock asts env
-  AVarDecl _ name Nothing ->
+  AVarDecl t name Nothing ->
     validateNoDuplicateDeclaration name env (lc ast) >>
-    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
+    case canInitializeVectorWithDefault t of
+      Just initInstrs -> Right (declareWithValue env t name initInstrs)
+      Nothing -> Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
   AVarDecl t name (Just initExpr) ->
     validateNoDuplicateDeclaration name env (lc ast) >>
     validateInitializerValue t initExpr (lc ast) >>
@@ -31,7 +33,7 @@ compileAst ast env = case unwrap ast of
   AExpress expr ->
     fmap (\instrs -> (instrs, env)) (compileExpr expr env)
   AReturn expr ->
-    compileAst expr env >>= \(instrs, _) -> 
+    compileAst expr env >>= \(instrs, _) ->
       Right (instrs ++ [Ret], env)
   AIf _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr compileAst ast env)
@@ -54,15 +56,15 @@ compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerE
 compileBlock asts env =
   foldl
     (\acc a -> acc >>= \(code, sc) ->
-        compileAst a sc >>= \(code', sc') -> 
+        compileAst a sc >>= \(code', sc') ->
           Right (code ++ code', sc'))
     (Right ([], env))
     asts
 
 compileTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-compileTraitImpl tName implType methods env = 
-  compileBlock methods 
-    (env { traitImpls = M.insert 
-             (tName, typeToString implType) 
-             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
+compileTraitImpl tName implType methods env =
+  compileBlock methods
+    (env { traitImpls = M.insert
+             (tName, typeToString implType)
+             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env)))
              (traitImpls env) })
