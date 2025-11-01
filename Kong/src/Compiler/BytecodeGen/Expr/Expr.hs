@@ -48,9 +48,9 @@ compileExpr expr env = case unwrap expr of
     compileLogicalExpr fexp lh rh env (lc expr)
   ACall fexp [lh, rh] | isArithmeticCall fexp arithOps ->
     compileArithmeticExpr fexp lh rh env (lc expr)
-  ACall fexp args | isPrintCall fexp -> 
+  ACall fexp args | isPrintCall fexp ->
     compilePrintCall args env (lc expr)
-  ACall fexp args -> 
+  ACall fexp args ->
     compileFunctionCall fexp args env (lc expr)
 
 
@@ -170,7 +170,7 @@ compileFunctionCall fexp args env lnCount =
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
-        Just vartype -> 
+        Just vartype ->
           validateNonCallable name vartype lnCount >>
           validateFunctionAndCompileCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lnCount
         Nothing -> validateFunctionAndCompileCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lnCount
@@ -207,9 +207,9 @@ compileArgForCall env expectedType arg
 
 -- Compile an expression as a reference (for ref parameters)
 compileAsReference :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileAsReference expr env = 
+compileAsReference expr env =
   case extractVariableName expr of
-    Just vname -> 
+    Just vname ->
       case M.lookup vname (typeAliases env) of
         Just _ -> Right [PushEnv vname]
         Nothing -> Left (UnknownVariable vname (lc expr))
@@ -259,17 +259,17 @@ compileValue val env = case unwrap val of
       capturedNames = getCapturedNames params env
       paramInstrs = compileLambdaParams params
       makeLambdaValue (bodyCode, _) = [Push (VFunction capturedNames (V.fromList (paramInstrs ++ bodyCode)))]
-      
+
       -- Compile a block of statements for a lambda body
       -- Simplified version that only handles what's needed inside lambdas
       compileBlockForLambda :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-      compileBlockForLambda asts env' = 
+      compileBlockForLambda asts env' =
         foldl
           (\acc a -> acc >>= \(code, sc) ->
               compileSingleAst a sc >>= \(code', sc') -> Right (code ++ code', sc'))
           (Right ([], env'))
           asts
-      
+
       -- Compile a single AST node inside a lambda
       compileSingleAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
       compileSingleAst ast env' = case unwrap ast of
@@ -296,7 +296,7 @@ compileValue val env = case unwrap val of
 -- ACCESS EXPRESSIONS (ARRAY, VECTOR, TUPLE, STRUCT)
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
-compileAccess access env = 
+compileAccess access env =
   validateAccess access env (lc access) >>= \() ->
     case unwrap access of
       AArrayAccess arrExpr idx ->
@@ -414,9 +414,9 @@ getFunctionNameForMethod t method = case unwrap t of
   _ -> typeToString t ++ "$" ++ method
   where
     vectorMethodName m = case m of
-      "push" -> m
-      "pop" -> m
-      "len" -> m
+      "push" -> '$':m
+      "pop" -> '$':m
+      "len" -> '$':m
       _ -> typeToString t ++ "$" ++ m
     arrayMethodName "len" = "len"
     arrayMethodName m = typeToString t ++ "$" ++ m
@@ -424,9 +424,9 @@ getFunctionNameForMethod t method = case unwrap t of
 -- Compile vector method (push, pop, len)
 compileVectorMethod :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileVectorMethod obj name args env lnCount = case name of
-  "push" -> compileBuiltinMethodCall obj name args env lnCount
-  "pop" -> compileBuiltinMethodCall obj name args env lnCount
-  "len" -> compileBuiltinMethodCall obj name args env lnCount
+  "$push" -> compileBuiltinMethodCall obj name args env lnCount
+  "$pop" -> compileBuiltinMethodCall obj name args env lnCount
+  "$len" -> compileBuiltinMethodCall obj name args env lnCount
   _ -> compileTraitMethod obj name args env lnCount
 
 -- Compile array method (len)
@@ -463,10 +463,10 @@ validateConstForBuiltin vName builtinName env lnCount =
     checkConstForMethod name lCount t = case (isKonst t, isMutatingMethod name) of
       (True, True) -> Left $ InvalidArguments ("Cannot call method '" ++ name ++ "' on const variable '" ++ vName ++ "'") lCount
       _ -> Right ()
-    
+
     isMutatingMethod :: String -> Bool
-    isMutatingMethod "push" = True
-    isMutatingMethod "pop" = True
+    isMutatingMethod "$push" = True
+    isMutatingMethod "$pop" = True
     isMutatingMethod _ = False
 
 -- Compile arguments and generate instructions for builtin method

@@ -22,7 +22,7 @@ data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
   , structDefs  :: M.Map String [(Type, String)]
   , traitDefs   :: M.Map String [(String, [Type], Type)]  -- trait name -> methods (name, args, ret)
-  , traitImpls  :: M.Map (String, String) [String]  -- (trait, type) -> method names 
+  , traitImpls  :: M.Map (String, String) [String]  -- (trait, type) -> method names
   } deriving (Show, Eq)
 
 emptyEnv :: CompilerEnv
@@ -35,11 +35,11 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
     lc0 = (0, 0)
     genericT = (lc0, TCustom "T")
     genericVec = (lc0, TVector genericT (lc0, AValue (lc0, ANumber (AInteger 0))))
-    
+
     builtins = M.fromList
-      [ ("push", (lc0, TKonst (lc0, TFunc [genericVec, genericT] (lc0, TInt))))
-      , ("pop", (lc0, TKonst (lc0, TFunc [genericVec] genericT)))
-      , ("len", (lc0, TKonst (lc0, TFunc [genericVec] (lc0, TInt))))
+      [ ("$push", (lc0, TKonst (lc0, TFunc [genericVec, genericT] (lc0, TInt))))
+      , ("$pop", (lc0, TKonst (lc0, TFunc [genericVec] genericT)))
+      , ("$len", (lc0, TKonst (lc0, TFunc [genericVec] (lc0, TInt))))
       ]
 
 -- Insert a type alias or struct definition into the environment
@@ -48,10 +48,10 @@ insertInEnv env ast = case unwrap ast of
   ATypeAlias name ty -> env { typeAliases = M.insert name ty (typeAliases env) }
   AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
   ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
-  ATraitImpl tName implType _ -> 
-    env { traitImpls = M.insert 
-            (tName, typeToString implType) 
-            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
+  ATraitImpl tName implType _ ->
+    env { traitImpls = M.insert
+            (tName, typeToString implType)
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env)))
             (traitImpls env) }
   _ -> env
 
@@ -99,7 +99,7 @@ inferType expr env = case unwrap expr of
     ANumber (ABool _) -> Just (lc expr, TBool)
     ANumber (AChar _) -> Just (lc expr, TChar)
     AString _ -> Just (lc expr, TString)
-    ALambda params retType _ -> 
+    ALambda params retType _ ->
       case traverse extractParamType params of
         Just paramTypes -> Just (lc expr, TFunc paramTypes retType)
         Nothing -> Nothing

@@ -66,10 +66,9 @@ parseTraitFuncDef t =
                     <* skip
                     <* (parseString symbolSelf <|> fatal "Method" "missing self declaration")
                     <* skip
-                    <* parseChar ','
                 )
             <*> ( skip
-                    *> parseMultiple (parseTraitDeclaration t)
+                    *> ((parseChar ',' *> parseMultiple (parseTraitDeclaration t)) <|> pure [])
                     <* (parseChar symbolFuncParamOut <|> fatal "Method" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
                 )
             <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
