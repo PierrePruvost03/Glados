@@ -1,0 +1,13 @@
+Inklude isUpper (isUpper)
+
+Funk toLower(Khar k) -> Khar {
+    Int new_k = 0;
+    Int transition = 0;
+    If (isUpper(k)) {
+        new_k = Kast(Int, k);
+        transition = Kast(Int, 'a') - Kast(Int, 'A');
+        new_k = new_k + transition;
+        Return Kast(Khar, new_k);
+    }
+    Return k;
+}

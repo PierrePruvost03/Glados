@@ -1,0 +1,3 @@
+Funk mod(Int a, Int b) -> Int {
+    Return a - (a / b) * b;
+}
