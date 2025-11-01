@@ -63,21 +63,27 @@ parseTraitFuncDef t =
                     *> (parseChar symbolFuncParamIn <|> fatal "Method" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
                     *> skip
                     *> ((parseChar symbolRef *> pure True) <|> pure False)
+                    <* skip
                     <* (parseString symbolSelf <|> fatal "Method" "missing self declaration")
-                    <* skip)
-            <*> (   ((parseChar ','
-                    *> parseMultiple (parseTraitDeclaration t)) <|> pure [])
+                    <* skip
+                    <* parseChar ','
+                )
+            <*> ( skip
+                    *> parseMultiple (parseTraitDeclaration t)
                     <* (parseChar symbolFuncParamOut <|> fatal "Method" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
                 )
             <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
             <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Method" "invalid body")
         )
   where
-    f (lc, (name, ref, args, ret, body)) =
+    f (lc, (name, isRef, args, ret, body)) =
       AVarDecl
-        (lc, TKonst (lc, TFunc (ref ?: ((fst t, TRef t), t): (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
+        (lc, TKonst (lc, TFunc (selfType isRef : (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
         (typeRawToSimpleString (snd t) <> ('$' : name))
-        (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl t symbolSelf Nothing) : args) ret body))))
+        (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl (selfType isRef) symbolSelf Nothing) : args) ret body))))
+      where
+        selfType True = (lc, TRef t)
+        selfType False = t
 
 parseTraitImpl :: Parser Ast
 parseTraitImpl =
