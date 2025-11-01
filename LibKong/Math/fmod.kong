@@ -1,0 +1,5 @@
+Funk fmod(Float a, Float b) -> Float {
+    Float result = a / b;
+    Int modulo = Kast(Int, result);
+    Return a - (modulo * b);
+}
