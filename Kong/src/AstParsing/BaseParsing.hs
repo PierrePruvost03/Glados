@@ -57,24 +57,25 @@ parseTraitFuncDef t =
   wrap $
     f
       <$> wrap
-        ( (,,,)
+        ( (,,,,)
             <$> (skip *> parseName)
             <*> ( skip
                     *> (parseChar symbolFuncParamIn <|> fatal "Method" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
                     *> skip
-                    *> (parseString symbolSelf <|> fatal "Method" "missing self declaration")
-                    *> skip
-                    *> parseChar ','
-                    *> parseMultiple (parseTraitDeclaration t)
+                    *> ((parseChar symbolRef *> pure True) <|> pure False)
+                    <* (parseString symbolSelf <|> fatal "Method" "missing self declaration")
+                    <* skip)
+            <*> (   ((parseChar ','
+                    *> parseMultiple (parseTraitDeclaration t)) <|> pure [])
                     <* (parseChar symbolFuncParamOut <|> fatal "Method" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
                 )
             <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
             <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Method" "invalid body")
         )
   where
-    f (lc, (name, args, ret, body)) =
+    f (lc, (name, ref, args, ret, body)) =
       AVarDecl
-        (lc, TKonst (lc, TFunc (t : (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
+        (lc, TKonst (lc, TFunc (ref ?: ((fst t, TRef t), t): (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
         ((show t) <> ('$' : name))
         (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl t symbolSelf Nothing) : args) ret body))))
 
