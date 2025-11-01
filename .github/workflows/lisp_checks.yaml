@@ -22,8 +22,8 @@ jobs:
       - name: build LISP interpreter
         run: make lisp
       - name: check LISP binary exists
-        run: test -f LispInterpreter/glados
+        run: test -f LispInterpreter/glados-lisp
       - name: test LISP binary works
         run: |
-          echo "(+ 1 2)" | LispInterpreter/glados
+          echo "(+ 1 2)" | LispInterpreter/glados-lisp
           echo "LISP interpreter basic test passed"
