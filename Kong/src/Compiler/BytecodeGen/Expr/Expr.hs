@@ -40,7 +40,7 @@ compileExprWithType expr env expectedType = case unwrap expr of
       Just vType ->
         validateKonstAssignment var env (lc expr) >>
         checkAssignmentType (lc expr) (Just vType) (inferType rhs env) >>
-        fmap (\code -> code ++ [PushEnv var, StoreRef]) (compileExprWithType rhs env (Just vType))
+        fmap (\code -> code ++ [PushEnv var, StoreRef, LoadRef]) (compileExprWithType rhs env (Just vType))
   AValue astValue -> compileValueWithType astValue env expectedType
   AAccess access -> fmap (++ [LoadRef]) (compileAccess access env)
   ACast targetType ex -> compileCast targetType ex env (lc expr)
@@ -99,7 +99,7 @@ buildIndexAssignment :: String -> AExpression -> AExpression -> CompilerEnv -> E
 buildIndexAssignment name idx val env =
   (++) <$> compileExprWithType val env (getIndexedElementType env name)
        <*> ((++) <$> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name))
-                 <*> Right [GetList, StoreRef])
+                 <*> Right [GetList, StoreRef, LoadRef])
 
 getIndexedElementType :: CompilerEnv -> String -> Maybe Type
 getIndexedElementType env name = 
@@ -127,7 +127,7 @@ buildTupleAssignment :: String -> AExpression -> AExpression -> CompilerEnv -> E
 buildTupleAssignment name idx val env =
   (++) <$> compileExprWithType val env (getTupleElementType env name idx)
        <*> ((++) <$> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name))
-                 <*> Right [GetList, StoreRef])
+                 <*> Right [GetList, StoreRef, LoadRef])
 
 getTupleElementType :: CompilerEnv -> String -> AExpression -> Maybe Type
 getTupleElementType env name idx =
@@ -161,7 +161,7 @@ buildStructAssignment :: String -> String -> AExpression -> CompilerEnv -> Eithe
 buildStructAssignment name field val env =
   (++) <$> compileExprWithType val env (getStructFieldType env name field)
        <*> ((++) <$> Right (pushVarValue env name ++ [GetStruct field])
-                 <*> Right [StoreRef])
+                 <*> Right [StoreRef, LoadRef])
 
 getStructFieldType :: CompilerEnv -> String -> String -> Maybe Type
 getStructFieldType env name field =
@@ -263,13 +263,15 @@ compileArgForCall env expectedType arg
 
 -- Compile an expression as a reference (for ref parameters)
 compileAsReference :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileAsReference expr env =
-  case extractVariableName expr of
-    Just vname ->
+compileAsReference expr env = case unwrap expr of
+  AValue val -> case unwrap val of
+    AVarCall vname ->
       case M.lookup vname (typeAliases env) of
         Just _ -> Right [PushEnv vname]
         Nothing -> Left (UnknownVariable vname (lc expr))
-    Nothing -> compileExpr expr env
+    _ -> compileExpr expr env
+  AAccess access -> compileAccess access env
+  _ -> compileExpr expr env
 
 -- Compile the special print function call
 compilePrintCall :: [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
