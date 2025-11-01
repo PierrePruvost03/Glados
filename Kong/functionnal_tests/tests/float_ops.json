@@ -13,7 +13,7 @@
             },
             "float_ops2": {
                 "description": "adding 67.0 and 0.67",
-                "expected": "67.6700000166893",
+                "expected": "67.67",
                 "vars": {
                     "1": "Float a = 67.0;",
                     "2": "Float b = 0.67;"
@@ -31,7 +31,7 @@
             },
             "float_ops4": {
                 "description": "multiplying 6.7 by 10.0 to get 67",
-                "expected": "66.99999809265137",
+                "expected": "67.0",
                 "vars": {
                     "1": "Float a = 6.7;",
                     "2": "Float b = 10.0;"

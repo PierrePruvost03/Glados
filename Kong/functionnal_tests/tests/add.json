@@ -13,7 +13,7 @@
             },
             "add2": {
                 "description" : "adding two floats (six point seven and seven point six)",
-                "expected": "14.299999713897705",
+                "expected": "14.3",
                 "vars": {
                     "1": "Float a = 6.7;",
                     "2": "Float b = 7.6;"
@@ -22,7 +22,7 @@
             },
             "add3": {
                 "description" : "adding an int and a float (six seven and six point seven)",
-                "expected": "73.69999980926514",
+                "expected": "73.7",
                 "vars": {
                     "1": "Int a = 67;",
                     "2": "Float b = 6.7;"
