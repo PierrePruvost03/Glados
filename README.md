@@ -1,47 +1,34 @@
-# GLaDOS
+OVERALL README IN PROGRESS
 
-Welcome to GLaDOS Part 1
+# Kong
+
+Welcome to Kong, a GLaDOS project
 
 ## About
 
-This is the first part of the GLaDOS, a lisp interpretter.
+This is the second part of the GLaDOS EPITECH project.
 
-To see [official lisp documentation](https://lisp-docs.github.io/cl-language-reference/chap-2/c-b-character-syntax)
-> [!NOTE]
-> Keep in mind that this is a minimalist lisp interpretter, all the supported features are listed [here](#supported-features)
+The first part consisted in the creation of a lisp interpretter. You can find it in the  `ListInterpreter` folder.
 
-## How to build
+This second one sees us creating our own programming language, the Kong. You can find its source files in the `Kong` folder.
 
-`make`
+## How to install
 
-`./glados`
+WIP
 
 ## Supported features
 
 ### Types
 
-- Integers -> `12` and `-12`
-- Booleans -> `#t` and `#f`*
-- Strings -> `"this is a string"`
-- Lists -> `(define string "This is a list conataining two symbols and a string")`
+WIP
 
 ### Keywords
 
-- `define` -> `(define var "value")`
-- `lambda` -> `(define function (lambda (x) x))`
-- `if` -> `(if (zero? 1) "1 is zero" "1 is not zero")`
+WIP
 
 ### Primitives
 
-- `+` -> `(+ 2 3) ; 5`
-- `-` -> `(- 3 2) ; 1`
-- `*` -> `(* 2 3) ; 6`
-- `div` -> `(div 6 2) ; 3`
-- `eq?` -> `(eq? 6 2) ; #f`
-- `<` -> `(< 3 6) ; #t`
-- `>` -> `(> 3 6) ; #f`
-- `mod` -> `(mod 19 6) ; 1`
-- `zero?` -> `(zero? 1) ; #f`
+WIP
 
 ## Run tests
 
@@ -55,11 +42,7 @@ To see [official lisp documentation](https://lisp-docs.github.io/cl-language-ref
 
 ## Commands
 
-while using the interpretter in **standard input** mode, you can type some commands:
-
-- `:help` -> show the list of the available commands
-- `:load <file>...` -> execute a file in the interpreter, loading his symbols
-- `:type [<symbol>...]` -> get the type of a symbol (or all of them if no specified)
+WIP
 
 ## Contributors
 | Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |
