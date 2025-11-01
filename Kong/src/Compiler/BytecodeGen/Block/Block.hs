@@ -40,8 +40,8 @@ compileAst ast env = case unwrap ast of
     fmap (\instrs -> (instrs, env)) (compileLoop compileExpr compileAst ast env)
   ATraitDef name methods ->
     Right ([], env { traitDefs = M.insert name methods (traitDefs env) })
-  ATraitImpl traitName implType methods ->
-    compileTraitImpl traitName implType methods env
+  ATraitImpl tName implType methods ->
+    compileTraitImpl tName implType methods env
   AStruktDef name fdls ->
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
@@ -61,9 +61,9 @@ compileBlock asts env =
     asts
 
 compileTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-compileTraitImpl traitName implType methods env = 
+compileTraitImpl tName implType methods env = 
   compileBlock methods 
     (env { traitImpls = M.insert 
-             (traitName, typeToString implType) 
-             (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+             (tName, typeToString implType) 
+             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
              (traitImpls env) })

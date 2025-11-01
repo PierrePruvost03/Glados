@@ -61,16 +61,16 @@ buildAliasEnvironment asts =
 
 -- Validate trait implementation methods match trait definition
 validateTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> (Int, Int) -> Either CompilerError ()
-validateTraitImpl traitName implType methods env lnCount =
-  case M.lookup traitName (traitDefs env) of
-    Nothing -> Left (UndefinedTrait traitName lnCount)
+validateTraitImpl tName implType methods env lnCount =
+  case M.lookup tName (traitDefs env) of
+    Nothing -> Left (UndefinedTrait tName lnCount)
     Just expectedMethods ->
-      case (findMissingMethods expectedMethods implMethods, findUnexpectedMethods expectedMethods implMethods) of
+      case (findMissingMethods expectedMethods impMethods, findUnexpectedMethods expectedMethods impMethods) of
         ([], []) -> Right ()
-        (missing:_, _) -> Left (MissingTraitMethod traitName (typeToString implType) missing lnCount)
-        (_, unexpected:_) -> Left (UnexpectedTraitMethod traitName (typeToString implType) unexpected lnCount)
+        (missing:_, _) -> Left (MissingTraitMethod tName (typeToString implType) missing lnCount)
+        (_, unexpected:_) -> Left (UnexpectedTraitMethod tName (typeToString implType) unexpected lnCount)
   where
-    implMethods = [methodName | method <- methods, AVarDecl _ fullName _ <- [unwrap method], Just methodName <- [extractMethodName fullName]]
+    impMethods = [methodName | method <- methods, AVarDecl _ fullName _ <- [unwrap method], Just methodName <- [extractMethodName fullName]]
     extractMethodName name = case dropWhile (/= '$') name of
       '$':rest -> Just rest
       _ -> Nothing
@@ -85,10 +85,10 @@ processAstForEnv (env, errs) ast = case unwrap ast of
     handleValidation env errs ast (validateNoDuplicateDeclaration name env (lc ast))
   AStruktDef name fds -> 
     handleStructDef env errs ast name fds
-  ATraitDef name methods ->
+  ATraitDef _ _ ->
     (insertInEnv env ast, errs)
-  ATraitImpl traitName implType methods ->
-    case validateTraitImpl traitName implType methods env (lc ast) of
+  ATraitImpl tName implType methods ->
+    case validateTraitImpl tName implType methods env (lc ast) of
       Right () -> (insertInEnv env ast, errs)
       Left err -> (env, errs ++ [ProgramError "<global>" ast err])
   AVarDecl _ name _ ->
@@ -134,10 +134,10 @@ enrichEnvironmentWithAst :: CompilerEnv -> Ast -> CompilerEnv
 enrichEnvironmentWithAst env ast = case unwrap ast of
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
-  ATraitImpl traitName implType _ ->
+  ATraitImpl tName implType _ ->
     env { traitImpls = M.insert 
-            (traitName, typeToString implType) 
-            (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+            (tName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
             (traitImpls env) }
   _ -> env
 
@@ -147,10 +147,10 @@ buildSimpleAliasEnv env ast = case unwrap ast of
   ATypeAlias name typ -> env { typeAliases = M.insert name typ (typeAliases env) }
   AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
   ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
-  ATraitImpl traitName implType _ ->
+  ATraitImpl tName implType _ ->
     env { traitImpls = M.insert 
-            (traitName, typeToString implType) 
-            (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+            (tName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
             (traitImpls env) }
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env

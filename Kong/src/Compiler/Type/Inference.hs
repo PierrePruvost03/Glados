@@ -26,7 +26,21 @@ data CompilerEnv = CompilerEnv
   } deriving (Show, Eq)
 
 emptyEnv :: CompilerEnv
-emptyEnv = CompilerEnv M.empty M.empty M.empty M.empty
+emptyEnv = initBuiltinFunctions (CompilerEnv M.empty M.empty M.empty M.empty)
+
+-- Initialize environment with builtin functions (push, pop, len)
+initBuiltinFunctions :: CompilerEnv -> CompilerEnv
+initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env) }
+  where
+    lc0 = (0, 0)
+    genericT = (lc0, TCustom "T")
+    genericVec = (lc0, TVector genericT (lc0, AValue (lc0, ANumber (AInteger 0))))
+    
+    builtins = M.fromList
+      [ ("push", (lc0, TKonst (lc0, TFunc [genericVec, genericT] (lc0, TInt))))
+      , ("pop", (lc0, TKonst (lc0, TFunc [genericVec] genericT)))
+      , ("len", (lc0, TKonst (lc0, TFunc [genericVec] (lc0, TInt))))
+      ]
 
 -- Insert a type alias or struct definition into the environment
 insertInEnv :: CompilerEnv -> Ast -> CompilerEnv
@@ -34,10 +48,10 @@ insertInEnv env ast = case unwrap ast of
   ATypeAlias name ty -> env { typeAliases = M.insert name ty (typeAliases env) }
   AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
   ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
-  ATraitImpl traitName implType _ -> 
+  ATraitImpl tName implType _ -> 
     env { traitImpls = M.insert 
-            (traitName, typeToString implType) 
-            (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+            (tName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
             (traitImpls env) }
   _ -> env
 
