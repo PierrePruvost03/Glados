@@ -22,9 +22,7 @@ import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import Compiler.BytecodeGen.Expr.Helpers (compileNumberWithType, addPrintSyscall, checkLambdaReturn, buildLambdaEnv, getCapturedNames, compileLambdaParams, lookupResolved, elementTypeFromResolved, extractVariableName, pushVarValue, checkAccessType, typeToNumberType, isRefTypeWrapped, isDivisionOp, isAssignmentCall, isComparisonCall, isLogicalCall, isArithmeticCall, isPrintCall, isFunctionType, maybeFuncName)
-import Compiler.BytecodeGen.Block.Helpers (declareWithValue, validateInitializerValue)
-import Compiler.BytecodeGen.Expr.Helpers
-import Compiler.BytecodeGen.Block.Helpers (declareWithValue, canInitializeVectorWithDefault)
+import Compiler.BytecodeGen.Block.Helpers (declareWithValue, validateInitializerValue, canInitializeVectorWithDefault)
 import Parser (LineCount)
 
 -- MAIN EXPRESSION COMPILER - DISPATCHER
