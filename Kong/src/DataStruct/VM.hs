@@ -7,6 +7,7 @@ module DataStruct.VM
   , Stack
   , HeapAddr
   , baseState
+  , baseEnv
   ) where
 
 import qualified Data.Vector as V
@@ -31,8 +32,8 @@ data VMState = VMState
   , ip :: Int  -- Instruction Pointer
   } deriving (Show, Eq)
 
-baseState :: [Instr] -> VMState
-baseState instr = VMState {stack = [], env = M.fromList ([
+baseEnv :: [(String, Value)]
+baseEnv = [
         ("$push", VFunction [] (V.fromList [
                 SetVar "list",  -- (val, xs)
                 LoadRef,
@@ -88,4 +89,7 @@ baseState instr = VMState {stack = [], env = M.fromList ([
                 Ret
             ])
         )
-    ]), heap = V.empty, code = V.fromList instr, ip = 0}
+    ]
+
+baseState :: [Instr] -> VMState
+baseState instr = VMState {stack = [], env = M.fromList (baseEnv), heap = V.empty, code = V.fromList instr, ip = 0}
