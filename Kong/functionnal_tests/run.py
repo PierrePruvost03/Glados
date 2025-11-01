@@ -4,6 +4,11 @@ from colorama import Fore, Style, Back
 import json
 import sys
 
+BINARY_NAME = "./glados-kong"
+COMPILE_COMMAND = BINARY_NAME
+EXECUTE_COMMAND = "./glados-kong --exec"
+COMPILED_NAME = "strong.out"
+
 def gen_test_file(lisp_code: str, vars: list[str], input: str, test_name: str):
     with open(f"functionnal_tests/tmp/{test_name}.kong", "w") as f:
         f.write(lisp_code)
@@ -25,7 +30,8 @@ def read_tests(test_data: dict[str, str]):
         input = current_test["input"]
         vars = current_test.get("vars", {}).values()
         gen_test_file(lisp_code, vars, input, test)
-        output = os.popen(f"./glados-kong functionnal_tests/tmp/{test}.kong").read().strip().split("\n")
+        os.system(f"{COMPILE_COMMAND} functionnal_tests/tmp/{test}.kong")
+        output = os.popen(f"{EXECUTE_COMMAND} {COMPILED_NAME}").read().strip().split("\n")
         output = [line for line in output if "[Bytecode]" not in line and "[Execution finished]" not in line]
         if "".join(output) == expected_output:
             print(Fore.GREEN + f"[SUCCESS]" + Style.RESET_ALL +  f" {test_description}" + Style.RESET_ALL)
@@ -48,7 +54,7 @@ if __name__ == "__main__":
     test_files = glob.glob("functionnal_tests/tests/*.json")
 
     print(Fore.GREEN + "Building the project..." + Style.RESET_ALL)
-    os.system("rm -f glados && make")
+    os.system(f"rm -f {BINARY_NAME} && make")
     print(Fore.GREEN + "Running tests..." + Style.RESET_ALL)
     
     for test_file in test_files:
