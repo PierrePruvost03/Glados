@@ -75,7 +75,7 @@ pushVarValue env vname
 -- Convert AST number to bytecode number
 compileNumber :: AstNumber -> Number
 compileNumber (AInteger n) = VInt (fromIntegral n)
-compileNumber (AFloat f) = VFloat (realToFrac f)
+compileNumber (AFloat f) = VFloat (f)
 compileNumber (ABool b) = VBool b
 compileNumber (AChar c) = VChar c
 
