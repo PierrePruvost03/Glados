@@ -19,6 +19,7 @@ import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (ProgramError(..), CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv)
 import Compiler.Type.Return (checkMainSignature)
+import Compiler.Type.Normalization (typeToString)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Block.Block (compileAst)
@@ -58,6 +59,25 @@ buildAliasEnvironment asts =
     (env, []) -> Right env
     (_, errs) -> Left errs
 
+-- Validate trait implementation methods match trait definition
+validateTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> (Int, Int) -> Either CompilerError ()
+validateTraitImpl tName implType methods env lnCount =
+  case M.lookup tName (traitDefs env) of
+    Nothing -> Left (UndefinedTrait tName lnCount)
+    Just expectedMethods ->
+      case (findMissingMethods expectedMethods impMethods, findUnexpectedMethods expectedMethods impMethods) of
+        ([], []) -> Right ()
+        (missing:_, _) -> Left (MissingTraitMethod tName (typeToString implType) missing lnCount)
+        (_, unexpected:_) -> Left (UnexpectedTraitMethod tName (typeToString implType) unexpected lnCount)
+  where
+    impMethods = [methodName | method <- methods, AVarDecl _ fullName _ <- [unwrap method], Just methodName <- [extractMethodName fullName]]
+    extractMethodName name = case dropWhile (/= '$') name of
+      '$':rest -> Just rest
+      _ -> Nothing
+    traitMethodNames expected = [name | (name, _, _) <- expected]
+    findMissingMethods expected impl = [m | m <- traitMethodNames expected, m `notElem` impl]
+    findUnexpectedMethods expected impl = [m | m <- impl, m `notElem` traitMethodNames expected]
+
 -- Process a single AST node to build environment
 processAstForEnv :: (CompilerEnv, [ProgramError]) -> Ast -> (CompilerEnv, [ProgramError])
 processAstForEnv (env, errs) ast = case unwrap ast of
@@ -65,6 +85,12 @@ processAstForEnv (env, errs) ast = case unwrap ast of
     handleValidation env errs ast (validateNoDuplicateDeclaration name env (lc ast))
   AStruktDef name fds -> 
     handleStructDef env errs ast name fds
+  ATraitDef _ _ ->
+    (insertInEnv env ast, errs)
+  ATraitImpl tName implType methods ->
+    case validateTraitImpl tName implType methods env (lc ast) of
+      Right () -> (insertInEnv env ast, errs)
+      Left err -> (env, errs ++ [ProgramError "<global>" ast err])
   AVarDecl _ name _ ->
     case validateNoDuplicateDeclaration name env (lc ast) of
       Right () -> (env, errs)
@@ -96,6 +122,7 @@ extractAllTopLevel = concatMap extractFromAst
 extractFromAst :: Ast -> [Ast]
 extractFromAst ast = case unwrap ast of
   ABlock innerAsts -> concatMap extractFromAst innerAsts
+  ATraitImpl _ _ methods -> ast : methods
   _ -> [ast]
 
 -- Alias for extractAllTopLevel (for backwards compatibility)
@@ -106,6 +133,12 @@ extractAllTopLevelAsts = extractAllTopLevel
 enrichEnvironmentWithAst :: CompilerEnv -> Ast -> CompilerEnv
 enrichEnvironmentWithAst env ast = case unwrap ast of
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
+  ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
+  ATraitImpl tName implType _ ->
+    env { traitImpls = M.insert 
+            (tName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
+            (traitImpls env) }
   _ -> env
 
 -- Simple alias building for use with foldl (no error handling)
@@ -113,12 +146,19 @@ buildSimpleAliasEnv :: CompilerEnv -> Ast -> CompilerEnv
 buildSimpleAliasEnv env ast = case unwrap ast of
   ATypeAlias name typ -> env { typeAliases = M.insert name typ (typeAliases env) }
   AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
+  ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
+  ATraitImpl tName implType _ ->
+    env { traitImpls = M.insert 
+            (tName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
+            (traitImpls env) }
   AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
   _ -> env
 
 -- Expand file-AST pairs into individual file-AST tuples
+-- Also extracts methods from trait implementations
 expand :: [(String, [Ast])] -> [(String, Ast)]
-expand pairs = [(file, ast) | (file, asts) <- pairs, ast <- asts]
+expand pairs = [(file, ast) | (file, asts) <- pairs, ast <- extractAllTopLevel asts]
 
 -- Compile a file-AST pair with environment
 compilePairWithEnv :: CompilerEnv -> (String, Ast) -> Either ProgramError [Instr]

@@ -19,7 +19,7 @@ testPush = TestCase $ do
     (VMState
       { stack = [VNumber (VInt 42)]
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 1
       , code = V.fromList [Push (VNumber (VInt 42)), Ret]
       })
@@ -33,7 +33,7 @@ testPushEnvAndSetVar = TestCase $ do
     (VMState
       { stack = [VNumber (VInt 10)]
       , heap = V.empty
-      , env = M.fromList [("x", VNumber (VInt 10))]
+      , env = M.fromList (baseEnv <> [("x", VNumber (VInt 10))])
       , ip = 3
       , code = V.fromList [Push (VNumber (VInt 10)), SetVar "x", PushEnv "x", Ret]
       })
@@ -49,7 +49,7 @@ testCall = TestCase $ do
     (VMState
       { stack = [VNumber (VInt 7)]
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 2
       , code = V.fromList [Push func, Call, Ret]
       })
@@ -63,7 +63,7 @@ testNop = TestCase $ do
     (VMState
       { stack = []
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 1
       , code = V.fromList [Nop, Ret]
       })
@@ -77,7 +77,7 @@ testCreateList = TestCase $ do
     (VMState
       { stack = [VList (V.fromList [VNumber (VInt 2), VNumber (VInt 1)])]
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 3
       , code = V.fromList [Push (VNumber (VInt 1)), Push (VNumber (VInt 2)), CreateList 2, Ret]
       })
@@ -97,7 +97,7 @@ testCreateStruct = TestCase $ do
     (VMState
       { stack = [VStruct expectedStruct]
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 3
       , code = V.fromList
           [ Push (VNumber (VInt 25))
@@ -116,7 +116,7 @@ testJump = TestCase $ do
     (VMState
       { stack = [VNumber (VInt 5)]
       , heap = V.empty
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 2
       , code = V.fromList [Jump 1, Push (VNumber (VInt 5)), Ret]
       })
@@ -130,7 +130,7 @@ testHeapOps = TestCase $ do
     (VMState
       { stack = [VNumber (VInt 9)]
       , heap = V.fromList [VNumber (VInt 9)]
-      , env = M.empty
+      , env = M.fromList (baseEnv)
       , ip = 4
       , code = V.fromList [Push (VNumber (VInt 9)), Alloc, StoreRef, LoadRef, Ret]
       })
@@ -167,7 +167,7 @@ testFunctionWithEnv = TestCase $ do
         (VMState
             { stack = [VList (V.fromList [VNumber (VInt 2), VNumber (VInt 1)]), VNumber (VInt 2), VNumber (VInt 1)]
             , heap = V.empty
-            , env = M.fromList [("makePair", func)]
+            , env = M.fromList (baseEnv <> [("makePair", func)])
             , ip = 6
             , code = V.fromList
                 [ Push func
@@ -198,7 +198,7 @@ testNestedStructAccess = TestCase $ do
         (VMState
             { stack = [VNumber (VInt 10)]
             , heap = V.empty
-            , env = M.fromList [("outer", VStruct outerFields)]
+            , env = M.fromList (baseEnv <> [("outer", VStruct outerFields)])
             , ip = 5
             , code = V.fromList
                 [ Push (VStruct outerFields)
@@ -232,7 +232,7 @@ testListMutation = TestCase $ do
         (VMState
             { stack = [VNumber (VInt 99)]
             , heap = V.empty
-            , env = M.fromList [("arr", VList (V.fromList [VNumber (VInt 0), VNumber (VInt 99)]))]
+            , env = M.fromList (baseEnv <> [("arr", VList (V.fromList [VNumber (VInt 0), VNumber (VInt 99)]))])
             , ip = 10
             , code = V.fromList
                 [ Push initList
@@ -265,13 +265,13 @@ testHeapStructIntegration = TestCase $ do
         , GetStruct "age"
         , Ret
         ])
-    let expectedStruct = VStruct (M.fromList [("age", VNumber (VInt 123)), ("id", VNumber (VInt 21))])
+    let expectedStruct = VStruct (M.fromList ([("age", VNumber (VInt 123)), ("id", VNumber (VInt 21))]))
     assertEqual
         "should create struct in heap and access field"
         (VMState
             { stack = [VNumber (VInt 123)]
             , heap = V.fromList [expectedStruct]
-            , env = M.fromList [("person", expectedStruct)]
+            , env = M.fromList (baseEnv <> [("person", expectedStruct)])
             , ip = 9
             , code = V.fromList
                 [ Push (VNumber (VInt 21))

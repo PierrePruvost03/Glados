@@ -6,6 +6,8 @@ on:
       - 'Kong/**'
       - '.github/workflows/kong_checks.yaml'
   pull_request:
+    branches-ignore:
+      - main
     paths:
       - 'Kong/**'
 

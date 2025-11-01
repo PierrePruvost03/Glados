@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
 module AstParsing.BaseParsing where
 
@@ -57,26 +58,32 @@ parseTraitFuncDef t =
   wrap $
     f
       <$> wrap
-        ( (,,,)
+        ( (,,,,)
             <$> (skip *> parseName)
             <*> ( skip
                     *> (parseChar symbolFuncParamIn <|> fatal "Method" ("missing char \"" <> [symbolFuncParamIn] <> "\""))
                     *> skip
-                    *> (parseString symbolSelf <|> fatal "Method" "missing self declaration")
-                    *> skip
-                    *> parseChar ','
-                    *> parseMultiple (parseTraitDeclaration t)
+                    *> ((parseChar symbolRef *> pure True) <|> pure False)
+                    <* skip
+                    <* (parseString symbolSelf <|> fatal "Method" "missing self declaration")
+                    <* skip
+                )
+            <*> ( skip
+                    *> ((parseChar ',' *> parseMultiple (parseTraitDeclaration t)) <|> pure [])
                     <* (parseChar symbolFuncParamOut <|> fatal "Method" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
                 )
             <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
             <*> ((parseChar symbolBlockIn *> parseAstBlock <* parseChar symbolBlockOut) <|> fatal "Method" "invalid body")
         )
   where
-    f (lc, (name, args, ret, body)) =
+    f (lc, (name, isRef, args, ret, body)) =
       AVarDecl
-        (lc, TKonst (lc, TFunc (t : (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
-        ((show t) <> ('$' : name))
-        (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl t symbolSelf Nothing) : args) ret body))))
+        (lc, TKonst (lc, TFunc (selfType isRef : (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
+        (typeRawToSimpleString (snd t) <> ('$' : name))
+        (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl (selfType isRef) symbolSelf Nothing) : args) ret body))))
+      where
+        selfType True = (lc, TRef t)
+        selfType False = t
 
 parseTraitImpl :: Parser Ast
 parseTraitImpl =
@@ -208,6 +215,34 @@ parseTraitType t = parseRecParentType $ (skip *> parseString symbolSelfType *> p
 parseType :: Parser Type
 parseType = parseRecParentType parseBaseType
 
+
+------------------------------------------------
+-- Syntax sugar
+------------------------------------------------
+parseAssignSugar :: Parser AExpression
+parseAssignSugar = wrap $
+  skip
+    *> ( (\e1 op@(lc, _) e2 -> ACall (lc, AValue (lc, AVarCall "=")) [e1, (lc, ACall op [e1, e2])])
+           <$> parseBasicExpression
+           <* skip
+           <*> wrap (AValue <$> wrap (AVarCall <$> opSymbol))
+           <* skip <* parseChar '='
+           <*> parseExpression
+       )
+    where
+        opSymbol = (:[]) <$> parseAnyChar allowedOpAssignment
+
+parseIncr :: Parser AExpression
+parseIncr = wrap $
+    skip *>
+        ((f <$> (parseString symbolIncr *> parseBasicExpression)) <|>
+         (builtin <$> (parseBasicExpression <* parseString symbolIncr)))
+    where
+        f expr@(lc, _) = ACall (lc, AValue (lc, AVarCall "=")) [expr, (lc, ACall (lc, AValue (lc, AVarCall "+")) [expr, (lc, AValue (lc, ANumber (AInteger 1)))])]
+        builtin expr@(lc, _) = ACall (lc, AValue (lc, AVarCall "++")) [expr];
+
+parseSyntaxSugar :: Parser AExpression
+parseSyntaxSugar = parseAssignSugar <|> parseIncr
 ------------------------------------------------
 -- Expressions
 ------------------------------------------------
@@ -381,7 +416,7 @@ parseBasicExpression =
     <* skip
 
 parseExpression :: Parser AExpression
-parseExpression = parseInfix <|> parseBasicExpression
+parseExpression = parseSyntaxSugar <|> parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
 parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression
@@ -509,3 +544,22 @@ parseBody =
 
 parseAst :: Parser [Ast]
 parseAst = many parseAstFile
+
+-- Helper function to convert TypeRaw to simple string (without T prefix)
+typeRawToSimpleString :: TypeRaw -> String
+typeRawToSimpleString TInt = "Int"
+typeRawToSimpleString TBool = "Bool"
+typeRawToSimpleString TChar = "Char"
+typeRawToSimpleString TString = "String"
+typeRawToSimpleString TFloat = "Float"
+typeRawToSimpleString (TStruct name) = name
+typeRawToSimpleString (TTrait name) = name
+typeRawToSimpleString (TKonst t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TStrong t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TKong t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TRef t) = "&" ++ typeRawToSimpleString (snd t)
+typeRawToSimpleString (TArray t _) = typeRawToSimpleString (snd t) ++ "[]"
+typeRawToSimpleString (TVector t _) = typeRawToSimpleString (snd t) ++ "<>"
+typeRawToSimpleString (TTuple ts) = "|" ++ unwords (map (typeRawToSimpleString . snd) ts) ++ "|"
+typeRawToSimpleString (TCustom name) = name
+typeRawToSimpleString (TFunc args ret) = "(" ++ unwords (map (typeRawToSimpleString . snd) args) ++ "->" ++ typeRawToSimpleString (snd ret) ++ ")"
