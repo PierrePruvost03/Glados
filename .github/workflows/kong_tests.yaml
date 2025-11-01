@@ -2,6 +2,8 @@ name: Kong Compiler - Tests
 
 on:
   pull_request:
+    branches-ignore:
+      - main
     paths:
       - 'Kong/**'
   push:
