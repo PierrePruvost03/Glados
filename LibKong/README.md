@@ -48,3 +48,22 @@ ceil (Float) -> Float : round up a floating point number to its closest natural 
 floor (Float) -> Float : round down a floating point number to its closest natural value
 
 round (Float) -> Float : round a floating point number to its closest natural value
+
+## Khar
+
+The Khar part of the library contains operations to check kharacters' qualities.  
+Here is the list of funktions, the number and types of arguments, and want tey return :
+
+isDigit (Khar) -> Bool : returns True if the kharacter is a digit, False otherwise
+
+isAlpha (Khar) -> Bool : returns True if the kharacter is a letter, False otherwise
+
+isAlphaNum (Khar) -> Bool : returns True if the kharacter is a digit or a letter, False otherwise
+
+isLower (Khar) -> Bool : returns True if the kharacter is a lowercase letter, False otherwise
+
+isUpper (Khar) -> Bool : returns True if the kharacter is an uppercase letter, False otherwise
+
+toUpper (Khar) -> Khar : converts a lowercase letter into an uppercase
+
+toLower (Khar) -> Khar : converts an uppercase letter into a lowercase
