@@ -157,9 +157,7 @@ parseBaseType = parseConstType f
                  <|> TFunc
                    <$> ( parseChar symbolFuncParamIn
                            *> parseMultiple parseType
-                           <* ( parseChar symbolFuncParamOut
-                                  <|> fatal "Function" ("missing char \"" <> [symbolFuncParamOut] <> "\"")
-                              )
+                           <* parseChar symbolFuncParamOut
                            <* skip
                        )
                    <*> (parseString symbolFuncReturn *> skip *> parseType)
