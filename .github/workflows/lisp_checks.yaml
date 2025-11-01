@@ -6,6 +6,8 @@ on:
       - 'LispInterpreter/**'
       - '.github/workflows/lisp_checks.yaml'
   pull_request:
+    branches-ignore:
+      - main
     paths:
       - 'LispInterpreter/**'
 
