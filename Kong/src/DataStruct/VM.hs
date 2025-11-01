@@ -35,6 +35,7 @@ baseState :: [Instr] -> VMState
 baseState instr = VMState {stack = [], env = M.fromList ([
         ("$push", VFunction [] (V.fromList [
                 SetVar "list",  -- (val, xs)
+                LoadRef,
                 PushEnv "list", -- (ref, val, xs)
                 LoadRef,        -- (list, val, xs)
                 ListPush,       -- (new, xs)
