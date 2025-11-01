@@ -142,10 +142,10 @@ wrapperList :: String
 wrapperList = "<[&"
 
 symbolTrue :: String
-symbolTrue = "true"
+symbolTrue = "True"
 
 symbolFalse :: String
-symbolFalse = "false"
+symbolFalse = "False"
 
 allowedInfix :: String
 allowedInfix = "+-/:*^!%?&="
