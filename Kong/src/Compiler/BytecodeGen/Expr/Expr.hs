@@ -42,7 +42,7 @@ compileExprWithType expr env expectedType = case unwrap expr of
         checkAssignmentType (lc expr) (Just vType) (inferType rhs env) >>
         fmap (\code -> code ++ [PushEnv var, StoreRef]) (compileExprWithType rhs env (Just vType))
   AValue astValue -> compileValueWithType astValue env expectedType
-  AAccess access -> compileAccess access env
+  AAccess access -> fmap (++ [LoadRef]) (compileAccess access env)
   ACast targetType ex -> compileCast targetType ex env (lc expr)
   AMethodCall obj methodName args -> compileMethodCall obj methodName args env (lc expr)
   ACall fexp [lhs, val] | isAssignmentCall fexp ->
@@ -81,54 +81,105 @@ compileAssignmentExpr lhs val env lnCount = case unwrap lhs of
 
 compileIndexedAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Bool -> Either CompilerError [Instr]
 compileIndexedAssignment nameExpr idx val env lnCount _isTuple =
+  validateAndCompileIndexAssignment nameExpr idx val env lnCount
+
+validateAndCompileIndexAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+validateAndCompileIndexAssignment nameExpr idx val env lnCount =
   case extractVariableName nameExpr of
     Nothing -> Left $ InvalidArguments "Invalid left-hand side for assignment (base must be a variable)" lnCount
-    Just name ->
-      validateKonstAssignment name env lnCount >>
-      case checkAssignmentType lnCount (getIndexedElementType env name) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getIndexedElementType env name) <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
-                          <*> Right [SetList, PushEnv name, StoreRef]
-        Left err -> Left err
-  where
-    getIndexedElementType e n = case lookupResolved e n of
-      Just rt -> elementTypeFromResolved rt
-      Nothing -> Nothing
+    Just name -> compileIndexAssignmentForVar name idx val env lnCount
+
+compileIndexAssignmentForVar :: String -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileIndexAssignmentForVar name idx val env lnCount =
+  validateKonstAssignment name env lnCount >>
+  checkAssignmentType lnCount (getIndexedElementType env name) (inferType val env) >>
+  buildIndexAssignment name idx val env
+
+buildIndexAssignment :: String -> AExpression -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
+buildIndexAssignment name idx val env =
+  (++) <$> compileExprWithType val env (getIndexedElementType env name)
+       <*> ((++) <$> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name))
+                 <*> Right [GetList, StoreRef])
+
+getIndexedElementType :: CompilerEnv -> String -> Maybe Type
+getIndexedElementType env name = 
+  case lookupResolved env name of
+    Just rt -> elementTypeFromResolved rt
+    Nothing -> Nothing
 
 compileTupleAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileTupleAssignment nameExpr idx val env lnCount =
+  validateAndCompileTupleAssignment nameExpr idx val env lnCount
+
+validateAndCompileTupleAssignment :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+validateAndCompileTupleAssignment nameExpr idx val env lnCount =
   case extractVariableName nameExpr of
     Nothing -> Left $ InvalidArguments "Invalid left-hand side for assignment (tuple base must be a variable)" lnCount
-    Just name ->
-      validateKonstAssignment name env lnCount >>
-      case checkAssignmentType lnCount (getTupleElementType env name idx) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getTupleElementType env name idx) <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
-                          <*> Right [SetList, PushEnv name, StoreRef]
-        Left err -> Left err
-  where
-    getTupleElementType e n i = case lookupResolved e n of
-      Just t -> case unwrap t of
-        TTuple ts -> getTupleIndexType ts i
-        _ -> Nothing
-      _ -> Nothing
+    Just name -> compileTupleAssignmentForVar name idx val env lnCount
+
+compileTupleAssignmentForVar :: String -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileTupleAssignmentForVar name idx val env lnCount =
+  validateKonstAssignment name env lnCount >>
+  checkAssignmentType lnCount (getTupleElementType env name idx) (inferType val env) >>
+  buildTupleAssignment name idx val env
+
+buildTupleAssignment :: String -> AExpression -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
+buildTupleAssignment name idx val env =
+  (++) <$> compileExprWithType val env (getTupleElementType env name idx)
+       <*> ((++) <$> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name))
+                 <*> Right [GetList, StoreRef])
+
+getTupleElementType :: CompilerEnv -> String -> AExpression -> Maybe Type
+getTupleElementType env name idx =
+  case lookupResolved env name of
+    Just t -> extractTupleType t idx
+    _ -> Nothing
+
+extractTupleType :: Type -> AExpression -> Maybe Type
+extractTupleType t idx = 
+  case unwrap t of
+    TTuple ts -> getTupleIndexType ts idx
+    _ -> Nothing
 
 compileStructAssignment :: AExpression -> String -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileStructAssignment nameExpr field val env lnCount =
+  validateAndCompileStructAssignment nameExpr field val env lnCount
+
+validateAndCompileStructAssignment :: AExpression -> String -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+validateAndCompileStructAssignment nameExpr field val env lnCount =
   case extractVariableName nameExpr of
     Nothing -> Left $ InvalidArguments "Invalid left-hand side for assignment (struct base must be a variable)" lnCount
-    Just name ->
-      validateKonstAssignment name env lnCount >>
-      case checkAssignmentType lnCount (getStructFieldType env name field) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getStructFieldType env name field) <*> Right (pushVarValue env name))
-                          <*> Right [SetStruct field, PushEnv name, StoreRef]
-        Left err -> Left err
-  where
-    getStructFieldType e n f = case lookupResolved e n of
-      Just t -> case unwrap t of
-        TStruct sname -> case M.lookup sname (structDefs e) of
-          Just fds -> lookup f (map (\(ty, nm) -> (nm, ty)) fds)
-          Nothing  -> Nothing
-        _ -> Nothing
-      _ -> Nothing
+    Just name -> compileStructAssignmentForVar name field val env lnCount
+
+compileStructAssignmentForVar :: String -> String -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileStructAssignmentForVar name field val env lnCount =
+  validateKonstAssignment name env lnCount >>
+  checkAssignmentType lnCount (getStructFieldType env name field) (inferType val env) >>
+  buildStructAssignment name field val env
+
+buildStructAssignment :: String -> String -> AExpression -> CompilerEnv -> Either CompilerError [Instr]
+buildStructAssignment name field val env =
+  (++) <$> compileExprWithType val env (getStructFieldType env name field)
+       <*> ((++) <$> Right (pushVarValue env name ++ [GetStruct field])
+                 <*> Right [StoreRef])
+
+getStructFieldType :: CompilerEnv -> String -> String -> Maybe Type
+getStructFieldType env name field =
+  case lookupResolved env name of
+    Just t -> extractStructFieldType t field env
+    _ -> Nothing
+
+extractStructFieldType :: Type -> String -> CompilerEnv -> Maybe Type
+extractStructFieldType t field env =
+  case unwrap t of
+    TStruct sname -> lookupFieldInStruct sname field env
+    _ -> Nothing
+
+lookupFieldInStruct :: String -> String -> CompilerEnv -> Maybe Type
+lookupFieldInStruct sname field env =
+  case M.lookup sname (structDefs env) of
+    Just fds -> lookup field (map (\(ty, nm) -> (nm, ty)) fds)
+    Nothing -> Nothing
 
 
 -- OPERATORS (COMPARISON & ARITHMETIC)
@@ -222,16 +273,20 @@ compileAsReference expr env =
 
 -- Compile the special print function call
 compilePrintCall :: [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
-compilePrintCall [arg] env _ = case unwrap arg of
+compilePrintCall [arg] env lc0 = case unwrap arg of
   AValue val -> case unwrap val of
     AString s -> Right [Push (VList (V.fromList (map (VNumber . VChar) s))), Syscall (Print 1)]
-    ATuple xs -> fmap (addPrintSyscall 1) (compileListLiteral xs env)
-    AArray xs -> fmap (addPrintSyscall 1) (compileListLiteral xs env)
-    AVector xs -> fmap (addPrintSyscall 1) (compileListLiteral xs env)
+    ATuple xs -> fmap (addPrintSyscall 1) (compileListLiteralForPrint xs env lc0)
+    AArray xs -> fmap (addPrintSyscall 1) (compileListLiteralForPrint xs env lc0)
+    AVector xs -> fmap (addPrintSyscall 1) (compileListLiteralForPrint xs env lc0)
     _ -> fmap (addPrintSyscall 1) (compileExpr arg env)
   _ -> fmap (addPrintSyscall 1) (compileExpr arg env)
 compilePrintCall args env _ =
   fmap (addPrintSyscall (length args)) (concat <$> mapM (`compileExpr` env) (reverse args))
+
+compileListLiteralForPrint :: [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileListLiteralForPrint exprs env lc0 =
+  compileListLiteralWithType exprs env (Just (lc0, TKonst (lc0, TInt)))
 
 -- Generate instructions for calling a function (built-in or user-defined)
 compileCall :: String -> [Instr]
@@ -338,17 +393,64 @@ validateAccessAndCompile _ _ (Left err) = Left err
 -- LITERALS (LISTS, STRUCTS, CASTING)
 
 compileListLiteral :: [AExpression] -> CompilerEnv -> Either CompilerError [Instr]
-compileListLiteral exprs env =
-  fmap (\compiled -> concat compiled ++ [CreateList (length exprs)])
-       (mapM (`compileExpr` env) (reverse exprs))
+compileListLiteral exprs env = compileListLiteralWithType exprs env Nothing
+
+compileListLiteralWithType :: [AExpression] -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileListLiteralWithType exprs env maybeType =
+  fmap (buildListWithRefs (shouldWrapElement maybeType)) (mapM (`compileExpr` env) (reverse exprs))
+
+buildListWithRefs :: Bool -> [[Instr]] -> [Instr]
+buildListWithRefs True compiled = concatMap wrapWithRef compiled ++ [CreateList (length compiled)]
+buildListWithRefs False compiled = concat compiled ++ [CreateList (length compiled)]
+
+wrapWithRef :: [Instr] -> [Instr]
+wrapWithRef code = code ++ [Alloc, StoreRef]
+
+shouldWrapElement :: Maybe Type -> Bool
+shouldWrapElement Nothing = True
+shouldWrapElement (Just t) = not (isKonst t)
 
 compileStructLiteral :: [(String, AExpression)] -> CompilerEnv -> Either CompilerError [Instr]
-compileStructLiteral fieldPairs env =
-  fmap (\compiled -> concat compiled ++ [CreateStruct fieldNames])
-       (mapM compileField (reverse fieldPairs))
-  where
-    compileField (_, expression) = compileExpr expression env
-    fieldNames = map fst fieldPairs
+compileStructLiteral fieldPairs env = compileStructLiteralWithType fieldPairs env Nothing
+
+compileStructLiteralWithType :: [(String, AExpression)] -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileStructLiteralWithType fieldPairs env maybeType =
+  fmap (buildStructWithRefs (extractFieldNames fieldPairs) (getFieldConstFlags fieldPairs maybeType env)) 
+       (mapM (compileFieldExpr env) (reverse fieldPairs))
+
+extractFieldNames :: [(String, AExpression)] -> [String]
+extractFieldNames = map fst
+
+compileFieldExpr :: CompilerEnv -> (String, AExpression) -> Either CompilerError [Instr]
+compileFieldExpr env (_, expr) = compileExpr expr env
+
+buildStructWithRefs :: [String] -> [Bool] -> [[Instr]] -> [Instr]
+buildStructWithRefs fieldNames constFlags compiled =
+  concat (zipWith wrapFieldIfNeeded compiled constFlags) ++ [CreateStruct fieldNames]
+
+wrapFieldIfNeeded :: [Instr] -> Bool -> [Instr]
+wrapFieldIfNeeded code True = code
+wrapFieldIfNeeded code False = code ++ [Alloc, StoreRef]
+
+getFieldConstFlags :: [(String, AExpression)] -> Maybe Type -> CompilerEnv -> [Bool]
+getFieldConstFlags fieldPairs Nothing _ = replicate (length fieldPairs) False
+getFieldConstFlags fieldPairs (Just _) env = map (isFieldConst env) fieldPairs
+
+isFieldConst :: CompilerEnv -> (String, AExpression) -> Bool
+isFieldConst env (fieldName, _) = 
+  maybe False isKonst (findFieldTypeInStructs fieldName env)
+
+findFieldTypeInStructs :: String -> CompilerEnv -> Maybe Type
+findFieldTypeInStructs fieldName env =
+  case filter (hasField fieldName) (M.elems (structDefs env)) of
+    (fds:_) -> findFieldType fieldName fds
+    [] -> Nothing
+
+hasField :: String -> [(Type, String)] -> Bool
+hasField name fds = name `elem` map snd fds
+
+findFieldType :: String -> [(Type, String)] -> Maybe Type
+findFieldType name fds = lookup name (map (\(t, n) -> (n, t)) fds)
 
 -- Compile a cast expression
 compileCast :: Type -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
