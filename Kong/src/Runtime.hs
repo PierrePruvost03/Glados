@@ -1,6 +1,8 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Runtime
     ( compileAndExecute
     , printVMResult
+    , writeToBinary
     ) where
 
 import System.Exit (exitSuccess, exitWith, ExitCode(..))
@@ -11,6 +13,9 @@ import DataStruct.Ast (Ast)
 import Compiler.BytecodeGen.Program.Program (compileProgram)
 import VM.Execution (exec)
 import ErrorPrinter (printCompileError)
+import Data.Binary (encodeFile)
+import Control.Exception
+import System.IO
 
 -- | Compile AST to bytecode and execute it
 compileAndExecute :: [(String, [Ast])] -> IO ()
@@ -27,9 +32,14 @@ executeInstructions instrs = do
 printVMResult :: VMState -> IO ()
 printVMResult result@(VMState {stack = (VNumber (VInt r)) : _}) =
     putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitWithCode r
-printVMResult result = 
+printVMResult result =
     putStrLn ("[Execution finished] Final VM state: " ++ show result ++
     "\n invalid return type") >> exitWithCode 1
+
+
+-- | write bytecode to binary
+writeToBinary :: String -> [Instr] -> IO ()
+writeToBinary bName instr = catch (encodeFile bName instr) (\(exc :: IOException) -> hPutStrLn stderr ("Error writing binary :" <> show exc))
 
 -- | Exit with the given code
 exitWithCode :: Int -> IO ()
