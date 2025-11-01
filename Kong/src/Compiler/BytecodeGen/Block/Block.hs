@@ -6,6 +6,7 @@ module Compiler.BytecodeGen.Block.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (CompilerError(..))
+import Compiler.Type.Normalization (typeToString)
 import Compiler.Type.Inference (CompilerEnv(..), inferType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
@@ -37,6 +38,10 @@ compileAst ast env = case unwrap ast of
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr compileAst ast env)
   ALoop _ _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileLoop compileExpr compileAst ast env)
+  ATraitDef name methods ->
+    Right ([], env { traitDefs = M.insert name methods (traitDefs env) })
+  ATraitImpl tName implType methods ->
+    compileTraitImpl tName implType methods env
   AStruktDef name fdls ->
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
@@ -54,3 +59,11 @@ compileBlock asts env =
           Right (code ++ code', sc'))
     (Right ([], env))
     asts
+
+compileTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
+compileTraitImpl tName implType methods env = 
+  compileBlock methods 
+    (env { traitImpls = M.insert 
+             (tName, typeToString implType) 
+             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
+             (traitImpls env) })

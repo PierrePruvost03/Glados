@@ -3,7 +3,8 @@ module AstParsing.Utils
   ( parseMultiple,
     parseName,
     getVarType,
-    wrap
+    wrap,
+    (?:)
   )
 where
 
@@ -13,6 +14,10 @@ import Parser
 
 wrap :: Parser a -> Parser (Wrapper a)
 wrap p = (,) <$> getLineCount <*> p
+
+(?:) :: Bool -> (a, a) -> a
+(?:) True = fst
+(?:) _ = snd
 
 parseMultiple :: Parser a -> Parser [a]
 parseMultiple p = parseMultipleSep p ','

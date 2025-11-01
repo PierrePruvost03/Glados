@@ -44,6 +44,9 @@ data CompilerError
   | InvalidReturnType String LineCount
   | InvalidMainSignature String LineCount
   | InvalidReference String LineCount
+  | UndefinedTrait String LineCount
+  | MissingTraitMethod String String String LineCount
+  | UnexpectedTraitMethod String String String LineCount
   deriving (Show, Eq)
 
 data ProgramError = ProgramError
@@ -93,5 +96,10 @@ prettyError err = case err of
   InvalidReturnType msg lc -> linePrefix lc ++ "Invalid return type: " ++ msg
   InvalidMainSignature msg lc -> linePrefix lc ++ "Invalid main signature: " ++ msg
   InvalidReference msg lc -> linePrefix lc ++ "Invalid reference: " ++ msg
+  UndefinedTrait name lc -> linePrefix lc ++ "Trait '" ++ name ++ "' is not defined"
+  MissingTraitMethod traitName typeName methodName lc -> 
+    linePrefix lc ++ "Implementation of trait '" ++ traitName ++ "' for type '" ++ typeName ++ "' is missing required method '" ++ methodName ++ "'"
+  UnexpectedTraitMethod traitName typeName methodName lc -> 
+    linePrefix lc ++ "Implementation of trait '" ++ traitName ++ "' for type '" ++ typeName ++ "' has unexpected method '" ++ methodName ++ "' (not declared in trait)"
   where
     linePrefix (line, _) = "Line " ++ show (line + 1) ++ ": "

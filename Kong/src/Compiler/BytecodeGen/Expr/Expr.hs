@@ -12,6 +12,7 @@ import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
+import Compiler.Type.Normalization (typeToString, stripWrap)
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
 import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, logicalOps, checkComparisonTypes)
@@ -38,7 +39,7 @@ compileExpr expr env = case unwrap expr of
   AValue astValue -> compileValue astValue env
   AAccess access -> compileAccess access env
   ACast targetType ex -> compileCast targetType ex env (lc expr)
-  AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (lc expr)
+  AMethodCall obj methodName args -> compileMethodCall obj methodName args env (lc expr)
   ACall fexp [lhs, val] | isAssignmentCall fexp ->
     compileAssignmentExpr lhs val env (lc expr)
   ACall fexp [lh, rh] | isComparisonCall fexp comparisonOps ->
@@ -165,9 +166,7 @@ compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
     Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps), length args /= 2 ->
       Left $ ArgumentCountMismatch 2 (length args) lnCount
-    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps) ->
-      fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
-    Just name | name `elem` ["open","read","write","close","exit"] ->
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
@@ -388,3 +387,92 @@ compileLoop _exprCompiler astCompiler ast env = case unwrap ast of
       f (Just a) newEnv = astCompiler a newEnv
       f Nothing newEnv = Right ([], newEnv)
   _ -> Left $ UnsupportedAst "Loop not supported" (lc ast)
+
+-- Compile a method call (obj.method(args))
+compileMethodCall :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileMethodCall obj methodName args env lnCount =
+  maybe (Left $ InvalidArguments ("Unable to infer type of object for method call '" ++ methodName ++ "'") lnCount)
+        (compileMethodWithType obj methodName args env lnCount)
+        (inferType obj env)
+
+-- Compile method call when we know the object type
+compileMethodWithType :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Type -> Either CompilerError [Instr]
+compileMethodWithType obj methodName args env lnCount objType =
+  dispatchMethodCompilation (stripWrap objType) (getFunctionNameForMethod (stripWrap objType) methodName)
+  where
+    dispatchMethodCompilation :: Type -> String -> Either CompilerError [Instr]
+    dispatchMethodCompilation t name = case unwrap t of
+      TVector _ _ -> compileVectorMethod obj name args env lnCount
+      TArray _ _ -> compileArrayMethod obj name args env lnCount
+      _ -> compileTraitMethod obj name args env lnCount
+
+-- Get function name for a method call
+getFunctionNameForMethod :: Type -> String -> String
+getFunctionNameForMethod t method = case unwrap t of
+  TVector _ _ -> vectorMethodName method
+  TArray _ _ -> arrayMethodName method
+  _ -> typeToString t ++ "$" ++ method
+  where
+    vectorMethodName m = case m of
+      "push" -> '$':m
+      "pop" -> '$':m
+      "len" -> '$':m
+      _ -> typeToString t ++ "$" ++ m
+    arrayMethodName "len" = "len"
+    arrayMethodName m = typeToString t ++ "$" ++ m
+
+-- Compile vector method (push, pop, len)
+compileVectorMethod :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileVectorMethod obj name args env lnCount = case name of
+  "$push" -> compileBuiltinMethodCall obj name args env lnCount
+  "$pop" -> compileBuiltinMethodCall obj name args env lnCount
+  "$len" -> compileBuiltinMethodCall obj name args env lnCount
+  _ -> compileTraitMethod obj name args env lnCount
+
+-- Compile array method (len)
+compileArrayMethod :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileArrayMethod obj "len" args env lnCount = compileBuiltinMethodCall obj "len" args env lnCount
+compileArrayMethod obj name args env lnCount = compileTraitMethod obj name args env lnCount
+
+-- Compile regular trait method
+compileTraitMethod :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileTraitMethod obj name args env lnCount =
+  compileFunctionCall (lc obj, AValue (lc obj, AVarCall name)) (obj : args) env lnCount
+
+-- Compile builtin method call (push, pop, len)
+compileBuiltinMethodCall :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileBuiltinMethodCall objExpr builtinName argExprs env lnCount =
+  maybe (Left $ InvalidArguments ("Builtin method '" ++ builtinName ++ "' can only be called on variables, not expressions") lnCount)
+        (compileBuiltinForVariable builtinName argExprs env lnCount)
+        (extractVariableName objExpr)
+
+-- Compile builtin method for a specific variable
+compileBuiltinForVariable :: String -> [AExpression] -> CompilerEnv -> LineCount -> String -> Either CompilerError [Instr]
+compileBuiltinForVariable builtinName argExprs env lnCount vName =
+  validateConstForBuiltin vName builtinName env lnCount
+    >>= const (compileBuiltinArgs argExprs vName builtinName env)
+
+-- Validate that variable is not const for mutating methods
+validateConstForBuiltin :: String -> String -> CompilerEnv -> LineCount -> Either CompilerError ()
+validateConstForBuiltin vName builtinName env lnCount =
+  maybe (Right ())
+        (checkConstForMethod builtinName lnCount)
+        (M.lookup vName (typeAliases env))
+  where
+    checkConstForMethod :: String -> LineCount -> Type -> Either CompilerError ()
+    checkConstForMethod name lCount t = case (isKonst t, isMutatingMethod name) of
+      (True, True) -> Left $ InvalidArguments ("Cannot call method '" ++ name ++ "' on const variable '" ++ vName ++ "'") lCount
+      _ -> Right ()
+
+    isMutatingMethod :: String -> Bool
+    isMutatingMethod "$push" = True
+    isMutatingMethod "$pop" = True
+    isMutatingMethod _ = False
+
+-- Compile arguments and generate instructions for builtin method
+compileBuiltinArgs :: [AExpression] -> String -> String -> CompilerEnv -> Either CompilerError [Instr]
+compileBuiltinArgs argExprs vName builtinName env =
+  fmap (buildBuiltinInstrs vName builtinName) (traverse (`compileExpr` env) argExprs)
+  where
+    buildBuiltinInstrs :: String -> String -> [[Instr]] -> [Instr]
+    buildBuiltinInstrs vn bn argsCode = concat argsCode ++ [PushEnv vn, PushEnv bn, Call]
