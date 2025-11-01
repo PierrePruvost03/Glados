@@ -120,8 +120,6 @@ compileStructAssignment nameExpr field val env lnCount =
     Just name ->
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getStructFieldType env name field) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExpr val env <*> Right (pushVarValue env name))
-                          <*> Right [SetStruct field, PushEnv name, StoreRef, LoadRef]
         Right () -> (++) <$> ((++) <$> compileExprWithType val env (getStructFieldType env name field) <*> Right (pushVarValue env name))
                           <*> Right [SetStruct field, PushEnv name, StoreRef]
         Left err -> Left err
