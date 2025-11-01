@@ -67,10 +67,9 @@ parseTraitFuncDef t =
                     <* skip
                     <* (parseString symbolSelf <|> fatal "Method" "missing self declaration")
                     <* skip
-                    <* parseChar ','
                 )
             <*> ( skip
-                    *> parseMultiple (parseTraitDeclaration t)
+                    *> ((parseChar ',' *> parseMultiple (parseTraitDeclaration t)) <|> pure [])
                     <* (parseChar symbolFuncParamOut <|> fatal "Method" ("missing char \"" <> [symbolFuncParamOut] <> "\""))
                 )
             <*> ((skip *> parseString symbolFuncReturn *> parseTraitType t <* skip) <|> fatal "Method" ("missing return value type after \"" <> symbolFuncReturn <> " symbol\""))
@@ -216,6 +215,34 @@ parseTraitType t = parseRecParentType $ (skip *> parseString symbolSelfType *> p
 parseType :: Parser Type
 parseType = parseRecParentType parseBaseType
 
+
+------------------------------------------------
+-- Syntax sugar
+------------------------------------------------
+parseAssignSugar :: Parser AExpression
+parseAssignSugar = wrap $
+  skip
+    *> ( (\e1 op@(lc, _) e2 -> ACall (lc, AValue (lc, AVarCall "=")) [e1, (lc, ACall op [e1, e2])])
+           <$> parseBasicExpression
+           <* skip
+           <*> wrap (AValue <$> wrap (AVarCall <$> opSymbol))
+           <* skip <* parseChar '='
+           <*> parseExpression
+       )
+    where
+        opSymbol = (:[]) <$> parseAnyChar allowedOpAssignment
+
+parseIncr :: Parser AExpression
+parseIncr = wrap $
+    skip *>
+        ((f <$> (parseString symbolIncr *> parseBasicExpression)) <|>
+         (builtin <$> (parseBasicExpression <* parseString symbolIncr)))
+    where
+        f expr@(lc, _) = ACall (lc, AValue (lc, AVarCall "=")) [expr, (lc, ACall (lc, AValue (lc, AVarCall "+")) [expr, (lc, AValue (lc, ANumber (AInteger 1)))])]
+        builtin expr@(lc, _) = ACall (lc, AValue (lc, AVarCall "++")) [expr];
+
+parseSyntaxSugar :: Parser AExpression
+parseSyntaxSugar = parseAssignSugar <|> parseIncr
 ------------------------------------------------
 -- Expressions
 ------------------------------------------------
@@ -389,7 +416,7 @@ parseBasicExpression =
     <* skip
 
 parseExpression :: Parser AExpression
-parseExpression = parseInfix <|> parseBasicExpression
+parseExpression = parseSyntaxSugar <|> parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
 parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression

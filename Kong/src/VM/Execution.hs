@@ -93,6 +93,7 @@ checkInstrution s@(VMState {stack, ip}) (CreateStruct l) = case createStruct sta
 checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case heap V.!? addr of
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ InvalidHeapAccess
+checkInstrution s@(VMState {ip}) LoadRef = exec $ s {ip = ip + 1}
 checkInstrution s@(VMState {stack, heap, ip}) Alloc =
     exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1, heap = V.snoc heap VEmpty}
 checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRef =
