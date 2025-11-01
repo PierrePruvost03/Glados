@@ -5,6 +5,8 @@ on:
     branches:
       - main
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -35,7 +37,7 @@ jobs:
       image: epitechcontent/epitest-docker
     steps:
       - uses: actions/checkout@v4
-      - name: run all tests
+      - name: run all unit tests
         run: make test
       - name: run LISP functional tests
         shell: bash
@@ -45,15 +47,20 @@ jobs:
           bash functionnal_tests/install_requirements.sh
           source .venv/bin/activate
           python3 functionnal_tests/run.py
+      - name: run Kong functional tests
+        shell: bash
+        run: |
+          cd Kong
+          bash functionnal_tests/install_requirements.sh
+          source .venv/bin/activate
+          python3 functionnal_tests/run.py
   
   defense_ready:
     needs: [build_all_projects, run_all_tests]
     runs-on: ubuntu-latest
     steps:
-      - name: Defense Ready Confirmation
+      - name: Project ready
         run: |
-          echo "🎉 GLaDOS Project is ready for defense!"
-          echo "✅ LISP Interpreter (Part 1) - Built and tested"
-          echo "✅ Kong Compiler (Part 2) - Built and tested"
-          echo "✅ All tests passing"
-          echo "Ready for final defense! 🚀"
+          echo "LISP Interpreter (Part 1) - Built and tested"
+          echo "Kong Compiler (Part 2) - Built and tested"
+          echo "All tests passing"

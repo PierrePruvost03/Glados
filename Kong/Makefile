@@ -5,7 +5,7 @@
 ## Makefile for glados
 ##
 
-NAME	= glados
+NAME	= glados-kong
 
 STACKNAME	=	glados-kong-exe
 
