@@ -47,9 +47,9 @@ compileExpr expr env = case unwrap expr of
     compileLogicalExpr fexp lh rh env (lc expr)
   ACall fexp [lh, rh] | isArithmeticCall fexp arithOps ->
     compileArithmeticExpr fexp lh rh env (lc expr)
-  ACall fexp args | isPrintCall fexp -> 
+  ACall fexp args | isPrintCall fexp ->
     compilePrintCall args env (lc expr)
-  ACall fexp args -> 
+  ACall fexp args ->
     compileFunctionCall fexp args env (lc expr)
 
 
@@ -62,7 +62,7 @@ compileAssignmentExpr lhs val env lnCount = case unwrap lhs of
     AVarCall v ->
       validateKonstAssignment v env lnCount >>
       checkAssignmentType lnCount (M.lookup v (typeAliases env)) (inferType val env) >>
-      fmap (++ [PushEnv v, StoreRef]) (compileExpr val env)
+      fmap (++ [PushEnv v, StoreRef, LoadRef]) (compileExpr val env)
     _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
   -- arr[idx] = val, vec<idx> = val, tup|idx| = val
   AAccess acc -> case unwrap acc of
@@ -81,7 +81,7 @@ compileIndexedAssignment nameExpr idx val env lnCount _isTuple =
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getIndexedElementType env name) (inferType val env) of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
-                          <*> Right [SetList, PushEnv name, StoreRef]
+                          <*> Right [SetList, PushEnv name, StoreRef, LoadRef]
         Left err -> Left err
   where
     getIndexedElementType e n = case lookupResolved e n of
@@ -96,7 +96,7 @@ compileTupleAssignment nameExpr idx val env lnCount =
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getTupleElementType env name idx) (inferType val env) of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
-                          <*> Right [SetList, PushEnv name, StoreRef]
+                          <*> Right [SetList, PushEnv name, StoreRef, LoadRef]
         Left err -> Left err
   where
     getTupleElementType e n i = case lookupResolved e n of
@@ -113,7 +113,7 @@ compileStructAssignment nameExpr field val env lnCount =
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getStructFieldType env name field) (inferType val env) of
         Right () -> (++) <$> ((++) <$> compileExpr val env <*> Right (pushVarValue env name))
-                          <*> Right [SetStruct field, PushEnv name, StoreRef]
+                          <*> Right [SetStruct field, PushEnv name, StoreRef, LoadRef]
         Left err -> Left err
   where
     getStructFieldType e n f = case lookupResolved e n of
@@ -171,7 +171,7 @@ compileFunctionCall fexp args env lnCount =
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
-        Just vartype -> 
+        Just vartype ->
           validateNonCallable name vartype lnCount >>
           validateFunctionAndCompileCall name (Just vartype) (getFunctionArgTypes (typeAliases env) name) (map (\a -> inferType a env) args) (compileArgsForCall env (getFunctionArgTypes (typeAliases env) name) args) lnCount
         Nothing -> validateFunctionAndCompileCall name Nothing Nothing (map (\a -> inferType a env) args) (compileArgsForCall env Nothing args) lnCount
@@ -208,9 +208,9 @@ compileArgForCall env expectedType arg
 
 -- Compile an expression as a reference (for ref parameters)
 compileAsReference :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileAsReference expr env = 
+compileAsReference expr env =
   case extractVariableName expr of
-    Just vname -> 
+    Just vname ->
       case M.lookup vname (typeAliases env) of
         Just _ -> Right [PushEnv vname]
         Nothing -> Left (UnknownVariable vname (lc expr))
@@ -260,17 +260,17 @@ compileValue val env = case unwrap val of
       capturedNames = getCapturedNames params env
       paramInstrs = compileLambdaParams params
       makeLambdaValue (bodyCode, _) = [Push (VFunction capturedNames (V.fromList (paramInstrs ++ bodyCode)))]
-      
+
       -- Compile a block of statements for a lambda body
       -- Simplified version that only handles what's needed inside lambdas
       compileBlockForLambda :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
-      compileBlockForLambda asts env' = 
+      compileBlockForLambda asts env' =
         foldl
           (\acc a -> acc >>= \(code, sc) ->
               compileSingleAst a sc >>= \(code', sc') -> Right (code ++ code', sc'))
           (Right ([], env'))
           asts
-      
+
       -- Compile a single AST node inside a lambda
       compileSingleAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
       compileSingleAst ast env' = case unwrap ast of
@@ -297,7 +297,7 @@ compileValue val env = case unwrap val of
 -- ACCESS EXPRESSIONS (ARRAY, VECTOR, TUPLE, STRUCT)
 
 compileAccess :: AstAccess -> CompilerEnv -> Either CompilerError [Instr]
-compileAccess access env = 
+compileAccess access env =
   validateAccess access env (lc access) >>= \() ->
     case unwrap access of
       AArrayAccess arrExpr idx ->
