@@ -1,0 +1,7 @@
+Funk fmax(Float a, Float b) -> Float {
+    If (a `>s` b) {
+        Return a;
+    } Else {
+        Return b;
+    }
+}

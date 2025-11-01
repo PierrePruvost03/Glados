@@ -20,7 +20,7 @@ def read_tests(test_data: dict[str, str]):
         expected_output = current_test["expected"]
         input = current_test["input"]
         gen_test_file(lisp_code, input, test)
-        output = os.popen(f"./glados < functionnal_tests/tmp/{test}.lsp").read().strip().split("\n")[-2]
+        output = os.popen(f"./glados-lisp < functionnal_tests/tmp/{test}.lsp").read().strip().split("\n")[-2]
         if output == expected_output:
             print(Fore.GREEN + f"[SUCCESS]" + Style.RESET_ALL +  f" {test_description}" + Style.RESET_ALL)
             success_tests.append(test_description)

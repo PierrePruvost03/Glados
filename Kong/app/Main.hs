@@ -102,7 +102,7 @@ handleExec instrs = do
 
 printResult :: VMState -> IO ()
 printResult result@(VMState {stack = (VNumber (VInt r)) : _}) =
-    putStrLn ("[Execution finished] Final VM state: " ++ show result) >> returnValue r
+    putStrLn ("[Execution finished] Final VM state: " ++ show result) >> returnValue (fromIntegral r)
 printResult result = putStrLn ("[Execution finished] Final VM state: " ++ show result ++
     "\n invalid return type") >> returnValue 1
 

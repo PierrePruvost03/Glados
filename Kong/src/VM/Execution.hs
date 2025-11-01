@@ -47,7 +47,7 @@ checkInstrution s@(VMState {ip}) (DoOp op) = exec $ (applyOp s op) {ip = ip + 1}
 checkInstrution s@(VMState {stack = (VNumber v : xs), ip}) (Cast t) =
     exec $ s {stack = (VNumber (castNumber v t) : xs), ip = ip + 1}
 checkInstrution s@(VMState {stack = VList l : xs, ip}) Length =
-    exec $ s {stack = VNumber (VInt (V.length l)) : xs, ip = ip + 1}
+    exec $ s {stack = VNumber (VInt (fromIntegral $ V.length l)) : xs, ip = ip + 1}
 
 -- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, heap, ip}) Call =

@@ -6,6 +6,8 @@ on:
       - 'Kong/**'
       - '.github/workflows/kong_checks.yaml'
   pull_request:
+    branches-ignore:
+      - main
     paths:
       - 'Kong/**'
 
@@ -22,4 +24,4 @@ jobs:
       - name: build Kong compiler
         run: make kong
       - name: check Kong binary exists
-        run: test -f Kong/glados
+        run: test -f Kong/glados-kong

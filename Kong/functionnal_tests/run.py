@@ -25,7 +25,7 @@ def read_tests(test_data: dict[str, str]):
         input = current_test["input"]
         vars = current_test.get("vars", {}).values()
         gen_test_file(lisp_code, vars, input, test)
-        output = os.popen(f"./glados functionnal_tests/tmp/{test}.kong").read().strip().split("\n")
+        output = os.popen(f"./glados-kong functionnal_tests/tmp/{test}.kong").read().strip().split("\n")
         output = [line for line in output if "[Bytecode]" not in line and "[Execution finished]" not in line]
         if "".join(output) == expected_output:
             print(Fore.GREEN + f"[SUCCESS]" + Style.RESET_ALL +  f" {test_description}" + Style.RESET_ALL)

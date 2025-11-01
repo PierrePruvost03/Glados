@@ -1,0 +1,60 @@
+name: Release
+run-name: Releasing Glados
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release_project:
+    name: Release
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    env:
+      STACK_ROOT: /tmp/stack-root
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Configure Git security
+        run: git config --global --add safe.directory /__w/Glados/Glados
+      - name: Fetch tags with annotations
+        run: git fetch --tags --force
+      - name: Build project
+        run: make all
+      - name: Verify binaries exist
+        run: |
+          test -f Kong/glados-kong && echo "✅ Kong binary built"
+          test -f LispInterpreter/glados-lisp && echo "✅ Lisp binary built"
+      - name: Extract tag name
+        id: tag
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Extract release notes from tag message
+        id: release_notes
+        run: |
+          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${{ steps.tag.outputs.tag }})
+
+          if [ -z "$TAG_MESSAGE" ]; then
+            TAG_MESSAGE=$(git log -1 --pretty=%B)
+          fi
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Glados ${{ steps.tag.outputs.tag }}"
+          body: ${{ steps.release_notes.outputs.notes }}
+          files: |
+            Kong/glados-kong
+            LispInterpreter/glados-lisp
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.WORKFLOWS_TOKEN }}

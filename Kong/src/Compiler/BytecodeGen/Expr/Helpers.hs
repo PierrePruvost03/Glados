@@ -4,6 +4,7 @@ module Compiler.BytecodeGen.Expr.Helpers
   , lookupResolved
   , pushVarValue
   , compileNumber
+  , compileNumberWithType
   , typeToNumberType
   , isRefTypeWrapped
   , checkAccessType
@@ -73,10 +74,24 @@ pushVarValue env vname
 
 -- Convert AST number to bytecode number
 compileNumber :: AstNumber -> Number
-compileNumber (AInteger n) = VInt n
+compileNumber (AInteger n) = VInt (fromIntegral n)
 compileNumber (AFloat f) = VFloat (realToFrac f)
 compileNumber (ABool b) = VBool b
 compileNumber (AChar c) = VChar c
+
+compileNumberWithType :: AstNumber -> Maybe Type -> CompilerEnv -> Number
+compileNumberWithType (AInteger n) (Just expectedType) env = 
+  case unwrap (resolveType env expectedType) of
+    TStrong ty -> case unwrap ty of
+      TInt -> VLong (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKong ty -> case unwrap ty of
+      TInt -> VUInt (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKonst ty -> compileNumberWithType (AInteger n) (Just ty) env
+    _ -> VInt (fromIntegral n)
+compileNumberWithType number Nothing _ = compileNumber number
+compileNumberWithType number _ _ = compileNumber number
 
 -- Convert a type to a NumberType for casting
 typeToNumberType :: Type -> Maybe NumberType
@@ -86,9 +101,27 @@ typeToNumberType t = case unwrap t of
   TChar -> Just NTChar
   TFloat -> Just NTFloat
   TKonst ty -> typeToNumberType ty
-  TStrong ty -> typeToNumberType ty
-  TKong ty -> typeToNumberType ty
+  TStrong ty -> typeToNumberTypeForStrong (stripTypeModifiers ty)
+  TKong ty -> typeToNumberTypeForKong (stripTypeModifiers ty)
   _ -> Nothing
+
+typeToNumberTypeForStrong :: Type -> Maybe NumberType
+typeToNumberTypeForStrong innerType = case unwrap innerType of
+  TInt -> Just NTLong
+  TFloat -> Just NTFloat
+  _ -> Nothing
+
+typeToNumberTypeForKong :: Type -> Maybe NumberType
+typeToNumberTypeForKong innerType = case unwrap innerType of
+  TInt -> Just NTUInt
+  _ -> Nothing
+
+stripTypeModifiers :: Type -> Type
+stripTypeModifiers t = case unwrap t of
+  TKonst ty -> stripTypeModifiers ty
+  TStrong ty -> stripTypeModifiers ty
+  TKong ty -> stripTypeModifiers ty
+  _ -> t
 
 -- Check if a type is a reference type
 isRefTypeWrapped :: Type -> Bool

@@ -5,10 +5,6 @@
 ## Makefile for glados
 ##
 
-NAME	= glados
-
-STACKNAME	=	glados-exe
-
 all: lisp kong
 
 lisp:
