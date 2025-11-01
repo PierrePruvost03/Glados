@@ -12,6 +12,7 @@ import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
 import DataStruct.Bytecode.Value (Instr(..), Value(..))
 import DataStruct.Bytecode.Syscall (Syscall(..))
+import Compiler.Type.Normalization (typeToString, stripWrap)
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
 import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, logicalOps, checkComparisonTypes)
@@ -38,7 +39,7 @@ compileExpr expr env = case unwrap expr of
   AValue astValue -> compileValue astValue env
   AAccess access -> compileAccess access env
   ACast targetType ex -> compileCast targetType ex env (lc expr)
-  AMethodCall _ _ _ -> Left $ UnsupportedAst "Method calls not yet implemented" (lc expr)
+  AMethodCall obj methodName args -> compileMethodCall obj methodName args env (lc expr)
   ACall fexp [lhs, val] | isAssignmentCall fexp ->
     compileAssignmentExpr lhs val env (lc expr)
   ACall fexp [lh, rh] | isComparisonCall fexp comparisonOps ->
@@ -165,9 +166,7 @@ compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
     Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps), length args /= 2 ->
       Left $ ArgumentCountMismatch 2 (length args) lnCount
-    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps) ->
-      fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
-    Just name | name `elem` ["open","read","write","close","exit"] ->
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps ++ ["open","read","write","close","exit"]) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
@@ -388,3 +387,16 @@ compileLoop _exprCompiler astCompiler ast env = case unwrap ast of
       f (Just a) newEnv = astCompiler a newEnv
       f Nothing newEnv = Right ([], newEnv)
   _ -> Left $ UnsupportedAst "Loop not supported" (lc ast)
+
+-- Compile a method call (obj.method(args))
+compileMethodCall :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
+compileMethodCall obj methodName args env lnCount =
+  case inferType obj env of
+    Just objType ->
+      compileFunctionCall 
+        (lc obj, AValue (lc obj, AVarCall (typeToString (stripWrap objType) ++ "$" ++ methodName))) 
+        (obj : args)
+        env 
+        lnCount
+    Nothing ->
+      Left $ InvalidArguments ("Unable to infer type of object for method call '" ++ methodName ++ "'") lnCount
