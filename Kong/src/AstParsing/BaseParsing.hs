@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 
-module AstParsing.BaseParsing (parseAst) where
+module AstParsing.BaseParsing where
 
 import AstParsing.Include
 import AstParsing.Keywords.Keywords
