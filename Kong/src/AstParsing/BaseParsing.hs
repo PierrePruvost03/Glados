@@ -76,7 +76,7 @@ parseTraitFuncDef t =
     f (lc, (name, ref, args, ret, body)) =
       AVarDecl
         (lc, TKonst (lc, TFunc (ref ?: ((fst t, TRef t), t): (map (\(lcArg, v) -> (lcArg, getVarType v))) args) ret))
-        ((show t) <> ('$' : name))
+        (typeRawToSimpleString (snd t) <> ('$' : name))
         (Just (lc, (AValue (lc, ALambda ((lc, AVarDecl t symbolSelf Nothing) : args) ret body))))
 
 parseTraitImpl :: Parser Ast
@@ -510,3 +510,22 @@ parseBody =
 
 parseAst :: Parser [Ast]
 parseAst = many parseAstFile
+
+-- Helper function to convert TypeRaw to simple string (without T prefix)
+typeRawToSimpleString :: TypeRaw -> String
+typeRawToSimpleString TInt = "Int"
+typeRawToSimpleString TBool = "Bool"
+typeRawToSimpleString TChar = "Char"
+typeRawToSimpleString TString = "String"
+typeRawToSimpleString TFloat = "Float"
+typeRawToSimpleString (TStruct name) = name
+typeRawToSimpleString (TTrait name) = name
+typeRawToSimpleString (TKonst t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TStrong t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TKong t) = typeRawToSimpleString (snd t)
+typeRawToSimpleString (TRef t) = "&" ++ typeRawToSimpleString (snd t)
+typeRawToSimpleString (TArray t _) = typeRawToSimpleString (snd t) ++ "[]"
+typeRawToSimpleString (TVector t _) = typeRawToSimpleString (snd t) ++ "<>"
+typeRawToSimpleString (TTuple ts) = "|" ++ unwords (map (typeRawToSimpleString . snd) ts) ++ "|"
+typeRawToSimpleString (TCustom name) = name
+typeRawToSimpleString (TFunc args ret) = "(" ++ unwords (map (typeRawToSimpleString . snd) args) ++ "->" ++ typeRawToSimpleString (snd ret) ++ ")"

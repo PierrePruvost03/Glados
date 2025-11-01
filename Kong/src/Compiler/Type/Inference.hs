@@ -15,22 +15,30 @@ import DataStruct.Ast
 import Parser (LineCount)
 import qualified Data.Map as M
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.Type.Normalization (stripWrap, eqTypeNormalized)
+import Compiler.Type.Normalization (stripWrap, eqTypeNormalized, typeToString)
 import Compiler.Type.Checks (isFloatType, numericCompatible, comparisonOps, arithOps, logicalOps)
 
 data CompilerEnv = CompilerEnv
   { typeAliases :: M.Map String Type
   , structDefs  :: M.Map String [(Type, String)]
+  , traitDefs   :: M.Map String [(String, [Type], Type)]  -- trait name -> methods (name, args, ret)
+  , traitImpls  :: M.Map (String, String) [String]  -- (trait, type) -> method names 
   } deriving (Show, Eq)
 
 emptyEnv :: CompilerEnv
-emptyEnv = CompilerEnv M.empty M.empty
+emptyEnv = CompilerEnv M.empty M.empty M.empty M.empty
 
 -- Insert a type alias or struct definition into the environment
 insertInEnv :: CompilerEnv -> Ast -> CompilerEnv
 insertInEnv env ast = case unwrap ast of
   ATypeAlias name ty -> env { typeAliases = M.insert name ty (typeAliases env) }
   AStruktDef name fds -> env { structDefs = M.insert name fds (structDefs env) }
+  ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
+  ATraitImpl traitName implType _ -> 
+    env { traitImpls = M.insert 
+            (traitName, typeToString implType) 
+            (maybe [] (map (\(n, _, _) -> n)) (M.lookup traitName (traitDefs env))) 
+            (traitImpls env) }
   _ -> env
 
 -- Resolve a type through the environment
