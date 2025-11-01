@@ -61,7 +61,9 @@ module AstParsing.Keywords.Keywords (
     symbolSelfType,
     symbolCallMethod,
     symbolRef,
-    symbolCast
+    symbolCast,
+    allowedOpAssignment,
+    symbolIncr,
 ) where
 
 symbolFunc :: String
@@ -147,6 +149,12 @@ symbolFalse = "false"
 
 allowedInfix :: String
 allowedInfix = "+-/:*^!%?&="
+
+allowedOpAssignment :: String
+allowedOpAssignment = "+-*/^%"
+
+symbolIncr :: String
+symbolIncr = "++"
 
 symbolLineComment :: String
 symbolLineComment = "//"

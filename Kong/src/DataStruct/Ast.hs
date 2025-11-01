@@ -30,7 +30,7 @@ type AstInt = Int
 type AstSymbol = String
 type AstBool = Bool
 type AstChar = Char
-type AstFloat = Float
+type AstFloat = Double
 
 type Type = Wrapper TypeRaw
 

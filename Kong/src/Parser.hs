@@ -193,7 +193,7 @@ parseFloatString =
     ((:) <$> parseChar '-' <*> parsePositiveFloatString)
     <|> parsePositiveFloatString
 
-parseFloat :: Parser Float
+parseFloat :: Parser Double
 parseFloat = read <$> parseFloatString
 
 parseManyWithSeparator :: Parser a -> Char -> Parser [a]

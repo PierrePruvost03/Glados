@@ -31,7 +31,7 @@ executeInstructions instrs = do
 -- | Print VM execution result and exit with appropriate code
 printVMResult :: VMState -> IO ()
 printVMResult result@(VMState {stack = (VNumber (VInt r)) : _}) =
-    putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitWithCode r
+    putStrLn ("[Execution finished] Final VM state: " ++ show result) >> exitWithCode (fromIntegral r)
 printVMResult result =
     putStrLn ("[Execution finished] Final VM state: " ++ show result ++
     "\n invalid return type") >> exitWithCode 1
