@@ -11,11 +11,13 @@ Funk round(Float a) -> Float {
     modulo = fmod(a, sign);
     If (modulo `>=` 0.5) {
         Return ceil(a);
-    } Else If (modulo `<=` -0.5) {
+    }
+    If (modulo `<=` -0.5) {
         Return floor(a);
-    } Else If (modulo `<` 0) {
+    }
+    If (modulo `<` 0) {
         Return ceil(a);
-    } Else {
-        Return floor(a);
+    }
+    Return floor(a);
     }
 }
