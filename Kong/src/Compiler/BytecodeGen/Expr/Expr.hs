@@ -1,5 +1,6 @@
 module Compiler.BytecodeGen.Expr.Expr
   ( compileExpr
+  , compileExprWithType
   , compileCall
   , compileValue
   , compileAccess
@@ -20,23 +21,27 @@ import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, va
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
-import Compiler.BytecodeGen.Expr.Helpers
-import Compiler.BytecodeGen.Block.Helpers (declareWithValue)
+import Compiler.BytecodeGen.Expr.Helpers (compileNumberWithType, addPrintSyscall, checkLambdaReturn, buildLambdaEnv, getCapturedNames, compileLambdaParams, lookupResolved, elementTypeFromResolved, extractVariableName, pushVarValue, checkAccessType, typeToNumberType, isRefTypeWrapped, isDivisionOp, isAssignmentCall, isComparisonCall, isLogicalCall, isArithmeticCall, isPrintCall, isFunctionType, maybeFuncName)
+import Compiler.BytecodeGen.Block.Helpers (declareWithValue, validateInitializerValue)
 import Parser (LineCount)
-
 
 -- MAIN EXPRESSION COMPILER - DISPATCHER
 
+-- compile expression without expected type hint
 compileExpr :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
-compileExpr expr env = case unwrap expr of
+compileExpr expr env = compileExprWithType expr env Nothing
+
+-- Internal: compile expression with optional expected type for optimization
+compileExprWithType :: AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileExprWithType expr env expectedType = case unwrap expr of
   AAttribution var rhs ->
     case M.lookup var (typeAliases env) of
       Nothing -> Left (UnknownVariable var (lc expr))
       Just vType ->
         validateKonstAssignment var env (lc expr) >>
         checkAssignmentType (lc expr) (Just vType) (inferType rhs env) >>
-        fmap (\code -> code ++ [PushEnv var, StoreRef]) (compileExpr rhs env)
-  AValue astValue -> compileValue astValue env
+        fmap (\code -> code ++ [PushEnv var, StoreRef]) (compileExprWithType rhs env (Just vType))
+  AValue astValue -> compileValueWithType astValue env expectedType
   AAccess access -> compileAccess access env
   ACast targetType ex -> compileCast targetType ex env (lc expr)
   AMethodCall obj methodName args -> compileMethodCall obj methodName args env (lc expr)
@@ -63,7 +68,7 @@ compileAssignmentExpr lhs val env lnCount = case unwrap lhs of
     AVarCall v ->
       validateKonstAssignment v env lnCount >>
       checkAssignmentType lnCount (M.lookup v (typeAliases env)) (inferType val env) >>
-      fmap (++ [PushEnv v, StoreRef]) (compileExpr val env)
+      fmap (++ [PushEnv v, StoreRef]) (compileExprWithType val env (M.lookup v (typeAliases env)))
     _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
   -- arr[idx] = val, vec<idx> = val, tup|idx| = val
   AAccess acc -> case unwrap acc of
@@ -81,7 +86,7 @@ compileIndexedAssignment nameExpr idx val env lnCount _isTuple =
     Just name ->
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getIndexedElementType env name) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
+        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getIndexedElementType env name) <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
                           <*> Right [SetList, PushEnv name, StoreRef]
         Left err -> Left err
   where
@@ -96,7 +101,7 @@ compileTupleAssignment nameExpr idx val env lnCount =
     Just name ->
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getTupleElementType env name idx) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExpr val env <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
+        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getTupleElementType env name idx) <*> ((++) <$> compileExpr idx env <*> Right (pushVarValue env name)))
                           <*> Right [SetList, PushEnv name, StoreRef]
         Left err -> Left err
   where
@@ -113,7 +118,7 @@ compileStructAssignment nameExpr field val env lnCount =
     Just name ->
       validateKonstAssignment name env lnCount >>
       case checkAssignmentType lnCount (getStructFieldType env name field) (inferType val env) of
-        Right () -> (++) <$> ((++) <$> compileExpr val env <*> Right (pushVarValue env name))
+        Right () -> (++) <$> ((++) <$> compileExprWithType val env (getStructFieldType env name field) <*> Right (pushVarValue env name))
                           <*> Right [SetStruct field, PushEnv name, StoreRef]
         Left err -> Left err
   where
@@ -203,7 +208,7 @@ compileArgsForCall env Nothing args =
 compileArgForCall :: CompilerEnv -> Type -> AExpression -> Either CompilerError [Instr]
 compileArgForCall env expectedType arg
   | isRefTypeWrapped expectedType = compileAsReference arg env
-  | otherwise = compileExpr arg env
+  | otherwise = compileExprWithType arg env (Just expectedType)
 
 -- Compile an expression as a reference (for ref parameters)
 compileAsReference :: AExpression -> CompilerEnv -> Either CompilerError [Instr]
@@ -244,8 +249,11 @@ compileCall name
 -- VALUES (LITERALS, VARIABLES, LAMBDAS)
 
 compileValue :: AstValue -> CompilerEnv -> Either CompilerError [Instr]
-compileValue val env = case unwrap val of
-  ANumber number -> Right [Push (VNumber (compileNumber number))]
+compileValue val env = compileValueWithType val env Nothing
+
+compileValueWithType :: AstValue -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
+compileValueWithType val env expectedType = case unwrap val of
+  ANumber number -> Right [Push (VNumber (compileNumberWithType number expectedType env))]
   AString s -> Right [Push (VList (V.fromList (map (VNumber . VChar) s)))]
   ATuple exprs -> compileListLiteral exprs env
   AArray exprs -> compileListLiteral exprs env
@@ -275,7 +283,11 @@ compileValue val env = case unwrap val of
       compileSingleAst ast env' = case unwrap ast of
         ABlock innerAsts -> compileBlockForLambda innerAsts env'
         AVarDecl t name (Just initExpr) ->
-          compileExpr initExpr env' >>= \initCode ->
+          validateInitializerValue t initExpr (lc ast) >>
+          (case inferType initExpr env' of
+            Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
+            Nothing -> Right ()) >>
+          compileExprWithType initExpr env' (Just t) >>= \initCode ->
             Right (declareWithValue env' t name initCode)
         AVarDecl _ name Nothing ->
           Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))

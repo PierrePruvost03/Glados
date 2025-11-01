@@ -10,9 +10,8 @@ import Compiler.Type.Normalization (typeToString)
 import Compiler.Type.Inference (CompilerEnv(..), inferType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.BytecodeGen.Expr.Expr (compileExpr, compileIf, compileLoop)
+import Compiler.BytecodeGen.Expr.Expr (compileExpr, compileExprWithType, compileIf, compileLoop)
 import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue)
-import Compiler.BytecodeGen.Utils (prebindVar)
 import qualified Data.Map as M
 
 -- Compile AST with default expression compiler
@@ -25,10 +24,10 @@ compileAst ast env = case unwrap ast of
   AVarDecl t name (Just initExpr) ->
     validateNoDuplicateDeclaration name env (lc ast) >>
     validateInitializerValue t initExpr (lc ast) >>
-    (case inferType initExpr (prebindVar t name env) of
+    (case inferType initExpr env of
       Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
       Nothing -> Right ()) >>
-    compileVarInitialization compileExpr t name initExpr env declareWithValue (lc ast)
+    compileVarInitialization compileExprWithType t name initExpr env declareWithValue (lc ast)
   AExpress expr ->
     fmap (\instrs -> (instrs, env)) (compileExpr expr env)
   AReturn expr ->
