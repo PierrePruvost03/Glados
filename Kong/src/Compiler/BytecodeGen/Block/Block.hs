@@ -10,7 +10,7 @@ import Compiler.Type.Inference (CompilerEnv(..), inferType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Expr.Expr (compileExpr, compileIf, compileLoop)
-import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue)
+import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue, canInitializeVectorWithDefault)
 import Compiler.BytecodeGen.Utils (prebindVar)
 import qualified Data.Map as M
 
@@ -18,9 +18,11 @@ import qualified Data.Map as M
 compileAst :: Ast -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
 compileAst ast env = case unwrap ast of
   ABlock asts -> compileBlock asts env
-  AVarDecl _ name Nothing ->
+  AVarDecl t name Nothing ->
     validateNoDuplicateDeclaration name env (lc ast) >>
-    Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
+    case canInitializeVectorWithDefault t of
+      Just initInstrs -> Right (declareWithValue env t name initInstrs)
+      Nothing -> Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized at declaration") (lc ast))
   AVarDecl t name (Just initExpr) ->
     validateNoDuplicateDeclaration name env (lc ast) >>
     validateInitializerValue t initExpr (lc ast) >>

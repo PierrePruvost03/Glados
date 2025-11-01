@@ -20,7 +20,7 @@ import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
 import qualified Data.Vector as V
 import Compiler.BytecodeGen.Expr.Helpers
-import Compiler.BytecodeGen.Block.Helpers (declareWithValue)
+import Compiler.BytecodeGen.Block.Helpers (declareWithValue, canInitializeVectorWithDefault)
 import Parser (LineCount)
 
 
@@ -278,8 +278,10 @@ compileValue val env = case unwrap val of
         AVarDecl t name (Just initExpr) ->
           compileExpr initExpr env' >>= \initCode ->
             Right (declareWithValue env' t name initCode)
-        AVarDecl _ name Nothing ->
-          Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))
+        AVarDecl t name Nothing ->
+          case canInitializeVectorWithDefault t of
+            Just initInstrs -> Right (declareWithValue env' t name initInstrs)
+            Nothing -> Left (UninitializedVariable ("Variable '" ++ name ++ "' must be initialized in lambda") (lc ast))
         AExpress expr -> fmap (\instrs -> (instrs, env')) (compileExpr expr env')
         AReturn expr -> compileSingleAst expr env' >>= \(instrs, _) -> Right (instrs ++ [Ret], env')
         AIf _ _ _ -> fmap (\instrs -> (instrs, env')) (compileIf compileExpr compileSingleAst ast env')
