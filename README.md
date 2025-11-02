@@ -90,4 +90,10 @@ See the [Kong Wiki](#) for a full list of supported features and examples.
 
 ### Functional tests
 
-`make functional_tests`
+`make functional_tests_run`
+
+## Contributors
+| Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |
+|--|--|--|--|--|
+| <img src="https://github.com/PierrePruvost03.png" width="150em"/> | <img src="https://github.com/abeldaverio.png" width="150em"/> | <img src="https://github.com/LixiosDelios.png" width="150em"/> | <img src="https://github.com/sami-hmr.png" width="150em"/> | <img src="https://github.com/PoloTheAspicot.png" width="150em"/> |
+>>>>>>> eb2dff88df7dfbd04521b5caa0b07ee87387f8a1
