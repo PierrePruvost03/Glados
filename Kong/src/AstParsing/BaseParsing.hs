@@ -545,12 +545,12 @@ parseAstFile :: Parser Ast
 parseAstFile =
   skip
     *> ( parseFunction
+           <|> parseTypeDef
            <|> parseInclude
            <|> parseLineDeclaration
            <|> parseStruct
            <|> parseTrait
            <|> parseTraitImpl
-           <|> parseTypeDef
        )
     <* skip
 
