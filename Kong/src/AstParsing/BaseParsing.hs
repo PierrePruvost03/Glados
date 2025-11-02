@@ -160,7 +160,7 @@ parseBaseType = parseConstType f
                            <* parseChar symbolFuncParamOut
                            <* skip
                        )
-                   <*> (parseString symbolFuncReturn *> skip *> parseType)
+                   <*> (parseString symbolFuncReturn *> skip *> (parseType <|> fatal "Function Type" " invalid Return type"))
              )
           <* skip
 
@@ -348,7 +348,8 @@ parseMethodCall =
                  )
              <* skip
              <*> (parseChar symbolCallMethod *> skip *> parseName <* skip)
-             <*> (parseChar symbolCallIn *> parseMultiple parseExpression <* parseChar symbolCallOut)
+             <*> (parseChar symbolCallIn *>
+                 parseMultiple parseExpression <* (parseChar symbolCallOut <|> fatal "Method Call" ("missing char \"" <> [symbolCallOut] <> "\"")))
          )
       <* skip
 
@@ -361,7 +362,8 @@ parseCall =
                      <|> parseValue
                  )
              <* skip
-             <*> (parseChar symbolCallIn *> parseMultiple parseExpression <* parseChar symbolCallOut)
+             <*> (parseChar symbolCallIn *> parseMultiple parseExpression
+                 <* (parseChar symbolCallOut <|> fatal "Function Call" ("missing char \"" <> [symbolCallOut] <> "\"")))
          )
       <* skip
 
@@ -417,9 +419,10 @@ parseExpression :: Parser AExpression
 parseExpression = parseSyntaxSugar <|> parseInfix <|> parseBasicExpression
 
 parseLineExpression :: Parser AExpression
-parseLineExpression = skip *> parseExpression <* parseChar symbolEndOfExpression
+parseLineExpression = skip *> parseExpression <* (parseChar symbolEndOfExpression <|>
+        (fatal "Expression" $ "missing " <> [symbolEndOfDeclaration] <> "at the end of expression"))
 
-------------------------a------------------------
+------------------------------------------------
 -- Block Parsing
 ------------------------------------------------
 parseWhile :: Parser Ast
@@ -429,7 +432,9 @@ parseWhile =
       *> parseString symbolWhile
       *> skip
       *> ( ALoop Nothing
-             <$> (parseChar symbolForIn *> wrap (AExpress <$> parseExpression) <* skip <* parseChar symbolForOut)
+          <$> ((parseChar symbolForIn <|> fatal "While" ("missing \"" <> [symbolForIn] <> "\" after While keyword"))
+              *> (wrap (AExpress <$> parseExpression) <|> fatal "While" "invalid expression") <* skip
+              <* (parseChar symbolForOut <|> fatal "While" ("missing \"" <> [symbolForOut] <> "\" after While keyword")))
              <*> pure Nothing
              <*> (skip *> parseBody)
          )
@@ -463,7 +468,8 @@ parseForIn =
 parseCond :: Parser Ast
 parseCond =
   wrap $
-    skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression) <* skip <* parseChar symbolCondOut <* skip
+    skip *> parseChar symbolCondIn *> skip *> (AExpress <$> parseExpression)
+    <* skip <* (parseChar symbolCondOut <|> fatal "Condition" ("missing \"" <> [symbolCondOut] <> "\" after condition end")) <* skip
 
 parseIf :: Parser Ast
 parseIf =

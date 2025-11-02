@@ -15,7 +15,7 @@ import DataStruct.Ast
 import Parser (LineCount)
 import qualified Data.Map as M
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.Type.Normalization (stripWrap, eqTypeNormalized, typeToString)
+import Compiler.Type.Normalization (stripWrap, eqTypeNormalized, typeToString, eqTypeNormalized)
 import Compiler.Type.Checks (isFloatType, numericCompatible, comparisonOps, arithOps, logicalOps)
 
 data CompilerEnv = CompilerEnv
@@ -132,7 +132,8 @@ inferType expr env = case unwrap expr of
     | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) -> Nothing
     | Just name <- maybeFuncName fexp -> getFunctionReturnType (typeAliases env) name
     | otherwise -> Nothing
-  AMethodCall _ _ _ -> Nothing
+  AMethodCall expression name _ -> inferType expression env >>= \t ->
+    getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
 
 -- Infer type from an access expression
 inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type

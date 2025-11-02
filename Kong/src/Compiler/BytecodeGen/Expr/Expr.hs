@@ -26,6 +26,7 @@ import Compiler.BytecodeGen.Expr.Helpers (compileNumberWithType, addPrintSyscall
 import Compiler.BytecodeGen.Block.Helpers (declareWithValue, validateInitializerValue, canInitializeVectorWithDefault)
 import Parser (LineCount)
 
+
 -- MAIN EXPRESSION COMPILER - DISPATCHER
 
 -- compile expression without expected type hint
@@ -103,7 +104,7 @@ buildIndexAssignment name idx val env =
                  <*> Right [GetList, StoreRef, LoadRef])
 
 getIndexedElementType :: CompilerEnv -> String -> Maybe Type
-getIndexedElementType env name = 
+getIndexedElementType env name =
   case lookupResolved env name of
     Just rt -> elementTypeFromResolved rt
     Nothing -> Nothing
@@ -137,7 +138,7 @@ getTupleElementType env name idx =
     _ -> Nothing
 
 extractTupleType :: Type -> AExpression -> Maybe Type
-extractTupleType t idx = 
+extractTupleType t idx =
   case unwrap t of
     TTuple ts -> getTupleIndexType ts idx
     _ -> Nothing
@@ -418,7 +419,7 @@ compileStructLiteral fieldPairs env = compileStructLiteralWithType fieldPairs en
 
 compileStructLiteralWithType :: [(String, AExpression)] -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr]
 compileStructLiteralWithType fieldPairs env maybeType =
-  fmap (buildStructWithRefs (extractFieldNames fieldPairs) (getFieldConstFlags fieldPairs maybeType env)) 
+  fmap (buildStructWithRefs (extractFieldNames fieldPairs) (getFieldConstFlags fieldPairs maybeType env))
        (mapM (compileFieldExpr env) (reverse fieldPairs))
 
 extractFieldNames :: [(String, AExpression)] -> [String]
@@ -440,7 +441,7 @@ getFieldConstFlags fieldPairs Nothing _ = replicate (length fieldPairs) False
 getFieldConstFlags fieldPairs (Just _) env = map (isFieldConst env) fieldPairs
 
 isFieldConst :: CompilerEnv -> (String, AExpression) -> Bool
-isFieldConst env (fieldName, _) = 
+isFieldConst env (fieldName, _) =
   maybe False isKonst (findFieldTypeInStructs fieldName env)
 
 findFieldTypeInStructs :: String -> CompilerEnv -> Maybe Type
@@ -561,6 +562,7 @@ compileTraitMethod obj name args env lnCount =
 
 getTraitMethodName :: AExpression -> String -> CompilerEnv -> String
 getTraitMethodName obj name env = typeToString (fromJust $ inferType obj env) ++ "$" ++ name
+
 
 addLoadRefIfNeeded :: [Instr] -> Maybe Type -> [Instr]
 addLoadRefIfNeeded instrs (Just returnType) | isRefTypeWrapped returnType = instrs ++ [LoadRef]

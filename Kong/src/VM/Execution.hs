@@ -52,9 +52,8 @@ checkInstrution s@(VMState {stack = VList l : xs, ip}) Length =
 -- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, heap, ip}) Call =
     exec (s {code = code, stack = xs, env = mergeEnv env symbols, ip = 0}) >>= \case
-        (VMState {stack = (x:_), heap = r}) ->
-            exec $ s {stack = x:xs, heap = mergeHeaps heap r, ip = ip + 1}
-        _ -> throwIO $ InvalidStackAccess
+        (VMState {stack = newstack, heap = r}) ->
+            exec $ s {stack = newstack, heap = mergeHeaps heap r, ip = ip + 1}
 -- Var
 checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
     exec $ s {env = M.insert n x env, stack = xs, ip = ip + 1}
