@@ -47,14 +47,13 @@ checkInstrution s@(VMState {ip}) (DoOp op) = exec $ (applyOp s op) {ip = ip + 1}
 checkInstrution s@(VMState {stack = (VNumber v : xs), ip}) (Cast t) =
     exec $ s {stack = (VNumber (castNumber v t) : xs), ip = ip + 1}
 checkInstrution s@(VMState {stack = VList l : xs, ip}) Length =
-    exec $ s {stack = VNumber (VInt (V.length l)) : xs, ip = ip + 1}
+    exec $ s {stack = VNumber (VInt (fromIntegral $ V.length l)) : xs, ip = ip + 1}
 
 -- Call
 checkInstrution s@(VMState {stack = ((VFunction symbols code):xs), env, heap, ip}) Call =
     exec (s {code = code, stack = xs, env = mergeEnv env symbols, ip = 0}) >>= \case
-        (VMState {stack = (x:_), heap = r}) ->
-            exec $ s {stack = x:xs, heap = mergeHeaps heap r, ip = ip + 1}
-        _ -> throwIO $ InvalidStackAccess
+        (VMState {stack = newstack, heap = r}) ->
+            exec $ s {stack = newstack, heap = mergeHeaps heap r, ip = ip + 1}
 -- Var
 checkInstrution s@(VMState {stack = (x:xs), env, ip}) (SetVar n) =
     exec $ s {env = M.insert n x env, stack = xs, ip = ip + 1}
@@ -93,6 +92,7 @@ checkInstrution s@(VMState {stack, ip}) (CreateStruct l) = case createStruct sta
 checkInstrution s@(VMState {stack = (VRef addr : xs), heap, ip}) LoadRef = case heap V.!? addr of
     Just v -> exec $ s {stack = v : xs, ip = ip + 1}
     Nothing -> throwIO $ InvalidHeapAccess
+checkInstrution s@(VMState {ip}) LoadRef = exec $ s {ip = ip + 1}
 checkInstrution s@(VMState {stack, heap, ip}) Alloc =
     exec $ s {stack = (VRef $ length heap) : stack, ip = ip + 1, heap = V.snoc heap VEmpty}
 checkInstrution s@(VMState {stack = ref@(VRef addr) : v : xs, heap, ip}) StoreRef =

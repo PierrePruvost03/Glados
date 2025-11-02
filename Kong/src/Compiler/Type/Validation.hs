@@ -93,6 +93,7 @@ validateStructAccess expr fds env lineCount = case inferType expr env of
       TStruct sname ->
         validateStructFieldAccess env sname f lineCount >>= \fieldType ->
           go fieldType fs
+      TRef inner -> go inner (f:fs)
       _ -> Left $ InvalidArguments "Struct access on non-struct type" lineCount
 
 -- Check if a type name is a primitive type

@@ -2,6 +2,8 @@ name: LISP Interpreter - Tests
 
 on:
   pull_request:
+    branches-ignore:
+      - main
     paths:
       - 'LispInterpreter/**'
   push:

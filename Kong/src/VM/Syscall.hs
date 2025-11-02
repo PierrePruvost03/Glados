@@ -3,7 +3,7 @@
 module VM.Syscall (executeSyscall) where
 
 import DataStruct.Bytecode.Syscall (Syscall (..))
-import DataStruct.VM (VMState (..))
+import DataStruct.VM (VMState (..), Heap)
 import DataStruct.Bytecode.Value (Value(..))
 import DataStruct.Bytecode.Number (Number(..))
 import VM.Errors (ExecError (..))
@@ -11,21 +11,30 @@ import VM.Utils (makeIntValue, createList)
 import Control.Exception (catch, throw, throwIO, IOException)
 import GHC.IO.FD (openFile, FD (..), release, writeRawBufferPtr, readRawBufferPtr)
 import qualified Data.Vector as V
+import qualified Data.Map as M
 import System.IO (IOMode (..))
 import Foreign.C.String
 import Foreign.Ptr (castPtr)
 import Foreign.Marshal.Alloc
+
+loadRefs :: Heap -> Value -> Value
+loadRefs h (VList v) = VList $ V.fromList $ map (loadRefs h) (V.toList v)
+loadRefs h (VStruct s) = VStruct $ M.fromList $ map (\(name, v) -> (name, loadRefs h v)) (M.toList s)
+loadRefs h r@(VRef add) = case h V.!? add of
+    Just v -> loadRefs h v
+    Nothing -> r
+loadRefs _ v = v
 
 executeSyscall :: Syscall -> VMState -> IO VMState
 -- Exit
 executeSyscall Exit (VMState {stack = x:_}) = throwIO $ ExitException $ makeIntValue x
 
 -- Print
-executeSyscall (Print n) s@(VMState {stack, ip}) = case createList stack n of
+executeSyscall (Print n) s@(VMState {stack, ip, heap}) = case createList stack n of
     (l, st) -> f l >> pure (s {stack = st, ip = ip + 1})
     where
         f [] = return ()
-        f (x:xs) = print x >> f xs
+        f (x:xs) = print (loadRefs heap x) >> f xs
 
 -- Open
 executeSyscall Open s@(VMState {stack = (VList file) : xs, ip}) =

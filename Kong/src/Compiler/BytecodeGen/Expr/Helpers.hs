@@ -4,6 +4,7 @@ module Compiler.BytecodeGen.Expr.Helpers
   , lookupResolved
   , pushVarValue
   , compileNumber
+  , compileNumberWithType
   , typeToNumberType
   , isRefTypeWrapped
   , checkAccessType
@@ -52,6 +53,7 @@ elementTypeFromResolved :: Type -> Maybe Type
 elementTypeFromResolved t = case unwrap t of
   TArray et _ -> Just et
   TVector et _ -> Just et
+  TRef ty -> elementTypeFromResolved ty
   TKonst ty -> elementTypeFromResolved ty
   TStrong ty -> elementTypeFromResolved ty
   TKong ty -> elementTypeFromResolved ty
@@ -73,10 +75,24 @@ pushVarValue env vname
 
 -- Convert AST number to bytecode number
 compileNumber :: AstNumber -> Number
-compileNumber (AInteger n) = VInt n
-compileNumber (AFloat f) = VFloat (realToFrac f)
+compileNumber (AInteger n) = VInt (fromIntegral n)
+compileNumber (AFloat f) = VFloat (f)
 compileNumber (ABool b) = VBool b
 compileNumber (AChar c) = VChar c
+
+compileNumberWithType :: AstNumber -> Maybe Type -> CompilerEnv -> Number
+compileNumberWithType (AInteger n) (Just expectedType) env = 
+  case unwrap (resolveType env expectedType) of
+    TStrong ty -> case unwrap ty of
+      TInt -> VLong (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKong ty -> case unwrap ty of
+      TInt -> VUInt (fromIntegral n)
+      _ -> VInt (fromIntegral n)
+    TKonst ty -> compileNumberWithType (AInteger n) (Just ty) env
+    _ -> VInt (fromIntegral n)
+compileNumberWithType number Nothing _ = compileNumber number
+compileNumberWithType number _ _ = compileNumber number
 
 -- Convert a type to a NumberType for casting
 typeToNumberType :: Type -> Maybe NumberType
@@ -86,9 +102,27 @@ typeToNumberType t = case unwrap t of
   TChar -> Just NTChar
   TFloat -> Just NTFloat
   TKonst ty -> typeToNumberType ty
-  TStrong ty -> typeToNumberType ty
-  TKong ty -> typeToNumberType ty
+  TStrong ty -> typeToNumberTypeForStrong (stripTypeModifiers ty)
+  TKong ty -> typeToNumberTypeForKong (stripTypeModifiers ty)
   _ -> Nothing
+
+typeToNumberTypeForStrong :: Type -> Maybe NumberType
+typeToNumberTypeForStrong innerType = case unwrap innerType of
+  TInt -> Just NTLong
+  TFloat -> Just NTFloat
+  _ -> Nothing
+
+typeToNumberTypeForKong :: Type -> Maybe NumberType
+typeToNumberTypeForKong innerType = case unwrap innerType of
+  TInt -> Just NTUInt
+  _ -> Nothing
+
+stripTypeModifiers :: Type -> Type
+stripTypeModifiers t = case unwrap t of
+  TKonst ty -> stripTypeModifiers ty
+  TStrong ty -> stripTypeModifiers ty
+  TKong ty -> stripTypeModifiers ty
+  _ -> t
 
 -- Check if a type is a reference type
 isRefTypeWrapped :: Type -> Bool
@@ -106,6 +140,7 @@ checkAccessType (Just t) lnCount = case unwrap t of
   TVector _ _ -> Right ()
   TTuple _ -> Right ()
   TStruct _ -> Right ()
+  TRef ty -> checkAccessType (Just ty) lnCount
   TKonst ty -> checkAccessType (Just ty) lnCount
   TStrong ty -> checkAccessType (Just ty) lnCount
   TKong ty -> checkAccessType (Just ty) lnCount
@@ -115,8 +150,8 @@ checkAccessType Nothing lnCount = Left $ InvalidArguments "Unable to infer type 
 -- Check lambda return type and validate all return statements
 checkLambdaReturn :: Type -> [Ast] -> CompilerEnv -> Either CompilerError ()
 checkLambdaReturn expected bodyStmts scope =
-  checkFunctionReturn expected bodyStmts ((0, 0)) >>= \() ->
-    validateReturnsInBody bodyStmts expected (extendScopeWithPrefixDecls bodyStmts scope)
+  checkFunctionReturn (resolveType scope expected) bodyStmts ((0, 0)) >>= \() ->
+    validateReturnsInBody bodyStmts (resolveType scope expected) (extendScopeWithPrefixDecls bodyStmts scope)
 
 -- Check if an AST node is a return statement
 isReturnStmt :: Ast -> Bool
@@ -127,7 +162,8 @@ isReturnStmt ast = case unwrap ast of
 -- Extend environment with a variable declaration
 extendWithDecl :: CompilerEnv -> Ast -> CompilerEnv
 extendWithDecl env ast = case unwrap ast of
-  AVarDecl t n _ -> env { typeAliases = M.insert n t (typeAliases env) }
+  AVarDecl t n _ ->
+    env { typeAliases = M.insert n (resolveType env t) (typeAliases env) }
   _ -> env
 
 -- Extend scope with all declarations before the first return statement

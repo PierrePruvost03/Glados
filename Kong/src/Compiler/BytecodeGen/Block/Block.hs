@@ -6,12 +6,12 @@ module Compiler.BytecodeGen.Block.Block
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (CompilerError(..))
-import Compiler.Type.Inference (CompilerEnv(..), inferType)
+import Compiler.Type.Normalization (typeToString)
+import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
-import Compiler.BytecodeGen.Expr.Expr (compileExpr, compileIf, compileLoop)
 import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue, canInitializeVectorWithDefault)
-import Compiler.BytecodeGen.Utils (prebindVar)
+import Compiler.BytecodeGen.Expr.Expr
 import qualified Data.Map as M
 
 -- Compile AST with default expression compiler
@@ -26,19 +26,23 @@ compileAst ast env = case unwrap ast of
   AVarDecl t name (Just initExpr) ->
     validateNoDuplicateDeclaration name env (lc ast) >>
     validateInitializerValue t initExpr (lc ast) >>
-    (case inferType initExpr (prebindVar t name env) of
-      Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
+    (case inferType initExpr env of
+      Just inferredType -> checkAssignmentType (lc ast) (Just (resolveType env t)) (Just (resolveType env inferredType))
       Nothing -> Right ()) >>
-    compileVarInitialization compileExpr t name initExpr env declareWithValue (lc ast)
+    compileVarInitialization compileExprWithType t name initExpr env declareWithValue (lc ast)
   AExpress expr ->
     fmap (\instrs -> (instrs, env)) (compileExpr expr env)
   AReturn expr ->
-    compileAst expr env >>= \(instrs, _) -> 
+    compileAst expr env >>= \(instrs, _) ->
       Right (instrs ++ [Ret], env)
   AIf _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileIf compileExpr compileAst ast env)
   ALoop _ _ _ _ ->
     fmap (\instrs -> (instrs, env)) (compileLoop compileExpr compileAst ast env)
+  ATraitDef name methods ->
+    Right ([], env { traitDefs = M.insert name methods (traitDefs env) })
+  ATraitImpl tName implType methods ->
+    compileTraitImpl tName implType methods env
   AStruktDef name fdls ->
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
@@ -52,7 +56,15 @@ compileBlock :: [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerE
 compileBlock asts env =
   foldl
     (\acc a -> acc >>= \(code, sc) ->
-        compileAst a sc >>= \(code', sc') -> 
+        compileAst a sc >>= \(code', sc') ->
           Right (code ++ code', sc'))
     (Right ([], env))
     asts
+
+compileTraitImpl :: String -> Type -> [Ast] -> CompilerEnv -> Either CompilerError ([Instr], CompilerEnv)
+compileTraitImpl tName implType methods env =
+  compileBlock methods
+    (env { traitImpls = M.insert
+             (tName, typeToString implType)
+             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env)))
+             (traitImpls env) })

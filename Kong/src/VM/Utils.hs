@@ -40,10 +40,10 @@ makeBoolValue VEmpty = False
 makeBoolValue _ = False
 
 makeIntValue :: Value -> Int
-makeIntValue (VNumber (VInt i)) = i
+makeIntValue (VNumber (VInt i)) = fromIntegral i
 makeIntValue (VNumber (VChar i)) = digitToInt i
 makeIntValue (VNumber (VBool i)) = fromEnum i
 makeIntValue _ = throw $ InvalidIntConversion
 
 mergeHeaps :: Heap -> Heap -> Heap
-mergeHeaps base retured = V.force (V.slice 0 (length base) retured)
+mergeHeaps _ returned = V.force returned

@@ -15,6 +15,7 @@ import DataStruct.Ast
 import Compiler.Unwrap (Unwrappable(..))
 import Parser (runParser)
 import AstParsing.BaseParsing (parseAst)
+import Compiler.Type.Normalization (typeToString)
 import System.FilePath (takeDirectory, (</>), takeFileName, dropExtension, addExtension)
 import System.Directory (doesFileExist)
 import Control.Monad (foldM)
@@ -197,7 +198,7 @@ getSymbolName ast = case unwrap ast of
   AStruktDef name _ -> Just name
   ATypeAlias name _ -> Just name
   ATraitDef name _ -> Just name
-  ATraitImpl trait _ _ -> Just trait
+  ATraitImpl trait implType _ -> Just (trait ++ "$" ++ typeToString implType)
   _ -> Nothing
 
 combineRequests :: Maybe [String] -> Maybe [String] -> Maybe [String]

@@ -99,14 +99,66 @@ checkSizeExprMatchesType env sizeExpr eltT =
 -- Validate initializer value for constant bounds checking
 validateInitializerValue :: Type -> AExpression -> LineCount -> Either CompilerError ()
 validateInitializerValue t initExpr lineCount =
-  case unwrap initExpr of
-    AValue val -> case unwrap val of
-      ANumber num -> validateConstantBounds t num lineCount
+  -- Check if assigning to an unsigned (Kong) type
+  case isUnsignedType t of
+    True -> case isNegativeExpression initExpr of
+      True -> Left $ IllegalAssignment ("Cannot assign negative value to unsigned type " ++ show t) lineCount
+      False -> validateBounds
+    False -> validateBounds
+  where
+    validateBounds = case unwrap initExpr of
+      AValue val -> case unwrap val of
+        ANumber num -> validateConstantBounds t num lineCount
+        _ -> Right ()
       _ -> Right ()
-    _ -> Right ()
+
+-- Check if a type is an unsigned (Kong) type
+isUnsignedType :: Type -> Bool
+isUnsignedType t = case unwrap t of
+  TKong _ -> True
+  TKonst inner -> isUnsignedType inner
+  TStrong inner -> isUnsignedType inner
+  TRef inner -> isUnsignedType inner
+  _ -> False
+
+-- Check if an expression is a negative literal or negation of a positive value
+isNegativeExpression :: AExpression -> Bool
+isNegativeExpression expr = case unwrap expr of
+  AValue val -> case unwrap val of
+    ANumber (AInteger n) -> n < 0
+    ANumber (AFloat f) -> f < 0
+    _ -> False
+  ACall fexp [arg] -> 
+    -- Check if it's a unary minus (subtraction with one argument)
+    case maybeFuncName fexp of
+      Just "-" -> not (isNegativeExpression arg)  -- -(-x) is positive, -(x) is negative if x is positive
+      _ -> False
+  ACall fexp [lhs, rhs] ->
+    -- Check if it's a subtraction that results in negative (heuristic: 0 - positive)
+    case maybeFuncName fexp of
+      Just "-" -> isZeroExpression lhs && not (isNegativeExpression rhs)
+      _ -> False
+  _ -> False
+
+-- Check if an expression is zero
+isZeroExpression :: AExpression -> Bool
+isZeroExpression expr = case unwrap expr of
+  AValue val -> case unwrap val of
+    ANumber (AInteger 0) -> True
+    ANumber (AFloat 0.0) -> True
+    _ -> False
+  _ -> False
+
+-- Extract function name from an expression (helper for isNegativeExpression)
+maybeFuncName :: AExpression -> Maybe String
+maybeFuncName expr = case unwrap expr of
+  AValue val -> case unwrap val of
+    AVarCall name -> Just name
+    _ -> Nothing
+  _ -> Nothing
 
 -- Compile variable initialization with type checking
-compileVarInitialization :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+compileVarInitialization :: (AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr])
                          -> Type 
                          -> String 
                          -> AExpression 
@@ -114,46 +166,70 @@ compileVarInitialization :: (AExpression -> CompilerEnv -> Either CompilerError 
                          -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                          -> LineCount 
                          -> Either CompilerError ([Instr], CompilerEnv)
-compileVarInitialization compileExpr vType vName initExpr env declareFunc lineCount =
+compileVarInitialization compileExprFn vType vName initExpr env declareFunc lineCount =
   case inferType initExpr newEnv of
-    Just inferredType -> 
-      compileWithTypeCheck compileExpr vType vName initExpr newEnv declareFunc resolvedType inferredType lineCount
+    Just inferredType ->
+      compileWithTypeCheck compileExprFn vType vName initExpr newEnv declareFunc resolvedType (resolveType newEnv inferredType) lineCount
     Nothing -> 
-      compileWithoutTypeCheck compileExpr vType vName initExpr newEnv declareFunc
+      compileWithoutTypeCheck compileExprFn vType vName initExpr newEnv declareFunc resolvedType
   where
     resolvedType = resolveType env vType
-    newEnv = extendEnvWithVar env vType vName
+    baseEnv = extendEnvWithSelfAlias env vName
+    newEnv = extendEnvWithVar baseEnv vType vName
+
+-- If declaring a method like "Type$method", alias Self to the concrete Type during initializer compilation
+extendEnvWithSelfAlias :: CompilerEnv -> String -> CompilerEnv
+extendEnvWithSelfAlias env name =
+  case break (=='$') name of
+    (typeName, '$':_) | not (null typeName) ->
+      env { typeAliases = M.insert "Self" (typeNameToType env typeName) (typeAliases env) }
+    _ -> env
+
+-- Map a type name string to a Type using environment (structs) and primitives
+typeNameToType :: CompilerEnv -> String -> Type
+typeNameToType env typeName =
+  case typeName of
+    "Int" -> (0,0) `seq` ((0,0), TInt)
+    "Float" -> ((0,0), TFloat)
+    "Bool" -> ((0,0), TBool)
+    "Char" -> ((0,0), TChar)
+    "String" -> ((0,0), TString)
+    _ -> case M.lookup typeName (structDefs env) of
+      Just _ -> ((0,0), TStruct typeName)
+      Nothing -> ((0,0), TCustom typeName)
 
 -- Compile initialization when type is inferred
-compileWithTypeCheck :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+compileWithTypeCheck :: (AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr])
                      -> Type -> String -> AExpression -> CompilerEnv
                      -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
                      -> Type -> Type -> LineCount
                      -> Either CompilerError ([Instr], CompilerEnv)
-compileWithTypeCheck compileExpr vType vName initExpr env declareFunc resolvedType inferredType lineCount
+compileWithTypeCheck compileExprFn vType vName initExpr env declareFunc resolvedType inferredType lineCount
   | isRefType resolvedType = 
       validateRefInit env resolvedType initExpr inferredType lineCount >>
-      compileAndDeclare compileExpr vType vName initExpr env declareFunc
+      compileAndDeclare compileExprFn vType vName initExpr env declareFunc (Just resolvedType)
   | typesCompatible env resolvedType inferredType = 
-      compileAndDeclare compileExpr vType vName initExpr env declareFunc
+      compileAndDeclare compileExprFn vType vName initExpr env declareFunc (Just resolvedType)
   | otherwise = 
       typeMismatchError resolvedType inferredType lineCount
 
 -- Compile initialization without type inference
-compileWithoutTypeCheck :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+compileWithoutTypeCheck :: (AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr])
                         -> Type -> String -> AExpression -> CompilerEnv
                         -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
+                        -> Type
                         -> Either CompilerError ([Instr], CompilerEnv)
-compileWithoutTypeCheck compileExpr vType vName initExpr env declareFunc =
-  compileAndDeclare compileExpr vType vName initExpr env declareFunc
+compileWithoutTypeCheck compileExprFn vType vName initExpr env declareFunc resolvedType =
+  compileAndDeclare compileExprFn vType vName initExpr env declareFunc (Just resolvedType)
 
 -- Compile expression and declare variable
-compileAndDeclare :: (AExpression -> CompilerEnv -> Either CompilerError [Instr])
+compileAndDeclare :: (AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr])
                   -> Type -> String -> AExpression -> CompilerEnv
                   -> (CompilerEnv -> Type -> String -> [Instr] -> ([Instr], CompilerEnv))
+                  -> Maybe Type
                   -> Either CompilerError ([Instr], CompilerEnv)
-compileAndDeclare compileExpr vType vName initExpr env declareFunc =
-  fmap (declareFunc env vType vName) (compileExpr initExpr env)
+compileAndDeclare compileExprFn vType vName initExpr env declareFunc expectedType =
+  fmap (declareFunc env vType vName) (compileExprFn initExpr env expectedType)
 
 -- Extend environment with a new variable binding
 extendEnvWithVar :: CompilerEnv -> Type -> String -> CompilerEnv
