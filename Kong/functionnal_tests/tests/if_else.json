@@ -1,0 +1,171 @@
+[
+    {
+        "script_file": "exemples/if_else.kong",
+        "tests": {
+            "if_else1": {
+                "description": "checking if 10 is positive",
+                "expected": "['p','o','s','i','t','i','v','e']",
+                "vars": {
+                    "1": "Int n = 10;"
+                },
+                "input": "check_positive(n)"
+            },
+            "if_else2": {
+                "description": "checking if -5 is positive",
+                "expected": "['n','o','n','-','p','o','s','i','t','i','v','e']",
+                "vars": {
+                    "1": "Int n = -5;"
+                },
+                "input": "check_positive(n)"
+            },
+            "if_else3": {
+                "description": "checking sign of 42",
+                "expected": "['p','o','s','i','t','i','v','e']",
+                "vars": {
+                    "1": "Int n = 42;"
+                },
+                "input": "check_sign(n)"
+            },
+            "if_else4": {
+                "description": "checking sign of -10",
+                "expected": "['n','e','g','a','t','i','v','e']",
+                "vars": {
+                    "1": "Int n = -10;"
+                },
+                "input": "check_sign(n)"
+            },
+            "if_else5": {
+                "description": "checking sign of 0",
+                "expected": "['z','e','r','o']",
+                "vars": {
+                    "1": "Int n = 0;"
+                },
+                "input": "check_sign(n)"
+            },
+            "if_else6": {
+                "description": "grading score 95 should be A",
+                "expected": "['A']",
+                "vars": {
+                    "1": "Int score = 95;"
+                },
+                "input": "grade_score(score)"
+            },
+            "if_else7": {
+                "description": "grading score 85 should be B",
+                "expected": "['B']",
+                "vars": {
+                    "1": "Int score = 85;"
+                },
+                "input": "grade_score(score)"
+            },
+            "if_else8": {
+                "description": "grading score 72 should be C",
+                "expected": "['C']",
+                "vars": {
+                    "1": "Int score = 72;"
+                },
+                "input": "grade_score(score)"
+            },
+            "if_else9": {
+                "description": "grading score 65 should be D",
+                "expected": "['D']",
+                "vars": {
+                    "1": "Int score = 65;"
+                },
+                "input": "grade_score(score)"
+            },
+            "if_else10": {
+                "description": "grading score 50 should be F",
+                "expected": "['F']",
+                "vars": {
+                    "1": "Int score = 50;"
+                },
+                "input": "grade_score(score)"
+            },
+            "if_else11": {
+                "description": "max of 10, 20, 15",
+                "expected": "20",
+                "vars": {
+                    "1": "Int a = 10;",
+                    "2": "Int b = 20;",
+                    "3": "Int c = 15;"
+                },
+                "input": "max_of_three(a, b, c)"
+            },
+            "if_else12": {
+                "description": "max of 50, 30, 70",
+                "expected": "70",
+                "vars": {
+                    "1": "Int a = 50;",
+                    "2": "Int b = 30;",
+                    "3": "Int c = 70;"
+                },
+                "input": "max_of_three(a, b, c)"
+            },
+            "if_else13": {
+                "description": "checking if 4 is even",
+                "expected": "True",
+                "vars": {
+                    "1": "Int n = 4;"
+                },
+                "input": "is_even(n)"
+            },
+            "if_else14": {
+                "description": "checking if 7 is even",
+                "expected": "False",
+                "vars": {
+                    "1": "Int n = 7;"
+                },
+                "input": "is_even(n)"
+            },
+            "if_else15": {
+                "description": "fizzbuzz of 15",
+                "expected": "['F','i','z','z','B','u','z','z']",
+                "vars": {
+                    "1": "Int n = 15;"
+                },
+                "input": "fizzbuzz(n)"
+            },
+            "if_else16": {
+                "description": "fizzbuzz of 9",
+                "expected": "['F','i','z','z']",
+                "vars": {
+                    "1": "Int n = 9;"
+                },
+                "input": "fizzbuzz(n)"
+            },
+            "if_else17": {
+                "description": "fizzbuzz of 10",
+                "expected": "['B','u','z','z']",
+                "vars": {
+                    "1": "Int n = 10;"
+                },
+                "input": "fizzbuzz(n)"
+            },
+            "if_else18": {
+                "description": "fizzbuzz of 7",
+                "expected": "['N','u','m','b','e','r']",
+                "vars": {
+                    "1": "Int n = 7;"
+                },
+                "input": "fizzbuzz(n)"
+            },
+            "if_else19": {
+                "description": "absolute value of -42",
+                "expected": "42",
+                "vars": {
+                    "1": "Int n = -42;"
+                },
+                "input": "abs_value(n)"
+            },
+            "if_else20": {
+                "description": "absolute value of 42",
+                "expected": "42",
+                "vars": {
+                    "1": "Int n = 42;"
+                },
+                "input": "abs_value(n)"
+            }
+        }
+    }
+]

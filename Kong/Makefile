@@ -17,8 +17,10 @@ $(NAME):
 
 clean:
 	stack clean
+	$(RM) strong.out
 	$(RM) test/coverage/*.html
 	$(RM) test/coverage/*.tix
+	$(RM) functionnal_tests/tmp/*.kong
 
 fclean:	clean
 	$(RM) $(NAME)

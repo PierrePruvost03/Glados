@@ -4,8 +4,35 @@ module Compiler.Type.Error
   , prettyError
   ) where
 
-import DataStruct.Ast (Ast, Type)
+import DataStruct.Ast (Ast, Type, TypeRaw(..))
 import Parser (LineCount)
+
+-- Helper function to display Type without LineCount
+showType :: Type -> String
+showType (_, typeRaw) = showTypeRaw typeRaw
+
+intercalate :: String -> [String] -> String
+intercalate _ [] = ""
+intercalate _ [x] = x
+intercalate sep (x:xs) = x ++ sep ++ intercalate sep xs
+
+showTypeRaw :: TypeRaw -> String
+showTypeRaw TInt = "Int"
+showTypeRaw TBool = "Bool"
+showTypeRaw TChar = "Char"
+showTypeRaw TString = "String"
+showTypeRaw TFloat = "Float"
+showTypeRaw (TKonst t) = "Konst " ++ showType t
+showTypeRaw (TStrong t) = "Strong " ++ showType t
+showTypeRaw (TKong t) = "Kong " ++ showType t
+showTypeRaw (TStruct name) = "struct " ++ name
+showTypeRaw (TTrait name) = "trait " ++ name
+showTypeRaw (TArray t _) = showType t ++ "[]"
+showTypeRaw (TVector t _) = showType t ++ "<>"
+showTypeRaw (TTuple types) = "|" ++ intercalate ", " (map showType types) ++ "|"
+showTypeRaw (TCustom name) = name
+showTypeRaw (TFunc argTypes retType) = "(" ++ intercalate ", " (map showType argTypes) ++ ") -> " ++ showType retType
+showTypeRaw (TRef t) = "&" ++ showType t
 
 data CompilerError
   = UnsupportedAst String LineCount
@@ -58,8 +85,8 @@ data ProgramError = ProgramError
 prettyError :: CompilerError -> String
 prettyError err = case err of
   UnsupportedAst msg lc -> linePrefix lc ++ "Unsupported AST: " ++ msg
-  TypeMismatch expect act lc -> linePrefix lc ++ "Type mismatch: expected '" ++ show expect ++ "', got '" ++ show act ++ "'"
-  InvalidComparison l r lc -> linePrefix lc ++ "Invalid comparison between '" ++ show l ++ "' and '" ++ show r ++ "' (non-comparable types)"
+  TypeMismatch expect act lc -> linePrefix lc ++ "Type mismatch: expected '" ++ showType expect ++ "', got '" ++ showType act ++ "'"
+  InvalidComparison l r lc -> linePrefix lc ++ "Invalid comparison between '" ++ showType l ++ "' and '" ++ showType r ++ "' (non-comparable types)"
   UnknownVariable v lc -> linePrefix lc ++ "Unknown variable '" ++ v ++ "'"
   UnknownFunction f lc -> linePrefix lc ++ "Unknown function '" ++ f ++ "'"
   InvalidLeftHandSide lc -> linePrefix lc ++ "Invalid left-hand side for assignment"
@@ -70,12 +97,12 @@ prettyError err = case err of
   ArgumentCountMismatch expect act lc -> 
     linePrefix lc ++ "Argument count mismatch: expected " ++ show expect ++ " arguments, got " ++ show act
   ArgumentTypeMismatch pos expT actT lc -> 
-    linePrefix lc ++ "Argument " ++ show pos ++ " type mismatch: expected '" ++ show expT ++ "', got '" ++ show actT ++ "'"
+    linePrefix lc ++ "Argument " ++ show pos ++ " type mismatch: expected '" ++ showType expT ++ "', got '" ++ showType actT ++ "'"
   MissingMainFunction -> "Missing main function"
   InvalidReferenceTarget e lc -> linePrefix lc ++ "Cannot create reference to: " ++ e
   ReferenceToTemporary e lc -> linePrefix lc ++ "Cannot create reference to temporary value: " ++ e
   MissingReturn lc -> linePrefix lc ++ "Function with non-void return type must have a return statement"
-  ReturnTypeMismatch expect act lc -> linePrefix lc ++ "Return type mismatch: expected '" ++ show expect ++ "', got '" ++ show act ++ "'"
+  ReturnTypeMismatch expect act lc -> linePrefix lc ++ "Return type mismatch: expected '" ++ showType expect ++ "', got '" ++ showType act ++ "'"
   MainSignatureError reason lc -> linePrefix lc ++ "Invalid main function signature: " ++ reason
   UnknownStructField s f lc -> linePrefix lc ++ "Field '" ++ f ++ "' does not exist in struct '" ++ s ++ "'"
   IndexOutOfBounds idx sz lc -> linePrefix lc ++ "Index " ++ show idx ++ " is out of bounds (size is " ++ show sz ++ ")"
@@ -83,11 +110,11 @@ prettyError err = case err of
   UndefinedStruct s ctx lc -> linePrefix lc ++ "Struct '" ++ s ++ "' is not defined" ++ (if null ctx then "" else " (used in " ++ ctx ++ ")")
   DivisionByZero lc -> linePrefix lc ++ "Division by zero"
   ConstantOverflow val typ lc -> linePrefix lc ++ "Constant " ++ show val ++ " out of bounds for " ++ typ
-  InvalidCast from to lc -> linePrefix lc ++ "Cannot cast from '" ++ show from ++ "' to '" ++ show to ++ "'"
+  InvalidCast from to lc -> linePrefix lc ++ "Cannot cast from '" ++ showType from ++ "' to '" ++ showType to ++ "'"
   KonstModification v lc -> linePrefix lc ++ "Cannot modify Konst variable '" ++ v ++ "'"
-  NonCallableType v t lc -> linePrefix lc ++ "'" ++ v ++ "' of type '" ++ show t ++ "' is not callable"
+  NonCallableType v t lc -> linePrefix lc ++ "'" ++ v ++ "' of type '" ++ showType t ++ "' is not callable"
   IncompatibleOperands op l r lc -> 
-    linePrefix lc ++ "Operator '" ++ op ++ "' cannot be applied to types '" ++ show l ++ "' and '" ++ show r ++ "'"
+    linePrefix lc ++ "Operator '" ++ op ++ "' cannot be applied to types '" ++ showType l ++ "' and '" ++ showType r ++ "'"
   DuplicateDeclaration n k lc -> linePrefix lc ++ k ++ " '" ++ n ++ "' is already declared"
   UninitializedVariable v lc -> linePrefix lc ++ "Variable '" ++ v ++ "' is not initialized"
   CannotInferType lc -> linePrefix lc ++ "Cannot infer type"
