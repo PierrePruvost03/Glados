@@ -396,7 +396,7 @@ compileLoop _exprCompiler astCompiler ast env = case unwrap ast of
       astCompiler cond newenv >>= \(compiledCond, newenv') ->
         f incr newenv' >>= \(compiledIncr, newenv'') ->
           astCompiler body newenv'' >>= \(compiledBody, _) ->
-            Right (compiledInit ++ compiledCond ++ [JumpIfFalse (length compiledBody + length compiledIncr + 2)] ++ compiledBody ++ compiledIncr ++ [Jump (- (length compiledBody + length compiledIncr + length compiledCond + 2))])
+            Right (compiledInit ++ compiledCond ++ [JumpIfFalse (length compiledBody + length compiledIncr + 2)] ++ compiledBody ++ compiledIncr ++ [Jump (- (length compiledBody + length compiledIncr + length compiledCond + 1))])
     where
       f (Just a) newEnv = astCompiler a newEnv
       f Nothing newEnv = Right ([], newEnv)
