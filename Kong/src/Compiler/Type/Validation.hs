@@ -48,9 +48,9 @@ validateTupleIndexAccess ts idxExpr lineCount = case unwrap idxExpr of
 
 -- Validate array/vector element access by index
 validateArrayIndexAccess :: Type -> AExpression -> AExpression -> LineCount -> Either CompilerError ()
-validateArrayIndexAccess _ sizeExpr idxExpr lineCount = 
+validateArrayIndexAccess _ sizeExpr idxExpr lineCount =
   case (unwrap sizeExpr, unwrap idxExpr) of
-    (AValue sizeVal, AValue idxVal) -> 
+    (AValue sizeVal, AValue idxVal) ->
       case (unwrap sizeVal, unwrap idxVal) of
         (ANumber (AInteger size), ANumber (AInteger idx))
           | idx < 0 -> Left $ NegativeIndex idx lineCount
@@ -70,7 +70,7 @@ validateAccess acc env lineCount = case unwrap acc of
     Nothing -> Right ()
   AVectorAccess vecExpr idxExpr -> case inferType vecExpr env of
     Just t -> case unwrap (stripWrap (resolveType env t)) of
-      TVector elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lineCount
+      TVector _ _ ->  Right ()
       TArray elemType sizeExpr -> validateArrayIndexAccess elemType sizeExpr idxExpr lineCount
       _ -> Left $ InvalidArguments "Vector access on non-vector type" lineCount
     Nothing -> Right ()
@@ -79,7 +79,7 @@ validateAccess acc env lineCount = case unwrap acc of
       TTuple ts -> validateTupleIndexAccess ts idxExpr lineCount >>= \_ -> Right ()
       _ -> Left $ InvalidArguments "Tuple access on non-tuple type" lineCount
     Nothing -> Right ()
-  AStructAccess structExpr fds -> 
+  AStructAccess structExpr fds ->
     validateStructAccess structExpr fds env lineCount
 
 -- Validate chained struct access
@@ -143,24 +143,24 @@ validateDivisionByZero _lhs rhs lineCount = case unwrap rhs of
 
 -- Check that integer constants will not overflow
 validateConstantBounds :: Type -> AstNumber -> LineCount -> Either CompilerError ()
-validateConstantBounds ty num lineCount = 
+validateConstantBounds ty num lineCount =
   case (unwrap ty, num) of
-    (TInt, AInteger n) 
-      | toInteger n < -2147483648 || toInteger n > 2147483647 -> 
+    (TInt, AInteger n)
+      | toInteger n < -2147483648 || toInteger n > 2147483647 ->
           Left $ ConstantOverflow (toInteger n) "int" lineCount
     (TStrong innerT, AInteger n) -> case unwrap innerT of
-      TInt | toInteger n < -9223372036854775808 || toInteger n > 9223372036854775807 -> 
+      TInt | toInteger n < -9223372036854775808 || toInteger n > 9223372036854775807 ->
           Left $ ConstantOverflow (toInteger n) "long" lineCount
       TKong innerInnerT -> case unwrap innerInnerT of
-        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
+        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 ->
             Left $ ConstantOverflow (toInteger n) "unsigned long" lineCount
         _ -> Right ()
       _ -> Right ()
     (TKong innerT, AInteger n) -> case unwrap innerT of
-      TInt | toInteger n < 0 || toInteger n > 4294967295 -> 
+      TInt | toInteger n < 0 || toInteger n > 4294967295 ->
           Left $ ConstantOverflow (toInteger n) "unsigned int" lineCount
       TStrong innerInnerT -> case unwrap innerInnerT of
-        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 -> 
+        TInt | toInteger n < 0 || toInteger n > 18446744073709551615 ->
             Left $ ConstantOverflow (toInteger n) "unsigned long" lineCount
         _ -> Right ()
       _ -> Right ()
@@ -196,7 +196,7 @@ validateNonCallable var t lineCount =
 
 -- Check that user trying to modify a constant variable
 validateKonstAssignment :: String -> CompilerEnv -> LineCount -> Either CompilerError ()
-validateKonstAssignment var env lineCount = 
+validateKonstAssignment var env lineCount =
   case M.lookup var (typeAliases env) of
     Just t | isKonst t -> Left $ KonstModification var lineCount
     _ -> Right ()
@@ -241,7 +241,7 @@ checkVectorSizeFlexibility expected actual =
   case (unwrap (stripWrapForAssignment expected), unwrap (stripWrapForAssignment actual)) of
     (TVector expectedElemType expectedSizeExpr, TVector actualElemType actualSizeExpr) ->
       -- Elements are compatible (or one is TInt for empty vector)
-      (eqTypeNormalized expectedElemType actualElemType || 
+      (eqTypeNormalized expectedElemType actualElemType ||
        (isZeroSize actualSizeExpr && isTInt actualElemType) ||
        (isZeroSize expectedSizeExpr && isTInt expectedElemType))
       &&

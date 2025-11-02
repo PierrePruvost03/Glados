@@ -197,7 +197,7 @@ compileComparisonExpr fexp lhs rhs env lnCount =
       checkComparisonTypes t1 t2 lnCount >>
       ((++) <$> compileExpr rhs env <*> ((++) <$> compileExpr lhs env <*> Right [DoOp (stringToOp opName)]))
     (Just _, Just _, Nothing) -> Left $ InvalidLeftHandSide lnCount
-    _ -> Left $ InvalidArguments "Unable to infer types for comparison" lnCount
+    a -> Left $ InvalidArguments "Unable to infer types for comparison" lnCount
 
 compileArithmeticExpr :: AExpression -> AExpression -> AExpression -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileArithmeticExpr fexp lhs rhs env lnCount =

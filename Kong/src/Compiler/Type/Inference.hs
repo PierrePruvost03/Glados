@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Compiler.Type.Inference
   ( inferType
   , inferAccessType
@@ -145,8 +146,18 @@ inferType expr env = case unwrap expr of
     | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) -> Nothing
     | Just name <- maybeFuncName fexp -> getFunctionReturnType (typeAliases env) name
     | otherwise -> Nothing
-  AMethodCall expression name _ -> inferType expression env >>= \t ->
-    getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+  AMethodCall expression name _ -> inferType expression env >>= \case
+        t@(typeLc, (TVector inside _))
+            | name == "len" -> Just (typeLc, TInt)
+            | name == "pop" -> Just inside
+            | name == "push" -> Just t
+            | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+        t@(typeLc, (TArray inside _))
+            | name == "len" -> Just (typeLc, TInt)
+            | name == "pop" -> Just inside
+            | name == "push" -> Just t
+            | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+        t -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
 
 -- Infer type from an access expression
 inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type
