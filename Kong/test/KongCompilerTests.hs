@@ -55,7 +55,12 @@ testCompileArray =
   TestCase
     ( assertEqual
         "should compile array literal to CreateList (reversed order)"
-        (Right [Push (VNumber (VInt 3)), Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), CreateList 3])
+        (Right [
+          Push (VNumber (VInt 3)), Alloc, StoreRef,
+          Push (VNumber (VInt 2)), Alloc, StoreRef,
+          Push (VNumber (VInt 1)), Alloc, StoreRef,
+          CreateList 3
+        ])
         (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AArray [wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 2)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 3))))])))))))
     )
 
@@ -64,7 +69,11 @@ testCompileVector =
   TestCase
     ( assertEqual
         "should compile vector literal to CreateList (reversed order)"
-        (Right [Push (VNumber (VInt 6)), Push (VNumber (VInt 5)), CreateList 2])
+        (Right [
+          Push (VNumber (VInt 6)), Alloc, StoreRef,
+          Push (VNumber (VInt 5)), Alloc, StoreRef,
+          CreateList 2
+        ])
         (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AVector [wrapExpr (AValue (wrapValue (ANumber (AInteger 5)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 6))))])))))))
     )
 
@@ -73,7 +82,11 @@ testCompileTuple =
   TestCase
     ( assertEqual
         "should compile tuple literal to CreateList (reversed order)"
-        (Right [Push (VNumber (VInt 8)), Push (VNumber (VInt 7)), CreateList 2])
+        (Right [
+          Push (VNumber (VInt 8)), Alloc, StoreRef,
+          Push (VNumber (VInt 7)), Alloc, StoreRef,
+          CreateList 2
+        ])
         (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (ATuple [wrapExpr (AValue (wrapValue (ANumber (AInteger 7)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 8))))])))))))
     )
 
@@ -82,7 +95,11 @@ testCompileStruct =
   TestCase
     ( assertEqual
         "should compile struct literal to CreateStruct"
-        (Right [Push (VNumber (VInt 42)), Push (VList (V.fromList [VNumber (VChar 'a')])), CreateStruct ["name", "age"]])
+        (Right [
+          Push (VNumber (VInt 42)), Alloc, StoreRef,
+          Push (VList (V.fromList [VNumber (VChar 'a')])), Alloc, StoreRef,
+          CreateStruct ["name", "age"]
+        ])
         (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AStruct [ ("name", wrapExpr (AValue (wrapValue (AString "a"))))
                                            , ("age", wrapExpr (AValue (wrapValue (ANumber (AInteger 42)))))
                                            ])))))))
@@ -99,8 +116,12 @@ testStructWithHeapString =
       , StoreRef
       , SetVar "x"
       , Push (VNumber (VInt 42))
+      , Alloc
+      , StoreRef
       , PushEnv "x"
       , LoadRef
+      , Alloc
+      , StoreRef
       , CreateStruct ["name", "age"]
       , Alloc
       , StoreRef
@@ -132,9 +153,9 @@ testArrayDeclarationAndAccess =
   ( assertEqual
     "should compile array declaration and access"
     (Right
-      [ Push (VNumber (VInt 3))
-      , Push (VNumber (VInt 2))
-      , Push (VNumber (VInt 1))
+      [ Push (VNumber (VInt 3)), Alloc, StoreRef
+      , Push (VNumber (VInt 2)), Alloc, StoreRef
+      , Push (VNumber (VInt 1)), Alloc, StoreRef
       , CreateList 3
       , Alloc
       , StoreRef
@@ -143,6 +164,7 @@ testArrayDeclarationAndAccess =
       , PushEnv "arr"
       , LoadRef
       , GetList
+      , LoadRef
       ])
     ( compileWithEnv emptyEnv
       ( wrapAst (ABlock
@@ -163,19 +185,20 @@ testArrayReassignment =
   ( assertEqual
     "should compile array reassignment"
     (Right
-      [ Push (VNumber (VInt 3))
-      , Push (VNumber (VInt 2))
-      , Push (VNumber (VInt 1))
+      [ Push (VNumber (VInt 3)), Alloc, StoreRef
+      , Push (VNumber (VInt 2)), Alloc, StoreRef
+      , Push (VNumber (VInt 1)), Alloc, StoreRef
       , CreateList 3
       , Alloc
       , StoreRef
       , SetVar "arr"
-      , Push (VNumber (VInt 6))
-      , Push (VNumber (VInt 5))
-      , Push (VNumber (VInt 4))
+      , Push (VNumber (VInt 6)), Alloc, StoreRef
+      , Push (VNumber (VInt 5)), Alloc, StoreRef
+      , Push (VNumber (VInt 4)), Alloc, StoreRef
       , CreateList 3
       , PushEnv "arr"
       , StoreRef
+      , LoadRef
       ])
     ( compileWithEnv emptyEnv
       ( wrapAst (ABlock
@@ -201,8 +224,8 @@ testStructDeclarationAndAccess =
   ( assertEqual
     "should compile struct declaration and access"
     (Right
-      [ Push (VNumber (VInt 30))
-      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')]))
+      [ Push (VNumber (VInt 30)), Alloc, StoreRef
+      , Push (VList (V.fromList [VNumber (VChar 'A'), VNumber (VChar 'd'), VNumber (VChar 'a')])), Alloc, StoreRef
       , CreateStruct ["name", "age"]
       , Alloc
       , StoreRef
@@ -210,6 +233,7 @@ testStructDeclarationAndAccess =
       , PushEnv "person"
       , LoadRef
       , GetStruct "name"
+      , LoadRef
       ])
     ( compileWithEnv (emptyEnv { structDefs = M.fromList [("Person", [(wrapType TString, "name"), (wrapType TInt, "age")])] })
       ( wrapAst (ABlock
@@ -252,8 +276,8 @@ testVectorDeclarationAndAccess =
   ( assertEqual
     "should compile vector declaration and access"
     (Right
-      [ Push (VNumber (VInt 20))
-      , Push (VNumber (VInt 10))
+      [ Push (VNumber (VInt 20)), Alloc, StoreRef
+      , Push (VNumber (VInt 10)), Alloc, StoreRef
       , CreateList 2
       , Alloc
       , StoreRef
@@ -262,6 +286,7 @@ testVectorDeclarationAndAccess =
       , PushEnv "vec"
       , LoadRef
       , GetList
+      , LoadRef
       ])
     ( compileWithEnv emptyEnv
       ( wrapAst (ABlock
@@ -281,8 +306,8 @@ testTupleDeclarationAndAccess =
   ( assertEqual
     "should compile tuple declaration and access"
     (Right
-      [ Push (VNumber (VInt 9))
-      , Push (VNumber (VInt 5))
+      [ Push (VNumber (VInt 9)), Alloc, StoreRef
+      , Push (VNumber (VInt 5)), Alloc, StoreRef
       , CreateList 2
       , Alloc
       , StoreRef
@@ -291,6 +316,7 @@ testTupleDeclarationAndAccess =
       , PushEnv "pair"
       , LoadRef
       , GetList
+      , LoadRef
       ])
     ( compileWithEnv emptyEnv
       ( wrapAst (ABlock
@@ -511,7 +537,15 @@ testNestedArrays =
   TestCase
     ( assertEqual
         "should compile nested array literals (reversed order)"
-        (Right [Push (VNumber (VInt 4)), Push (VNumber (VInt 3)), CreateList 2, Push (VNumber (VInt 2)), Push (VNumber (VInt 1)), CreateList 2, CreateList 2])
+        (Right [
+          Push (VNumber (VInt 4)), Alloc, StoreRef,
+          Push (VNumber (VInt 3)), Alloc, StoreRef,
+          CreateList 2, Alloc, StoreRef,
+          Push (VNumber (VInt 2)), Alloc, StoreRef,
+          Push (VNumber (VInt 1)), Alloc, StoreRef,
+          CreateList 2, Alloc, StoreRef,
+          CreateList 2
+        ])
         (compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (AValue (wrapValue (AArray [
           wrapExpr (AValue (wrapValue (AArray [wrapExpr (AValue (wrapValue (ANumber (AInteger 1)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))]))),
           wrapExpr (AValue (wrapValue (AArray [wrapExpr (AValue (wrapValue (ANumber (AInteger 3)))), wrapExpr (AValue (wrapValue (ANumber (AInteger 4))))])))

@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Compiler.Type.Inference
   ( inferType
   , inferAccessType
@@ -36,10 +37,8 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
     genericT = (lc0, TCustom "T")
     genericVec = (lc0, TVector genericT (lc0, AValue (lc0, ANumber (AInteger 0))))
     tInt = (lc0, TInt)
-    tStr = (lc0, TString)
     tChar = (lc0, TChar)
     tVoid = (lc0, TCustom "Void")
-    vecStr0 = (lc0, TVector tStr (lc0, AValue (lc0, ANumber (AInteger 0))))
     vecChar0 = (lc0, TVector tChar (lc0, AValue (lc0, ANumber (AInteger 0))))
     vecVecChar0 = (lc0, TVector vecChar0 (lc0, AValue (lc0, ANumber (AInteger 0))))
 
@@ -73,6 +72,7 @@ insertInEnv env ast = case unwrap ast of
 -- Resolve a type through the environment
 resolveType :: CompilerEnv -> Type -> Type
 resolveType env t = case unwrap t of
+  TString -> (lc t, TVector (lc t, TChar) (lc t, AValue (lc t, ANumber (AInteger 0))))
   TCustom name ->
     case M.lookup name (typeAliases env) of
       Just realTy -> resolveType env realTy
@@ -147,8 +147,18 @@ inferType expr env = case unwrap expr of
     | maybeFuncName fexp `elem` map Just (comparisonOps ++ ["print"]) -> Nothing
     | Just name <- maybeFuncName fexp -> getFunctionReturnType (typeAliases env) name
     | otherwise -> Nothing
-  AMethodCall expression name _ -> inferType expression env >>= \t ->
-    getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+  AMethodCall expression name _ -> inferType expression env >>= \case
+        t@(typeLc, (TVector inside _))
+            | name == "len" -> Just (typeLc, TInt)
+            | name == "pop" -> Just inside
+            | name == "push" -> Just t
+            | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+        t@(typeLc, (TArray inside _))
+            | name == "len" -> Just (typeLc, TInt)
+            | name == "pop" -> Just inside
+            | name == "push" -> Just t
+            | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
+        t -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
 
 -- Infer type from an access expression
 inferAccessType :: AstAccess -> CompilerEnv -> Maybe Type
