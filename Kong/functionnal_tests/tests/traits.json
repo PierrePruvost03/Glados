@@ -1,0 +1,114 @@
+[
+    {
+        "script_file": "exemples/traits.kong",
+        "tests": {
+            "traits1": {
+                "description": "test Printable trait on Point",
+                "expected": "[P,o,i,n,t]",
+                "vars": {
+                    "1": "Point p = {x=5, y=10};"
+                },
+                "input": "test_point_print(p)"
+            },
+            "traits2": {
+                "description": "compare two points - first is greater",
+                "expected": "1",
+                "vars": {
+                    "1": "Point p1 = {x=5, y=5};",
+                    "2": "Point p2 = {x=2, y=2};"
+                },
+                "input": "test_point_compare(p1, p2)"
+            },
+            "traits3": {
+                "description": "compare two points - first is smaller",
+                "expected": "-1",
+                "vars": {
+                    "1": "Point p1 = {x=1, y=1};",
+                    "2": "Point p2 = {x=3, y=3};"
+                },
+                "input": "test_point_compare(p1, p2)"
+            },
+            "traits4": {
+                "description": "compare two points - equal distance",
+                "expected": "0",
+                "vars": {
+                    "1": "Point p1 = {x=3, y=4};",
+                    "2": "Point p2 = {x=0, y=5};"
+                },
+                "input": "test_point_compare(p1, p2)"
+            },
+            "traits5": {
+                "description": "add two points - get x coordinate",
+                "expected": "8",
+                "vars": {
+                    "1": "Point p1 = {x=3, y=4};",
+                    "2": "Point p2 = {x=5, y=6};"
+                },
+                "input": "get_result_x(test_point_add(p1, p2))"
+            },
+            "traits6": {
+                "description": "add two points - get y coordinate",
+                "expected": "10",
+                "vars": {
+                    "1": "Point p1 = {x=3, y=4};",
+                    "2": "Point p2 = {x=5, y=6};"
+                },
+                "input": "get_result_y(test_point_add(p1, p2))"
+            },
+            "traits7": {
+                "description": "multiply point by 2 - get x coordinate",
+                "expected": "6",
+                "vars": {
+                    "1": "Point p = {x=3, y=4};",
+                    "2": "Int factor = 2;"
+                },
+                "input": "get_result_x(test_point_multiply(p, factor))"
+            },
+            "traits8": {
+                "description": "multiply point by 2 - get y coordinate",
+                "expected": "8",
+                "vars": {
+                    "1": "Point p = {x=3, y=4};",
+                    "2": "Int factor = 2;"
+                },
+                "input": "get_result_y(test_point_multiply(p, factor))"
+            },
+            "traits9": {
+                "description": "multiply point by 3 - get x coordinate",
+                "expected": "15",
+                "vars": {
+                    "1": "Point p = {x=5, y=7};",
+                    "2": "Int factor = 3;"
+                },
+                "input": "get_result_x(test_point_multiply(p, factor))"
+            },
+            "traits10": {
+                "description": "multiply point by 0 - get x coordinate",
+                "expected": "0",
+                "vars": {
+                    "1": "Point p = {x=10, y=20};",
+                    "2": "Int factor = 0;"
+                },
+                "input": "get_result_x(test_point_multiply(p, factor))"
+            },
+            "traits11": {
+                "description": "add negative coordinates - get x",
+                "expected": "-5",
+                "vars": {
+                    "1": "Point p1 = {x=-2, y=3};",
+                    "2": "Point p2 = {x=-3, y=-1};"
+                },
+                "input": "get_result_x(test_point_add(p1, p2))"
+            },
+            "traits12": {
+                "description": "add negative coordinates - get y",
+                "expected": "2",
+                "vars": {
+                    "1": "Point p1 = {x=-2, y=3};",
+                    "2": "Point p2 = {x=-3, y=-1};"
+                },
+                "input": "get_result_y(test_point_add(p1, p2))"
+            }
+        }
+    }
+]

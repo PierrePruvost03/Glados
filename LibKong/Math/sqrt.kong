@@ -1,0 +1,30 @@
+Funk sqrt(Float n) -> Float {
+    Float min = 1.0;
+    Float max = n;
+    Float oldresult = -1.0;
+    Float result = 0.0;
+    Float gap = 0.0;
+    If (n `<` 0) {
+        Return -1;
+    }
+    If (n `<` 1) {
+        min = n;
+        max = 1.0;
+    }
+    result = (max + min) / 2;
+    gap = n - (result * result);
+    While ((gap `!=` 0.0) `&&` (result `!=` oldresult)) {
+        If ((min `<` 0.0) `||` (result `<` 0.0)) {
+            Return -1;
+        }
+        If (gap `>` 0) {
+            min = result;
+        } Else {
+            max = result;
+        }
+        oldresult = result;
+        result = (max + min) / 2;
+        gap = n - (result * result);
+    }
+    Return result;
+}
