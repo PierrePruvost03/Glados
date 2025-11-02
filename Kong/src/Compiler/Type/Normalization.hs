@@ -61,6 +61,7 @@ normalizeAccess acc = case unwrap acc of
 
 -- Check if two types are equal after normalization
 eqTypeNormalized :: Type -> Type -> Bool
+eqTypeNormalized (_, TVector t1 _) (_, TVector t2 _) = eqTypeNormalized t1 t2
 eqTypeNormalized a b = normalize a == normalize b
 
 -- Get a clean string representation of a type for trait method names
