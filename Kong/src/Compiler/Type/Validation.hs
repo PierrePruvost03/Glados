@@ -218,7 +218,7 @@ validateNoDuplicateStruct name env lineCount =
 -- Check that function call arguments match expected parameter types
 checkFunctionCallTypes :: LineCount -> [Type] -> [Maybe Type] -> Either CompilerError ()
 checkFunctionCallTypes lnCount (t:ts) (Just a:as)
-  | eqTypeNormalized t a || numericCompatible t a = checkFunctionCallTypes lnCount ts as
+  | eqTypeNormalized t a || numericCompatible t a || checkVectorSizeFlexibility t a = checkFunctionCallTypes lnCount ts as
   | isRefType t && eqTypeNormalized (extractRefType t) a = checkFunctionCallTypes lnCount ts as
   | otherwise = Left $ InvalidArguments ("Function argument type mismatch: expected " ++ show t ++ ", got " ++ show a) lnCount
 checkFunctionCallTypes lnCount (_:_) (Nothing:_) = Left $ InvalidArguments "Unable to infer argument type" lnCount

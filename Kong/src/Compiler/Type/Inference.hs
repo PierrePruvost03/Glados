@@ -35,12 +35,26 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
     lc0 = (0, 0)
     genericT = (lc0, TCustom "T")
     genericVec = (lc0, TVector genericT (lc0, AValue (lc0, ANumber (AInteger 0))))
+    tInt = (lc0, TInt)
+    tStr = (lc0, TString)
+    tChar = (lc0, TChar)
+    tVoid = (lc0, TCustom "Void")
+    vecStr0 = (lc0, TVector tStr (lc0, AValue (lc0, ANumber (AInteger 0))))
+    vecChar0 = (lc0, TVector tChar (lc0, AValue (lc0, ANumber (AInteger 0))))
+    vecVecChar0 = (lc0, TVector vecChar0 (lc0, AValue (lc0, ANumber (AInteger 0))))
 
     builtins = M.fromList
       [ ("$push", (lc0, TKonst (lc0, TFunc [genericVec, genericT] (lc0, TInt))))
       , ("$pop", (lc0, TKonst (lc0, TFunc [genericVec] genericT)))
       , ("$len", (lc0, TKonst (lc0, TFunc [genericVec] (lc0, TInt))))
       , ("++", (lc0, TKonst (lc0, TFunc [(lc0, TRef (lc0, TInt))] (lc0, TInt))))
+      -- Typed signatures for syscalls (codegen still emits Syscall instructions)
+      , ("open",   (lc0, TKonst (lc0, TFunc [vecChar0] tInt)))
+      , ("read",   (lc0, TKonst (lc0, TFunc [tInt, tInt] vecChar0)))
+      , ("write",  (lc0, TKonst (lc0, TFunc [tInt, vecChar0] tInt)))
+      , ("close",  (lc0, TKonst (lc0, TFunc [tInt] tVoid)))
+      , ("exit",   (lc0, TKonst (lc0, TFunc [tInt] tVoid)))
+      , ("getArgv",(lc0, TKonst (lc0, TFunc [] vecVecChar0)))
       ]
 
 -- Insert a type alias or struct definition into the environment
@@ -99,7 +113,8 @@ inferType expr env = case unwrap expr of
     ANumber (AFloat _) -> Just (lc expr, TFloat)
     ANumber (ABool _) -> Just (lc expr, TBool)
     ANumber (AChar _) -> Just (lc expr, TChar)
-    AString _ -> Just (lc expr, TString)
+    AString _ ->
+      Just (lc expr, TVector (lc expr, TChar) (lc expr, AValue (lc expr, ANumber (AInteger 0))))
     ALambda params retType _ ->
       case traverse extractParamType params of
         Just paramTypes -> Just (lc expr, TFunc paramTypes retType)
