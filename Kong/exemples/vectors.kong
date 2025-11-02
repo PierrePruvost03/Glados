@@ -1,0 +1,13 @@
+Funk sum_vector(Int<3> vec) -> Int {
+    Return vec<0> + vec<1> + vec<2>;
+}
+
+Funk get_element(Float<5> vec, Int index) -> Float {
+    Return vec<index>;
+}
+
+Funk modify_vector(Int<2> vec) -> Int<2> {
+    vec<0> = vec<0> * 2;
+    vec<1> = vec<1> * 2;
+    Return vec;
+}

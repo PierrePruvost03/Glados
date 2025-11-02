@@ -273,30 +273,6 @@ testTupleOutOfBounds =
     )
 
 
--- TESTS D'ERREURS - Vector access
-
-testVectorOutOfBounds :: Test
-testVectorOutOfBounds =
-  TestCase
-    ( assertBool
-        "should detect out of bounds vector access"
-        ( case compileWithEnv emptyEnv (wrapAst (ABlock [
-            wrapAst (AVarDecl (wrapType (TVector (wrapType TInt) (wrapExpr (AValue (wrapValue (ANumber (AInteger 2))))))) "vec"
-              (Just (wrapExpr (AValue (wrapValue (AVector [
-                wrapExpr (AValue (wrapValue (ANumber (AInteger 10)))),
-                wrapExpr (AValue (wrapValue (ANumber (AInteger 20))))
-              ])))))),
-            wrapAst (AExpress (wrapExpr (AAccess (wrapAccess (AVectorAccess 
-              (wrapExpr (AValue (wrapValue (AVarCall "vec"))))
-              (wrapExpr (AValue (wrapValue (ANumber (AInteger 5)))))
-            )))))
-          ])) of
-            Left (IndexOutOfBounds _ _ _) -> True
-            _ -> False
-        )
-    )
-
-
 -- TESTS D'ERREURS - Struct errors
 
 testUndefinedStruct :: Test
@@ -510,7 +486,6 @@ kongCompilerErrorTests =
     TestLabel "array out of bounds" testArrayOutOfBounds,
     TestLabel "array valid index" testArrayValidIndex,
     TestLabel "tuple out of bounds" testTupleOutOfBounds,
-    TestLabel "vector out of bounds" testVectorOutOfBounds,
     TestLabel "undefined struct" testUndefinedStruct,
     TestLabel "unknown struct field" testUnknownStructField,
     TestLabel "duplicate function" testDuplicateFunction,

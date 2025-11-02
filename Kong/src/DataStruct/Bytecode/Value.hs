@@ -26,8 +26,8 @@ data Value
 instance Show Value where
     show (VNumber n) = show n
     show (VList v) = show v
-    show (VStruct s) = "{\n" <>
-        (concat $ map (\(name, v) -> ("\t" <> name <> ":\t" <> show v <> ";\n")) (M.toList s))
+    show (VStruct s) = "{" <>
+        (concat $ map (\(name, v) -> (name <> ": " <> show v <> ", ")) (M.toList s))
                        <> "}"
     show (VFunction _ l) = show l <> " bro t'a joué à chelsea..."
     show (VRef addr) = "0x" <> showHex addr ""

@@ -1,0 +1,40 @@
+[
+    {
+        "script_file": "exemples/vectors.kong",
+        "tests": {
+            "vectors1": {
+                "description": "sum all elements in a vector of 3 integers",
+                "expected": "15",
+                "vars": {
+                    "1": "Int<3> vec = <1, 5, 9>;"
+                },
+                "input": "sum_vector(vec)"
+            },
+            "vectors2": {
+                "description": "get element from float vector at index 2",
+                "expected": "3.5",
+                "vars": {
+                    "1": "Float<5> fvec = <1.0, 2.0, 3.5, 4.0, 5.0>;",
+                    "2": "Int idx = 2;"
+                },
+                "input": "get_element(fvec, idx)"
+            },
+            "vectors3": {
+                "description": "modify vector by doubling its elements",
+                "expected": "[20,40]",
+                "vars": {
+                    "1": "Int<2> vec = <10, 20>;"
+                },
+                "input": "modify_vector(vec)"
+            },
+            "vectors4": {
+                "description": "sum vector with negative numbers",
+                "expected": "-6",
+                "vars": {
+                    "1": "Int<3> vec = <-10, 5, -1>;"
+                },
+                "input": "sum_vector(vec)"
+            }
+        }
+    }
+]

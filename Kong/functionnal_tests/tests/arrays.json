@@ -1,0 +1,40 @@
+[
+    {
+        "script_file": "exemples/arrays.kong",
+        "tests": {
+            "arrays1": {
+                "description": "sum all elements in an array of 3 integers",
+                "expected": "60",
+                "vars": {
+                    "1": "Int[3] arr = [10, 20, 30];"
+                },
+                "input": "sum_array(arr)"
+            },
+            "arrays2": {
+                "description": "get element from array at index 3",
+                "expected": "42",
+                "vars": {
+                    "1": "Int[5] arr = [1, 2, 3, 42, 5];",
+                    "2": "Int idx = 3;"
+                },
+                "input": "get_element(arr, idx)"
+            },
+            "arrays3": {
+                "description": "modify array by tripling its elements",
+                "expected": "[15,27]",
+                "vars": {
+                    "1": "Int[2] arr = [5, 9];"
+                },
+                "input": "modify_array(arr)"
+            },
+            "arrays4": {
+                "description": "get array length",
+                "expected": "4",
+                "vars": {
+                    "1": "Float[4] arr = [1.0, 2.0, 3.0, 4.0];"
+                },
+                "input": "array_length(arr)"
+            }
+        }
+    }
+]
