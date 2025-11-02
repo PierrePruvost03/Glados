@@ -228,7 +228,7 @@ compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
     Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps), length args /= 2 ->
       Left $ ArgumentCountMismatch 2 (length args) lnCount
-    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps ++ ["open","read","write","close","exit", "getArgv"]) ->
+    Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps) ->
       fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse args))
     Just name ->
       case M.lookup name (typeAliases env) of
