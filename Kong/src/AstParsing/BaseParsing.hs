@@ -155,12 +155,14 @@ parseBaseType = parseConstType f
                        )
                  <|> TCustom <$> parseName
                  <|> TFunc
-                   <$> ( parseChar symbolFuncParamIn
+                   <$> ( parseChar symbolExpressionIn *> skip *> parseChar symbolFuncParamIn
                            *> parseMultiple parseType
                            <* parseChar symbolFuncParamOut
                            <* skip
                        )
-                   <*> (parseString symbolFuncReturn *> skip *> (parseType <|> fatal "Function Type" " invalid Return type"))
+                   <*> (parseString symbolFuncReturn *> skip *>
+                       (parseType <|> fatal "Function Type" " invalid Return type")
+                     <* skip <* parseChar symbolExpressionOut)
              )
           <* skip
 
