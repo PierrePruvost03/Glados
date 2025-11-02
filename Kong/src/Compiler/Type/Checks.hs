@@ -12,6 +12,7 @@ module Compiler.Type.Checks
   , logicalOps
   , checkComparisonTypes
   , isNonComparableType
+  , signOps
   ) where
 
 import DataStruct.Ast
@@ -99,6 +100,9 @@ isTemporaryValue expr = case unwrap expr of
   AAccess _ -> False
   AAttribution _ _ -> False
   AMethodCall _ _ _ -> True
+
+signOps :: [String]
+signOps = ["+", "-"]
 
 comparisonOps :: [String]
 comparisonOps = ["==", "!=", "<", ">", "<=", ">="]

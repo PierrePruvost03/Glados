@@ -17,7 +17,7 @@ import DataStruct.Bytecode.Syscall (Syscall(..))
 import Compiler.Type.Normalization (typeToString, stripWrap)
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType, getFunctionArgTypes, getTupleIndexType)
-import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, logicalOps, checkComparisonTypes)
+import Compiler.Type.Checks (isKonst, comparisonOps, arithOps, logicalOps, checkComparisonTypes, signOps)
 import Compiler.Type.Validation (checkAssignmentType, checkFunctionCallTypes, validateAccess, validateDivisionByZero, isValidCast, validateKonstAssignment, validateArithmeticOperands, validateNonCallable)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import qualified Data.Map as M
@@ -226,6 +226,9 @@ compileLogicalExpr fexp lhs rhs env lnCount =
 compileFunctionCall :: AExpression -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileFunctionCall fexp args env lnCount =
   case maybeFuncName fexp of
+    Just name | name `elem` (signOps), length args == 1 -> case args of
+        (x@(ln, _):_) -> fmap (\compiledArgs -> concat compiledArgs ++ compileCall name) (mapM (`compileExpr` env) (reverse [(ln, AValue (ln, ANumber (AInteger 0))), x]))
+        _ -> Left $ ArgumentCountMismatch 1 (length args) lnCount
     Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps), length args /= 2 ->
       Left $ ArgumentCountMismatch 2 (length args) lnCount
     Just name | name `elem` (comparisonOps ++ arithOps ++ logicalOps) ->
