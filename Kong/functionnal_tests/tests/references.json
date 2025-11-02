@@ -1,0 +1,41 @@
+[
+    {
+        "script_file": "exemples/references.kong",
+        "tests": {
+            "references1": {
+                "description": "swap two integers using references",
+                "expected": "0",
+                "vars": {
+                    "1": "Int x = 5;",
+                    "2": "Int y = 10;"
+                },
+                "input": "swap(x, y)"
+            },
+            "references2": {
+                "description": "increment value through reference",
+                "expected": "43",
+                "vars": {
+                    "1": "Int value = 42;"
+                },
+                "input": "increment_ref(value)"
+            },
+            "references3": {
+                "description": "get value through reference",
+                "expected": "100",
+                "vars": {
+                    "1": "Int num = 100;"
+                },
+                "input": "get_value(num)"
+            },
+            "references4": {
+                "description": "swap negative and positive integers",
+                "expected": "0",
+                "vars": {
+                    "1": "Int a = -15;",
+                    "2": "Int b = 20;"
+                },
+                "input": "swap(a, b)"
+            }
+        }
+    }
+]

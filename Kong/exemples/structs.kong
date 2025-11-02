@@ -1,0 +1,27 @@
+Strukt Point {
+    Int x;
+    Int y;
+}
+
+Strukt Person {
+    String name;
+    Int age;
+}
+
+Funk get_x(Point p) -> Int {
+    Return p{x};
+}
+
+Funk get_age(Person person) -> Int {
+    Return person{age};
+}
+
+Funk distance_from_origin(Point p) -> Int {
+    Return (p{x} * p{x}) + (p{y} * p{y});
+}
+
+Funk modify_point(Point p) -> Point {
+    p{x} = p{x} + 10;
+    p{y} = p{y} + 20;
+    Return p;
+}
