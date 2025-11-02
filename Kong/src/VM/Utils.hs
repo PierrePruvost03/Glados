@@ -46,4 +46,4 @@ makeIntValue (VNumber (VBool i)) = fromEnum i
 makeIntValue _ = throw $ InvalidIntConversion
 
 mergeHeaps :: Heap -> Heap -> Heap
-mergeHeaps base retured = V.force (V.slice 0 (length base) retured)
+mergeHeaps _ returned = V.force returned
