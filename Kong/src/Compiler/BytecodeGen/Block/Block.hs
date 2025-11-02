@@ -7,7 +7,7 @@ import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (CompilerError(..))
 import Compiler.Type.Normalization (typeToString)
-import Compiler.Type.Inference (CompilerEnv(..), inferType)
+import Compiler.Type.Inference (CompilerEnv(..), inferType, resolveType)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, checkAssignmentType)
 import Compiler.Unwrap (Unwrappable(..), HasLineCount(..))
 import Compiler.BytecodeGen.Block.Helpers (validateInitializerValue, compileVarInitialization, declareWithValue, canInitializeVectorWithDefault)
@@ -27,7 +27,7 @@ compileAst ast env = case unwrap ast of
     validateNoDuplicateDeclaration name env (lc ast) >>
     validateInitializerValue t initExpr (lc ast) >>
     (case inferType initExpr env of
-      Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
+      Just inferredType -> checkAssignmentType (lc ast) (Just (resolveType env t)) (Just (resolveType env inferredType))
       Nothing -> Right ()) >>
     compileVarInitialization compileExprWithType t name initExpr env declareWithValue (lc ast)
   AExpress expr ->

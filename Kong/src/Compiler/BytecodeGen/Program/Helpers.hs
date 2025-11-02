@@ -17,7 +17,7 @@ module Compiler.BytecodeGen.Program.Helpers
 import DataStruct.Ast
 import DataStruct.Bytecode.Value (Instr(..))
 import Compiler.Type.Error (ProgramError(..), CompilerError(..))
-import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv)
+import Compiler.Type.Inference (CompilerEnv(..), emptyEnv, insertInEnv, resolveType)
 import Compiler.Type.Return (checkMainSignature)
 import Compiler.Type.Normalization (typeToString)
 import Compiler.Type.Validation (validateStructDefinition, validateNoDuplicateDeclaration, validateNoDuplicateStruct)
@@ -132,7 +132,8 @@ extractAllTopLevelAsts = extractAllTopLevel
 -- Enrich environment with a single AST (adds variable types to typeAliases)
 enrichEnvironmentWithAst :: CompilerEnv -> Ast -> CompilerEnv
 enrichEnvironmentWithAst env ast = case unwrap ast of
-  AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
+  AVarDecl t name _ ->
+    env { typeAliases = M.insert name (resolveType env t) (typeAliases env) }
   ATraitDef name methods -> env { traitDefs = M.insert name methods (traitDefs env) }
   ATraitImpl tName implType _ ->
     env { traitImpls = M.insert 
@@ -152,7 +153,8 @@ buildSimpleAliasEnv env ast = case unwrap ast of
             (tName, typeToString implType) 
             (maybe [] (map (\(n, _, _) -> n)) (M.lookup tName (traitDefs env))) 
             (traitImpls env) }
-  AVarDecl t name _ -> env { typeAliases = M.insert name t (typeAliases env) }
+  AVarDecl t name _ ->
+    env { typeAliases = M.insert name (resolveType env t) (typeAliases env) }
   _ -> env
 
 -- Expand file-AST pairs into individual file-AST tuples

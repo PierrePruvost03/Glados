@@ -53,6 +53,7 @@ elementTypeFromResolved :: Type -> Maybe Type
 elementTypeFromResolved t = case unwrap t of
   TArray et _ -> Just et
   TVector et _ -> Just et
+  TRef ty -> elementTypeFromResolved ty
   TKonst ty -> elementTypeFromResolved ty
   TStrong ty -> elementTypeFromResolved ty
   TKong ty -> elementTypeFromResolved ty
@@ -139,6 +140,7 @@ checkAccessType (Just t) lnCount = case unwrap t of
   TVector _ _ -> Right ()
   TTuple _ -> Right ()
   TStruct _ -> Right ()
+  TRef ty -> checkAccessType (Just ty) lnCount
   TKonst ty -> checkAccessType (Just ty) lnCount
   TStrong ty -> checkAccessType (Just ty) lnCount
   TKong ty -> checkAccessType (Just ty) lnCount
@@ -148,8 +150,8 @@ checkAccessType Nothing lnCount = Left $ InvalidArguments "Unable to infer type 
 -- Check lambda return type and validate all return statements
 checkLambdaReturn :: Type -> [Ast] -> CompilerEnv -> Either CompilerError ()
 checkLambdaReturn expected bodyStmts scope =
-  checkFunctionReturn expected bodyStmts ((0, 0)) >>= \() ->
-    validateReturnsInBody bodyStmts expected (extendScopeWithPrefixDecls bodyStmts scope)
+  checkFunctionReturn (resolveType scope expected) bodyStmts ((0, 0)) >>= \() ->
+    validateReturnsInBody bodyStmts (resolveType scope expected) (extendScopeWithPrefixDecls bodyStmts scope)
 
 -- Check if an AST node is a return statement
 isReturnStmt :: Ast -> Bool
@@ -160,7 +162,8 @@ isReturnStmt ast = case unwrap ast of
 -- Extend environment with a variable declaration
 extendWithDecl :: CompilerEnv -> Ast -> CompilerEnv
 extendWithDecl env ast = case unwrap ast of
-  AVarDecl t n _ -> env { typeAliases = M.insert n t (typeAliases env) }
+  AVarDecl t n _ ->
+    env { typeAliases = M.insert n (resolveType env t) (typeAliases env) }
   _ -> env
 
 -- Extend scope with all declarations before the first return statement

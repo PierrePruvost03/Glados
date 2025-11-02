@@ -175,6 +175,10 @@ extractStructFieldType :: Type -> String -> CompilerEnv -> Maybe Type
 extractStructFieldType t field env =
   case unwrap t of
     TStruct sname -> lookupFieldInStruct sname field env
+    TRef inner -> extractStructFieldType inner field env
+    TKonst inner -> extractStructFieldType inner field env
+    TStrong inner -> extractStructFieldType inner field env
+    TKong inner -> extractStructFieldType inner field env
     _ -> Nothing
 
 lookupFieldInStruct :: String -> String -> CompilerEnv -> Maybe Type
@@ -344,9 +348,9 @@ compileValueWithType val env expectedType = case unwrap val of
         AVarDecl t name (Just initExpr) ->
           validateInitializerValue t initExpr (lc ast) >>
           (case inferType initExpr env' of
-            Just inferredType -> checkAssignmentType (lc ast) (Just t) (Just inferredType)
+            Just inferredType -> checkAssignmentType (lc ast) (Just (resolveType env' t)) (Just (resolveType env' inferredType))
             Nothing -> Right ()) >>
-          compileExprWithType initExpr env' (Just t) >>= \initCode ->
+          compileExprWithType initExpr env' (Just (resolveType env' t)) >>= \initCode ->
             Right (declareWithValue env' t name initCode)
         AVarDecl t name Nothing ->
           case canInitializeVectorWithDefault t of
