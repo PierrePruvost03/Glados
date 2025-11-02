@@ -39,7 +39,7 @@ def read_tests(test_data: dict[str, str]):
         else:
             print(Fore.RED + f"[FAILED]"  + Style.RESET_ALL + f" ({test}) {test_description}" + Style.RESET_ALL)
             print(Back.RED + Fore.WHITE + f"Expected: {expected_output}" + Style.RESET_ALL)
-            print(Back.RED + Fore.WHITE + f"Got: {output}" + Style.RESET_ALL)
+            print(Back.RED + Fore.WHITE + f"Got: {"".join(output)}" + Style.RESET_ALL)
             failed_tests.append(test_description)
 
 def print_summary():

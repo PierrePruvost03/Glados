@@ -4,7 +4,7 @@
         "tests": {
             "if_else1": {
                 "description": "checking if 10 is positive",
-                "expected": "['p','o','s','i','t','i','v','e']",
+                "expected": "[p,o,s,i,t,i,v,e]",
                 "vars": {
                     "1": "Int n = 10;"
                 },
@@ -12,7 +12,7 @@
             },
             "if_else2": {
                 "description": "checking if -5 is positive",
-                "expected": "['n','o','n','-','p','o','s','i','t','i','v','e']",
+                "expected": "[n,o,n,-,p,o,s,i,t,i,v,e]",
                 "vars": {
                     "1": "Int n = -5;"
                 },
@@ -20,7 +20,7 @@
             },
             "if_else3": {
                 "description": "checking sign of 42",
-                "expected": "['p','o','s','i','t','i','v','e']",
+                "expected": "[p,o,s,i,t,i,v,e]",
                 "vars": {
                     "1": "Int n = 42;"
                 },
@@ -28,7 +28,7 @@
             },
             "if_else4": {
                 "description": "checking sign of -10",
-                "expected": "['n','e','g','a','t','i','v','e']",
+                "expected": "[n,e,g,a,t,i,v,e]",
                 "vars": {
                     "1": "Int n = -10;"
                 },
@@ -36,7 +36,7 @@
             },
             "if_else5": {
                 "description": "checking sign of 0",
-                "expected": "['z','e','r','o']",
+                "expected": "[z,e,r,o]",
                 "vars": {
                     "1": "Int n = 0;"
                 },
@@ -44,7 +44,7 @@
             },
             "if_else6": {
                 "description": "grading score 95 should be A",
-                "expected": "['A']",
+                "expected": "[A]",
                 "vars": {
                     "1": "Int score = 95;"
                 },
@@ -52,7 +52,7 @@
             },
             "if_else7": {
                 "description": "grading score 85 should be B",
-                "expected": "['B']",
+                "expected": "[B]",
                 "vars": {
                     "1": "Int score = 85;"
                 },
@@ -60,7 +60,7 @@
             },
             "if_else8": {
                 "description": "grading score 72 should be C",
-                "expected": "['C']",
+                "expected": "[C]",
                 "vars": {
                     "1": "Int score = 72;"
                 },
@@ -68,7 +68,7 @@
             },
             "if_else9": {
                 "description": "grading score 65 should be D",
-                "expected": "['D']",
+                "expected": "[D]",
                 "vars": {
                     "1": "Int score = 65;"
                 },
@@ -76,7 +76,7 @@
             },
             "if_else10": {
                 "description": "grading score 50 should be F",
-                "expected": "['F']",
+                "expected": "[F]",
                 "vars": {
                     "1": "Int score = 50;"
                 },
@@ -120,7 +120,7 @@
             },
             "if_else15": {
                 "description": "fizzbuzz of 15",
-                "expected": "['F','i','z','z','B','u','z','z']",
+                "expected": "[F,i,z,z,B,u,z,z]",
                 "vars": {
                     "1": "Int n = 15;"
                 },
@@ -128,7 +128,7 @@
             },
             "if_else16": {
                 "description": "fizzbuzz of 9",
-                "expected": "['F','i','z','z']",
+                "expected": "[F,i,z,z]",
                 "vars": {
                     "1": "Int n = 9;"
                 },
@@ -136,7 +136,7 @@
             },
             "if_else17": {
                 "description": "fizzbuzz of 10",
-                "expected": "['B','u','z','z']",
+                "expected": "[B,u,z,z]",
                 "vars": {
                     "1": "Int n = 10;"
                 },
@@ -144,7 +144,7 @@
             },
             "if_else18": {
                 "description": "fizzbuzz of 7",
-                "expected": "['N','u','m','b','e','r']",
+                "expected": "[N,u,m,b,e,r]",
                 "vars": {
                     "1": "Int n = 7;"
                 },

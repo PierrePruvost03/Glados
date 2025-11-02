@@ -4,7 +4,7 @@
         "tests": {
             "traits1": {
                 "description": "test Printable trait on Point",
-                "expected": "['P','o','i','n','t']",
+                "expected": "[P,o,i,n,t]",
                 "vars": {
                     "1": "Point p = {x=5, y=10};"
                 },
