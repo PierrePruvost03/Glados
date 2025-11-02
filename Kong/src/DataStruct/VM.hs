@@ -30,6 +30,7 @@ data VMState = VMState
   , heap :: Heap
   , code :: Code
   , ip :: Int  -- Instruction Pointer
+  , args :: Value
   } deriving (Show, Eq)
 
 baseEnv :: [(String, Value)]
@@ -91,5 +92,12 @@ baseEnv = [
         )
     ]
 
-baseState :: [Instr] -> VMState
-baseState instr = VMState {stack = [], env = M.fromList (baseEnv), heap = V.empty, code = V.fromList instr, ip = 0}
+baseState :: [Instr] -> [String] -> VMState
+baseState instr argv = VMState {
+        stack = [],
+        env = M.fromList (baseEnv),
+        heap = V.empty,
+        code = V.fromList instr,
+        ip = 0,
+        args = VList $ V.fromList $ map (\s -> VList $ V.fromList $ map (\x -> VNumber $ VChar x) s) argv
+    }

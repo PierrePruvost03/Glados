@@ -11,8 +11,8 @@ import VM.Errors (ExecError(..))
 import Control.Exception
 import System.IO
 
-executeVM :: String -> IO Int
-executeVM file = (((decodeFile file) :: IO [Instr]) >>= \instr -> exec (baseState instr) >>= \case
+executeVM :: String -> [String] -> IO Int
+executeVM file xs = (((decodeFile file) :: IO [Instr]) >>= \instr -> exec (baseState instr xs) >>= \case
         (VMState {stack = x : _}) -> pure (makeIntValue x)
         _ -> throwIO $ InvalidStackAccess
     ) `catches`  [
