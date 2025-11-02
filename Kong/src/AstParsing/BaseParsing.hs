@@ -33,13 +33,14 @@ parseStruct =
 parseTypeDef :: Parser Ast
 parseTypeDef =
   skip
-    *> parseString "Type"
+    *> parseString symbolTypeDef
     *> skip
     *> wrap
       ( ATypeAlias
           <$> (parseName <|> fatal "Type def" "Invalid type name")
             <* skip <* (parseChar symbolDeclaration <|> fatal "Type def" ("missing char \"" <> [symbolDeclaration] <> "\""))
           <*> (parseType <|> fatal "Type def" "Invalid Type Alias")
+          <* (parseChar symbolEndOfDeclaration <|> fatal "Type def" ("missing char \"" <> [symbolEndOfDeclaration] <> "\""))
       )
 
 parseTraitBody :: Parser [(String, [Type], Type)]
