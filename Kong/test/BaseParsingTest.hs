@@ -1,7 +1,6 @@
 module BaseParsingTest (baseParsingTests) where
 
 import AstParsing.BaseParsing
-import DataStruct.Ast
 import Parser
 import Test.HUnit
 

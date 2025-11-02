@@ -7,7 +7,6 @@ import Test.HUnit
 
 import DataStruct.Bytecode.Value
 import DataStruct.Bytecode.Number
-import DataStruct.Bytecode.Op
 import DataStruct.VM
 import VM.Execution (exec)
 
@@ -174,7 +173,7 @@ testFunctionWithEnv = TestCase $ do
         "should create [2,1] from function call"
         (VMState
             { stack = [VList (V.fromList [VNumber (VInt 2), VNumber (VInt 1)])]
-            , heap = V.empty
+            , heap = V.fromList [VNumber (VInt 2), VNumber (VInt 1)]
             , env = M.fromList (baseEnv <> [("makePair", func)])
             , ip = 6
             , code = V.fromList

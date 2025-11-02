@@ -189,7 +189,7 @@ extendEnvWithSelfAlias env name =
 typeNameToType :: CompilerEnv -> String -> Type
 typeNameToType env typeName =
   case typeName of
-    "Int" -> (0,0) `seq` ((0,0), TInt)
+    "Int" -> ((0,0), TInt)
     "Float" -> ((0,0), TFloat)
     "Bool" -> ((0,0), TBool)
     "Char" -> ((0,0), TChar)
