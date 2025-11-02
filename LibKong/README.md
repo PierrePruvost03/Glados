@@ -67,3 +67,9 @@ isUpper (Khar) -> Bool : returns True if the kharacter is an uppercase letter, F
 toUpper (Khar) -> Khar : converts a lowercase letter into an uppercase
 
 toLower (Khar) -> Khar : converts an uppercase letter into a lowercase
+
+## String
+
+putStr(String str) -> Int : prints a string and returns the number of characters that were printed
+
+putStrLn(String str) -> Int : prints a string with a newline and returns the number of characters that were printed

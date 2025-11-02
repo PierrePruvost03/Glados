@@ -1,0 +1,7 @@
+Funk putStr(String str) -> Int {
+    Int len = str.len();
+    For (Int i = 0; i `<` len; i += 1) {
+        write(1, str<i>);
+    }
+    Return len;
+}
