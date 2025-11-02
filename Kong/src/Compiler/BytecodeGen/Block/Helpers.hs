@@ -168,13 +168,35 @@ compileVarInitialization :: (AExpression -> CompilerEnv -> Maybe Type -> Either 
                          -> Either CompilerError ([Instr], CompilerEnv)
 compileVarInitialization compileExprFn vType vName initExpr env declareFunc lineCount =
   case inferType initExpr newEnv of
-    Just inferredType -> 
-      compileWithTypeCheck compileExprFn vType vName initExpr newEnv declareFunc resolvedType inferredType lineCount
+    Just inferredType ->
+      compileWithTypeCheck compileExprFn vType vName initExpr newEnv declareFunc resolvedType (resolveType newEnv inferredType) lineCount
     Nothing -> 
       compileWithoutTypeCheck compileExprFn vType vName initExpr newEnv declareFunc resolvedType
   where
     resolvedType = resolveType env vType
-    newEnv = extendEnvWithVar env vType vName
+    baseEnv = extendEnvWithSelfAlias env vName
+    newEnv = extendEnvWithVar baseEnv vType vName
+
+-- If declaring a method like "Type$method", alias Self to the concrete Type during initializer compilation
+extendEnvWithSelfAlias :: CompilerEnv -> String -> CompilerEnv
+extendEnvWithSelfAlias env name =
+  case break (=='$') name of
+    (typeName, '$':_) | not (null typeName) ->
+      env { typeAliases = M.insert "Self" (typeNameToType env typeName) (typeAliases env) }
+    _ -> env
+
+-- Map a type name string to a Type using environment (structs) and primitives
+typeNameToType :: CompilerEnv -> String -> Type
+typeNameToType env typeName =
+  case typeName of
+    "Int" -> (0,0) `seq` ((0,0), TInt)
+    "Float" -> ((0,0), TFloat)
+    "Bool" -> ((0,0), TBool)
+    "Char" -> ((0,0), TChar)
+    "String" -> ((0,0), TString)
+    _ -> case M.lookup typeName (structDefs env) of
+      Just _ -> ((0,0), TStruct typeName)
+      Nothing -> ((0,0), TCustom typeName)
 
 -- Compile initialization when type is inferred
 compileWithTypeCheck :: (AExpression -> CompilerEnv -> Maybe Type -> Either CompilerError [Instr])
