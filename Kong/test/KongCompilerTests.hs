@@ -1,6 +1,5 @@
 module KongCompilerTests (kongCompilerTests) where
 
-import Data.List (isInfixOf)
 import qualified Data.Vector as V
 import qualified Data.Map as M
 import Test.HUnit
@@ -447,17 +446,6 @@ testCompileBlock =
           wrapAst (AVarDecl (wrapType TInt) "x" (Just (wrapExpr (AValue (wrapValue (ANumber (AInteger 5))))))),
           wrapAst (AExpress (wrapExpr (AValue (wrapValue (AVarCall "x")))))
         ])))
-    )
-
-testUnsupportedAst :: Test
-testUnsupportedAst =
-  TestCase
-    ( assertBool
-        "should fail with UnsupportedAst error for unsupported nodes like ATypeAlias"
-        ( case compileWithEnv emptyEnv (wrapAst (ATypeAlias "MyType" (wrapType TInt))) of
-            Left (UnsupportedAst msg _) -> "ATypeAlias" `isInfixOf` msg
-            _ -> False
-        )
     )
 
 testCompileBuiltinMul :: Test
@@ -990,7 +978,6 @@ kongCompilerTests =
     TestLabel "compile symbol" testCompileSymbol,
     TestLabel "compile return" testCompileReturn,
     TestLabel "compile block" testCompileBlock,
-    TestLabel "unsupported ast" testUnsupportedAst,
     TestLabel "compile builtin mul" testCompileBuiltinMul,
     TestLabel "compile builtin div" testCompileBuiltinDiv,
     TestLabel "compile builtin less or equal" testCompileBuiltinLessOrEqual,

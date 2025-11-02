@@ -30,6 +30,19 @@ parseStruct =
               <* parseChar symbolStructOut
           )
 
+parseTypeDef :: Parser Ast
+parseTypeDef =
+  skip
+    *> parseString symbolTypeDef
+    *> skip
+    *> wrap
+      ( ATypeAlias
+          <$> (parseName <|> fatal "Type def" "Invalid type name")
+            <* skip <* (parseChar symbolDeclaration <|> fatal "Type def" ("missing char \"" <> [symbolDeclaration] <> "\""))
+          <*> (parseType <|> fatal "Type def" "Invalid Type Alias")
+          <* (parseChar symbolEndOfDeclaration <|> fatal "Type def" ("missing char \"" <> [symbolEndOfDeclaration] <> "\""))
+      )
+
 parseTraitBody :: Parser [(String, [Type], Type)]
 parseTraitBody =
   ( (parseChar symbolBlockIn <|> fatal "Trait" ("missing char \"" <> [symbolBlockIn] <> "\""))
@@ -532,6 +545,7 @@ parseAstFile :: Parser Ast
 parseAstFile =
   skip
     *> ( parseFunction
+           <|> parseTypeDef
            <|> parseInclude
            <|> parseLineDeclaration
            <|> parseStruct

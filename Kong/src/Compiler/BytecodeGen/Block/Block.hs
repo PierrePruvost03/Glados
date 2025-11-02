@@ -47,6 +47,8 @@ compileAst ast env = case unwrap ast of
     case validateStructDefinition env name fdls (lc ast) of
       Left err -> Left err
       Right () -> Right ([], env { structDefs = M.insert name fdls (structDefs env) })
+  ATypeAlias name typ ->
+    Right ([], env { typeAliases = M.insert name typ (typeAliases env) })
   AInclude _ _ ->
     Right ([], env)
   raw -> Left $ UnsupportedAst (show raw) (lc ast)
