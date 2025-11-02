@@ -72,6 +72,7 @@ insertInEnv env ast = case unwrap ast of
 -- Resolve a type through the environment
 resolveType :: CompilerEnv -> Type -> Type
 resolveType env t = case unwrap t of
+  TString -> (lc t, TVector (lc t, TChar) (lc t, AValue (lc t, ANumber (AInteger 0))))
   TCustom name ->
     case M.lookup name (typeAliases env) of
       Just realTy -> resolveType env realTy
