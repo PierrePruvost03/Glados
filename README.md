@@ -47,4 +47,4 @@ WIP
 ## Contributors
 | Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |
 |--|--|--|--|--|
-| <img src="https://github.com/PierrePruvost03.png" width="150em"/> | <img src="https://github.com/abeldaverio.png" width="150em"/> | <img src="https://github.com/LixiosDelios.png" width="150em"/> | <img src="https://github.com/PouletHalal.png" width="150em"/> | <img src="https://github.com/PoloTheAspicot.png" width="150em"/> |
+| <img src="https://github.com/PierrePruvost03.png" width="150em"/> | <img src="https://github.com/abeldaverio.png" width="150em"/> | <img src="https://github.com/LixiosDelios.png" width="150em"/> | <img src="https://github.com/sami-hmr.png" width="150em"/> | <img src="https://github.com/PoloTheAspicot.png" width="150em"/> |
