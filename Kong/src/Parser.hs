@@ -55,6 +55,15 @@ updateLineCount _ (l, c) = (l, c + 1)
 getRest :: Char -> String -> LineCount -> Rest
 getRest c str lc = (str, updateLineCount c lc)
 
+parseEscapeSequence :: Char -> Maybe Char
+parseEscapeSequence 'n' = Just '\n'
+parseEscapeSequence 't' = Just '\t'
+parseEscapeSequence 'r' = Just '\r'
+parseEscapeSequence '\\' = Just '\\'
+parseEscapeSequence '\"' = Just '\"'
+parseEscapeSequence '\'' = Just '\''
+parseEscapeSequence _ = Nothing
+
 fatal :: String -> String -> Parser a
 fatal scope detail = Parser f
     where
@@ -104,6 +113,9 @@ generateError c d = Parser $ \(_, lc) -> Left (False, c, d, lc)
 parseChar :: Char -> Parser Char
 parseChar c = Parser $ \(s, lc) -> case s of
   [] -> Left (False, "Error parsing char \"" <> [c] <> "\"", "String empty", lc)
+  ('\\' : x : xs) -> case parseEscapeSequence x of
+    Just escaped | escaped == c -> Right (escaped, getRest escaped xs lc)
+    _ -> Left (False, "Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
   (x : xs)
     | c == x -> Right (x, getRest x xs lc)
     | otherwise -> Left (False, "Error parsing char \"" <> [c] <> "\"", "Char not found", lc)
@@ -124,18 +136,35 @@ isAnyNotChar str = Parser $ \(s, lc) -> case s of
 parseNotChar :: Char -> Parser Char
 parseNotChar c = Parser $ \(s, lc) -> case s of
   [] -> Left (False, "Error parsing not char \"" <> [c] <> "\"", "String empty", lc)
+  ('\\' : x : xs) -> case parseEscapeSequence x of
+    Just escaped
+      | escaped == c -> Left (False, "Error parsing not char \"" <> [c] <> "\"", "Char found", lc)
+      | otherwise -> Right (escaped, getRest escaped xs lc)
+    Nothing
+      | x == c -> Left (False, "Error parsing not char \"" <> [c] <> "\"", "Char found", lc)
+      | otherwise -> Right (x, getRest x xs lc)
   (x : xs)
     | c == x -> Left (False, "Error parsing not char \"" <> [c] <> "\"", "Char found", lc)
     | otherwise -> Right (x, getRest x xs lc)
 
 parseCharAny :: Parser Char
 parseCharAny = Parser $ \(s, lc) -> case s of
+  ('\\' : x : xs) -> case parseEscapeSequence x of
+    Just escaped -> Right (escaped, getRest escaped xs lc)
+    Nothing -> Right (x, getRest x xs lc)
   (x : xs) -> Right (x, getRest x xs lc)
   [] -> Left (False, "Error parsing any char", "String empty", lc)
 
 parseAnyNotChar :: String -> Parser Char
 parseAnyNotChar str = Parser $ \(s, lc) -> case s of
   [] -> Left (False, "Error parsing any not char \"" <> str <> "\"", "String empty", lc)
+  ('\\' : x : xs) -> case parseEscapeSequence x of
+    Just escaped
+      | escaped `elem` str -> Left (False, "Error parsing any not char \"" <> str <> "\"", "Character found in string", lc)
+      | otherwise -> Right (escaped, getRest escaped xs lc)
+    Nothing
+      | x `elem` str -> Left (False, "Error parsing any not char \"" <> str <> "\"", "Character found in string", lc)
+      | otherwise -> Right (x, getRest x xs lc)
   (x : xs)
     | x `elem` str -> Left (False, "Error parsing any not char \"" <> str <> "\"", "Character found in string", lc)
     | otherwise -> Right (x, getRest x xs lc)

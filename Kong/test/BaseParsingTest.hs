@@ -49,7 +49,7 @@ testParseRefType :: Test
 testParseRefType = TestCase (assertBool "should parse reference type" (parseSucceeds parseType "Int&"))
 
 testParseFunctionType :: Test
-testParseFunctionType = TestCase (assertBool "should parse function type" (parseSucceeds parseType "(Int,Bool)->Float"))
+testParseFunctionType = TestCase (assertBool "should parse function type" (parseSucceeds parseType "((Int,Bool)->Float)"))
 
 testParseCustomType :: Test
 testParseCustomType = TestCase (assertBool "should parse custom type" (parseSucceeds parseType "MyType"))

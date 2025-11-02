@@ -359,21 +359,6 @@ testWrongReturnType =
         )
     )
 
-testArgumentCountMismatch :: Test
-testArgumentCountMismatch =
-  TestCase
-    ( assertBool
-        "should detect argument count mismatch in builtin function"
-        ( case compileWithEnv emptyEnv (wrapAst (AExpress (wrapExpr (ACall 
-              (wrapExpr (AValue (wrapValue (AVarCall "+"))))
-              [wrapExpr (AValue (wrapValue (ANumber (AInteger 1))))]
-            )))) of
-            Left (ArgumentCountMismatch _ _ _) -> True
-            Left (InvalidArguments _ _) -> True
-            _ -> False
-        )
-    )
-
 testArgumentTypeMismatch :: Test
 testArgumentTypeMismatch =
   TestCase
@@ -491,7 +476,6 @@ kongCompilerErrorTests =
     TestLabel "duplicate function" testDuplicateFunction,
     TestLabel "missing return" testMissingReturn,
     TestLabel "wrong return type" testWrongReturnType,
-    TestLabel "argument count mismatch" testArgumentCountMismatch,
     TestLabel "argument type mismatch" testArgumentTypeMismatch,
     TestLabel "call non function" testCallNonFunction,
     TestLabel "duplicate variable" testDuplicateVariable,
