@@ -25,12 +25,12 @@ createStruct stack names = f ([], stack) names
 makeBoolValue :: Value -> Bool
 makeBoolValue (VNumber (VBool value)) = value
 makeBoolValue (VNumber (VInt n))
-    | n > 0 = True
+    | n == 0 = True
     | otherwise = False
 makeBoolValue (VNumber (VChar '\0')) = False
 makeBoolValue (VNumber (VChar _)) = True
 makeBoolValue (VNumber (VFloat n))
-    | n > 0 = True
+    | n == 0 = True
     | otherwise = False
 makeBoolValue (VList (list)) = null list
 -- makeBoolValue VStruct String (M.Map String HeapAddr)
