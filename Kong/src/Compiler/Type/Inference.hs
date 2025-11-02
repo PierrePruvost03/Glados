@@ -50,7 +50,7 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
       -- Typed signatures for syscalls (codegen still emits Syscall instructions)
       , ("open",   (lc0, TKonst (lc0, TFunc [vecChar0] tInt)))
       , ("read",   (lc0, TKonst (lc0, TFunc [tInt, tInt] vecChar0)))
-      , ("write",  (lc0, TKonst (lc0, TFunc [tInt, vecChar0] tInt)))
+      , ("write",  (lc0, TKonst (lc0, TFunc [tInt, tChar] tInt)))
       , ("close",  (lc0, TKonst (lc0, TFunc [tInt] tVoid)))
       , ("exit",   (lc0, TKonst (lc0, TFunc [tInt] tVoid)))
       , ("getArgv",(lc0, TKonst (lc0, TFunc [] vecVecChar0)))
@@ -153,7 +153,7 @@ inferType expr env = case unwrap expr of
             | name == "pop" -> Just inside
             | name == "push" -> Just t
             | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
-        t@(typeLc, (TArray inside _))
+        t@(typeLc, (TArray _ _))
             | name == "len" -> Just (typeLc, TInt)
             | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
         t -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))

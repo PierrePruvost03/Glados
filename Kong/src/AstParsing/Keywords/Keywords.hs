@@ -3,6 +3,7 @@ module AstParsing.Keywords.Keywords (
     symbolFuncParamIn,
     symbolFuncParamOut,
     symbolStruct,
+    symbolTypeDef,
     symbolStructSep,
     symbolInclude,
     symbolIncludeIn,
@@ -77,6 +78,9 @@ symbolFuncParamOut = ')'
 
 symbolStruct :: String
 symbolStruct = "Strukt"
+
+symbolTypeDef :: String
+symbolTypeDef = "Type"
 
 symbolStructSep :: Char
 symbolStructSep = ';'
