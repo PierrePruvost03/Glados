@@ -14,7 +14,7 @@ You can find its source files in the `Kong` folder.
 
 ## How to install
 
-WIP
+You can find the 2 binaries in the last release.
 
 ## Supported features
 
