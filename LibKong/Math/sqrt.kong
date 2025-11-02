@@ -1,12 +1,9 @@
-Inklude fabs (fabs)
-
 Funk sqrt(Float n) -> Float {
     Float min = 1.0;
     Float max = n;
+    Float oldresult = -1.0;
     Float result = 0.0;
-    Float approximation = 0.001;
     Float gap = 0.0;
-    Float gapabs = 0.001;
     If (n `<` 0) {
         Return -1;
     }
@@ -16,16 +13,18 @@ Funk sqrt(Float n) -> Float {
     }
     result = (max + min) / 2;
     gap = n - (result * result);
-    gapabs = fabs(gap);
-    While (gapabs `>` approximation) {
+    While ((gap `!=` 0.0) `&&` (result `!=` oldresult)) {
+        If ((min `<` 0.0) `||` (result `<` 0.0)) {
+            Return -1;
+        }
         If (gap `>` 0) {
             min = result;
         } Else {
             max = result;
         }
+        oldresult = result;
         result = (max + min) / 2;
         gap = n - (result * result);
-        gapabs = fabs(gap);
     }
     Return result;
 }
