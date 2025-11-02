@@ -1,0 +1,31 @@
+[
+    {
+        "script_file": "exemples/structs.kong",
+        "tests": {
+            "structs1": {
+                "description": "get x coordinate from Point struct",
+                "expected": "10",
+                "vars": {
+                    "1": "Point p = {x=10, y=20};"
+                },
+                "input": "get_x(p)"
+            },
+            "structs2": {
+                "description": "get age from Person struct",
+                "expected": "25",
+                "vars": {
+                    "1": "Person person = {name=\"Alice\", age=25};"
+                },
+                "input": "get_age(person)"
+            },
+            "structs3": {
+                "description": "calculate distance squared from origin",
+                "expected": "25",
+                "vars": {
+                    "1": "Point p = {x=3, y=4};"
+                },
+                "input": "distance_from_origin(p)"
+            }
+        }
+    }
+]

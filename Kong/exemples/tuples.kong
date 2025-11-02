@@ -1,0 +1,17 @@
+Funk get_first(|Int, Int| pair) -> Int {
+    Return pair|0|;
+}
+
+Funk get_second(|Int, Float| pair) -> Float {
+    Return pair|1|;
+}
+
+Funk swap_tuple(|Int, Int| pair) -> |Int, Int| {
+    Int temp = pair|0|;
+    |Int, Int| result = |pair|1|, temp|;
+    Return result;
+}
+
+Funk sum_triple(|Int, Int, Int| triple) -> Int {
+    Return triple|0| + triple|1| + triple|2|;
+}
