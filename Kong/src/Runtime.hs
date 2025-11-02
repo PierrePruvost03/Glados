@@ -26,7 +26,7 @@ compileAndExecute fileAsts =
 executeInstructions :: [Instr] -> IO ()
 executeInstructions instrs = do
     putStrLn $ "[Bytecode] " ++ show instrs
-    exec (baseState instrs) >>= printVMResult
+    exec (baseState instrs []) >>= printVMResult
 
 -- | Print VM execution result and exit with appropriate code
 printVMResult :: VMState -> IO ()

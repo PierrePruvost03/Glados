@@ -11,6 +11,7 @@ data Syscall
     | Write
     | Open
     | Close
+    | GetArgv
     deriving (Show, Eq)
 
 instance Binary Syscall where
@@ -21,6 +22,7 @@ instance Binary Syscall where
     put Write = put (3 :: Word8)
     put Open = put (4 :: Word8)
     put Close = put (5 :: Word8)
+    put GetArgv = put (6 :: Word8)
     -- reading
     get = (get :: Get Word8) >>= \case
         0 -> return Exit
@@ -29,4 +31,5 @@ instance Binary Syscall where
         3 -> return Write
         4 -> return Open
         5 -> return Close
+        6 -> return GetArgv
         _ -> fail "Unknow syscall"
