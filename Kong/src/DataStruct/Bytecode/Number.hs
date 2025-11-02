@@ -17,7 +17,7 @@ data Number
 instance Show Number where
     show (VInt i) = show i
     show (VBool b) = show b
-    show (VChar c) = show c
+    show (VChar c) = [c]
     show (VFloat f) = show f
     show (VLong l) = show l
     show (VUInt u) = show u
