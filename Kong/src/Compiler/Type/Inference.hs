@@ -36,10 +36,8 @@ initBuiltinFunctions env = env { typeAliases = M.union builtins (typeAliases env
     genericT = (lc0, TCustom "T")
     genericVec = (lc0, TVector genericT (lc0, AValue (lc0, ANumber (AInteger 0))))
     tInt = (lc0, TInt)
-    tStr = (lc0, TString)
     tChar = (lc0, TChar)
     tVoid = (lc0, TCustom "Void")
-    vecStr0 = (lc0, TVector tStr (lc0, AValue (lc0, ANumber (AInteger 0))))
     vecChar0 = (lc0, TVector tChar (lc0, AValue (lc0, ANumber (AInteger 0))))
     vecVecChar0 = (lc0, TVector vecChar0 (lc0, AValue (lc0, ANumber (AInteger 0))))
 
