@@ -37,27 +37,30 @@ executeSyscall (Print n) s@(VMState {stack, ip, heap}) = case createList stack n
         f (x:xs) = print (loadRefs heap x) >> f xs
 
 -- Open
-executeSyscall Open s@(VMState {stack = (VList file) : xs, ip}) =
-    catch
-        (openFile (map toChar (V.toList file)) ReadWriteMode True >>= \((fd), _) -> pure (fromIntegral (fdFD fd)))
-        (\(_ :: IOException) -> pure (-1)) >>=
-    \fd -> pure (s{stack = VNumber (VInt fd) : xs, ip = ip + 1})
-    where
-        toChar (VNumber (VChar c)) = c
-        toChar _ = throw $ InvalidCharConversion
+executeSyscall Open s@(VMState {stack = pathVal : xs, ip, heap}) =
+        case loadRefs heap pathVal of
+            VList file ->
+                catch
+                    (openFile (map toChar (V.toList file)) ReadWriteMode True >>= \((fd), _) -> pure (fromIntegral (fdFD fd)))
+                    (\(_ :: IOException) -> pure (-1))
+                >>= \fd -> pure (s{stack = VNumber (VInt fd) : xs, ip = ip + 1})
+            _ -> throw $ InvalidCharConversion
+        where
+            toChar (VNumber (VChar c)) = c
+            toChar _ = throw $ InvalidCharConversion
 
 -- Close
 executeSyscall Close s@(VMState {stack = fd : xs, ip}) =
     release (FD (fromIntegral (makeIntValue fd)) 0) >> pure (s{stack = xs, ip = ip + 1})
 
 -- Write
-executeSyscall Write s@(VMState {stack = fd : v : xs, ip}) =
+executeSyscall Write s@(VMState {stack = fd : v : xs, ip, heap}) =
     catch
         (withCString stringV $ \
             ptr -> writeRawBufferPtr "" (FD (fromIntegral (makeIntValue fd)) 0) (castPtr ptr) 0 (fromIntegral (length stringV)))
         (\(_ :: IOException) -> pure (-1)) >>=
     \n -> pure (s{stack = VNumber (VInt (fromIntegral n)) : xs, ip = ip + 1})
-    where stringV = show v
+    where stringV = show (loadRefs heap v)
 
 -- Read
 executeSyscall Read s@(VMState {stack = fd : n : xs, ip}) =
