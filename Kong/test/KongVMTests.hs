@@ -13,7 +13,7 @@ import VM.Execution (exec)
 
 testPush :: Test
 testPush = TestCase $ do
-  result <- exec (baseState [Push (VNumber (VInt 42)), Ret])
+  result <- exec (baseState [Push (VNumber (VInt 42)), Ret] [])
   assertEqual
     "should push 42 on stack"
     (VMState
@@ -22,12 +22,13 @@ testPush = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 1
       , code = V.fromList [Push (VNumber (VInt 42)), Ret]
+      , args = VList $ V.fromList []
       })
     result
 
 testPushEnvAndSetVar :: Test
 testPushEnvAndSetVar = TestCase $ do
-  result <- exec (baseState [Push (VNumber (VInt 10)), SetVar "x", PushEnv "x", Ret])
+  result <- exec (baseState [Push (VNumber (VInt 10)), SetVar "x", PushEnv "x", Ret] [])
   assertEqual
     "should set and then push variable from env"
     (VMState
@@ -36,6 +37,7 @@ testPushEnvAndSetVar = TestCase $ do
       , env = M.fromList (baseEnv <> [("x", VNumber (VInt 10))])
       , ip = 3
       , code = V.fromList [Push (VNumber (VInt 10)), SetVar "x", PushEnv "x", Ret]
+      , args = VList $ V.fromList []
       })
     result
 
@@ -43,7 +45,7 @@ testCall :: Test
 testCall = TestCase $ do
   let funcBody = [Push (VNumber (VInt 7)), Ret]
       func = VFunction [] (V.fromList funcBody)
-  result <- exec (baseState [Push func, Call, Ret])
+  result <- exec (baseState [Push func, Call, Ret] [])
   assertEqual
     "should call function and push 7"
     (VMState
@@ -52,12 +54,13 @@ testCall = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 2
       , code = V.fromList [Push func, Call, Ret]
+      , args = VList $ V.fromList []
       })
     result
 
 testNop :: Test
 testNop = TestCase $ do
-  result <- exec (baseState [Nop, Ret])
+  result <- exec (baseState [Nop, Ret] [])
   assertEqual
     "should skip Nop and end with empty stack"
     (VMState
@@ -66,12 +69,13 @@ testNop = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 1
       , code = V.fromList [Nop, Ret]
+      , args = VList $ V.fromList []
       })
     result
 
 testCreateList :: Test
 testCreateList = TestCase $ do
-  result <- exec (baseState [Push (VNumber (VInt 1)), Push (VNumber (VInt 2)), CreateList 2, Ret])
+  result <- exec (baseState [Push (VNumber (VInt 1)), Push (VNumber (VInt 2)), CreateList 2, Ret] [])
   assertEqual
     "should create list from top 2 values"
     (VMState
@@ -80,6 +84,7 @@ testCreateList = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 3
       , code = V.fromList [Push (VNumber (VInt 1)), Push (VNumber (VInt 2)), CreateList 2, Ret]
+      , args = VList $ V.fromList []
       })
     result
 
@@ -90,7 +95,7 @@ testCreateStruct = TestCase $ do
     , Push (VNumber (VInt 99))
     , CreateStruct ["age", "score"]
     , Ret
-    ])
+    ] [])
   let expectedStruct = M.fromList [("age", VNumber (VInt 99)), ("score", VNumber (VInt 25))]
   assertEqual
     "should create struct"
@@ -105,12 +110,13 @@ testCreateStruct = TestCase $ do
           , CreateStruct ["age", "score"]
           , Ret
           ]
+      , args = VList $ V.fromList []
       })
     result
 
 testJump :: Test
 testJump = TestCase $ do
-  result <- exec (baseState [Jump 1, Push (VNumber (VInt 5)), Ret])
+  result <- exec (baseState [Jump 1, Push (VNumber (VInt 5)), Ret] [])
   assertEqual
     "should jump to instruction index 1"
     (VMState
@@ -119,12 +125,13 @@ testJump = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 2
       , code = V.fromList [Jump 1, Push (VNumber (VInt 5)), Ret]
+      , args = VList $ V.fromList []
       })
     result
 
 testHeapOps :: Test
 testHeapOps = TestCase $ do
-  result <- exec (baseState [Push (VNumber (VInt 9)), Alloc, StoreRef, LoadRef, Ret])
+  result <- exec (baseState [Push (VNumber (VInt 9)), Alloc, StoreRef, LoadRef, Ret] [])
   assertEqual
     "should store value in heap and reload it"
     (VMState
@@ -133,6 +140,7 @@ testHeapOps = TestCase $ do
       , env = M.fromList (baseEnv)
       , ip = 4
       , code = V.fromList [Push (VNumber (VInt 9)), Alloc, StoreRef, LoadRef, Ret]
+      , args = VList $ V.fromList []
       })
     result
 
@@ -161,11 +169,11 @@ testFunctionWithEnv = TestCase $ do
         , PushEnv "makePair"
         , Call
         , Ret
-        ])
+        ] [])
     assertEqual
         "should create [2,1] from function call"
         (VMState
-            { stack = [VList (V.fromList [VNumber (VInt 2), VNumber (VInt 1)]), VNumber (VInt 2), VNumber (VInt 1)]
+            { stack = [VList (V.fromList [VNumber (VInt 2), VNumber (VInt 1)])]
             , heap = V.empty
             , env = M.fromList (baseEnv <> [("makePair", func)])
             , ip = 6
@@ -178,6 +186,7 @@ testFunctionWithEnv = TestCase $ do
                 , Call
                 , Ret
                 ]
+            , args = VList $ V.fromList []
             })
         result
 
@@ -192,7 +201,7 @@ testNestedStructAccess = TestCase $ do
         , GetStruct "inner"
         , GetStruct "x"
         , Ret
-        ])
+        ] [])
     assertEqual
         "should access nested struct field outer.inner.x == 10"
         (VMState
@@ -208,6 +217,7 @@ testNestedStructAccess = TestCase $ do
                 , GetStruct "x"
                 , Ret
                 ]
+            , args = VList $ V.fromList []
             })
         result
 
@@ -226,7 +236,7 @@ testListMutation = TestCase $ do
         , PushEnv "arr"
         , GetList
         , Ret
-        ])
+        ] [])
     assertEqual
         "should update arr[1] = 99 and read back 99"
         (VMState
@@ -247,6 +257,7 @@ testListMutation = TestCase $ do
                 , GetList
                 , Ret
                 ]
+            , args = VList $ V.fromList []
             })
         result
 
@@ -264,7 +275,7 @@ testHeapStructIntegration = TestCase $ do
         , PushEnv "person"
         , GetStruct "age"
         , Ret
-        ])
+        ] [])
     let expectedStruct = VStruct (M.fromList ([("age", VNumber (VInt 123)), ("id", VNumber (VInt 21))]))
     assertEqual
         "should create struct in heap and access field"
@@ -285,6 +296,7 @@ testHeapStructIntegration = TestCase $ do
                 , GetStruct "age"
                 , Ret
                 ]
+            , args = VList $ V.fromList []
             })
         result
 
