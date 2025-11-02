@@ -1,0 +1,11 @@
+Funk isEqual(Int a, Int b) -> Bool {
+    Return a `==` b;
+}
+
+Funk isGreater(Int a, Int b) -> Bool {
+    Return a `>` b;
+}
+
+Funk isLess(Int a, Int b) -> Bool {
+    Return a `<` b;
+}

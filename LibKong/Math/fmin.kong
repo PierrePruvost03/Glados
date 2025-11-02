@@ -1,0 +1,7 @@
+Funk fmin(Float a, Float b) -> Float {
+    If (a `<` b) {
+        Return a;
+    } Else {
+        Return b;
+    }
+}

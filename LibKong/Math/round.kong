@@ -1,0 +1,23 @@
+Inklude fmod (fmod)
+Inklude ceil (ceil)
+Inklude floor (floor)
+
+Funk round(Float a) -> Float {
+    Int sign = 1;
+    Float modulo = 0;
+    If (a `<` 0) {
+        sign = -1;
+    }
+    modulo = fmod(a, sign);
+    If (modulo `>=` 0.5) {
+        Return ceil(a);
+    }
+    If (modulo `<=` -0.5) {
+        Return floor(a);
+    }
+    If (modulo `<` 0) {
+        Return ceil(a);
+    }
+    Return floor(a);
+    }
+}

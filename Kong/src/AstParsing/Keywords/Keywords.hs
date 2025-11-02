@@ -1,0 +1,266 @@
+module AstParsing.Keywords.Keywords (
+    symbolFunc,
+    symbolFuncParamIn,
+    symbolFuncParamOut,
+    symbolStruct,
+    symbolTypeDef,
+    symbolStructSep,
+    symbolInclude,
+    symbolIncludeIn,
+    symbolIncludeOut,
+    symbolIncludeSep,
+    symbolConst,
+    symbolUnsigned,
+    symbolLong,
+    symbolInt,
+    symbolFloat,
+    symbolBool,
+    symbolChar,
+    symbolString,
+    symbolVectorIn,
+    symbolVectorOut,
+    symbolArrayIn,
+    symbolArrayOut,
+    symbolStructIn,
+    symbolStructOut,
+    symbolTuple,
+    wrapperList,
+    symbolTrue,
+    symbolFalse,
+    allowedInfix,
+    symbolLineComment,
+    symbolCommentIn,
+    symbolCommentOut,
+    symbolFuncReturn,
+    symbolBlockIn,
+    symbolBlockOut,
+    symbolCondIn,
+    symbolCondOut,
+    symbolIf,
+    symbolElif,
+    symbolElse,
+    symbolFor,
+    symbolForIn,
+    symbolForOut,
+    symbolForSep,
+    symbolIn,
+    symbolReturn,
+    symbolWhile,
+    symbolDeclaration,
+    symbolEndOfDeclaration,
+    symbolEndOfExpression,
+    symbolStringDelimiter,
+    symbolCharDelimiter,
+    symbolInfix,
+    symbolCallIn,
+    symbolCallOut,
+    symbolExpressionIn,
+    symbolExpressionOut,
+    symbolTrait,
+    symbolImpl,
+    symbolSelf,
+    symbolSelfType,
+    symbolCallMethod,
+    symbolRef,
+    symbolCast,
+    allowedOpAssignment,
+    symbolIncr,
+) where
+
+symbolFunc :: String
+symbolFunc = "Funk"
+
+symbolFuncParamIn :: Char
+symbolFuncParamIn = '('
+
+symbolFuncParamOut :: Char
+symbolFuncParamOut = ')'
+
+symbolStruct :: String
+symbolStruct = "Strukt"
+
+symbolTypeDef :: String
+symbolTypeDef = "Type"
+
+symbolStructSep :: Char
+symbolStructSep = ';'
+
+symbolInclude :: String
+symbolInclude = "Inklude"
+
+symbolIncludeIn :: String
+symbolIncludeIn = "("
+
+symbolIncludeOut :: String
+symbolIncludeOut = ")"
+
+symbolIncludeSep :: Char
+symbolIncludeSep = ','
+
+symbolConst :: String
+symbolConst = "Konst"
+
+symbolUnsigned :: String
+symbolUnsigned = "Kong"
+
+symbolLong :: String
+symbolLong = "Strong"
+
+symbolInt :: String
+symbolInt = "Int"
+
+symbolFloat :: String
+symbolFloat = "Float"
+
+symbolBool :: String
+symbolBool = "Bool"
+
+symbolChar :: String
+symbolChar = "Khar"
+
+symbolString :: String
+symbolString = "String"
+
+symbolVectorIn :: Char
+symbolVectorIn = '<'
+
+symbolVectorOut :: Char
+symbolVectorOut = '>'
+
+symbolArrayIn :: Char
+symbolArrayIn = '['
+
+symbolArrayOut :: Char
+symbolArrayOut = ']'
+
+symbolStructIn :: Char
+symbolStructIn = '{'
+
+symbolStructOut :: Char
+symbolStructOut = '}'
+
+symbolTuple :: Char
+symbolTuple = '|'
+
+wrapperList :: String
+wrapperList = "<[&"
+
+symbolTrue :: String
+symbolTrue = "True"
+
+symbolFalse :: String
+symbolFalse = "False"
+
+allowedInfix :: String
+allowedInfix = "+-/:*^!%?&="
+
+allowedOpAssignment :: String
+allowedOpAssignment = "+-*/^%"
+
+symbolIncr :: String
+symbolIncr = "++"
+
+symbolLineComment :: String
+symbolLineComment = "//"
+
+symbolCommentIn :: String
+symbolCommentIn = "/*"
+
+symbolCommentOut :: String
+symbolCommentOut = "*/"
+
+symbolFuncReturn :: String
+symbolFuncReturn = "->"
+
+symbolBlockIn :: Char
+symbolBlockIn = '{'
+
+symbolBlockOut :: Char
+symbolBlockOut = '}'
+
+symbolCondIn :: Char
+symbolCondIn = '('
+
+symbolCondOut :: Char
+symbolCondOut = ')'
+
+symbolIf :: String
+symbolIf = "If"
+
+symbolElif :: String
+symbolElif = "Elif"
+
+symbolElse :: String
+symbolElse = "Else"
+
+symbolFor :: String
+symbolFor = "For"
+
+symbolForIn :: Char
+symbolForIn = '('
+
+symbolForOut :: Char
+symbolForOut = ')'
+
+symbolForSep :: Char
+symbolForSep = ';'
+
+symbolIn :: String
+symbolIn = "In"
+
+symbolReturn :: String
+symbolReturn = "Return"
+
+symbolWhile :: String
+symbolWhile = "While"
+
+symbolDeclaration :: Char
+symbolDeclaration = '='
+
+symbolEndOfDeclaration :: Char
+symbolEndOfDeclaration = ';'
+
+symbolEndOfExpression :: Char
+symbolEndOfExpression = ';'
+
+symbolStringDelimiter :: Char
+symbolStringDelimiter = '"'
+
+symbolCharDelimiter :: Char
+symbolCharDelimiter = '\''
+
+symbolInfix :: Char
+symbolInfix = '`'
+
+symbolCallIn :: Char
+symbolCallIn = '('
+
+symbolCallOut :: Char
+symbolCallOut = ')'
+
+symbolExpressionIn :: Char
+symbolExpressionIn = '('
+
+symbolExpressionOut :: Char
+symbolExpressionOut = ')'
+
+symbolTrait :: String
+symbolTrait = "Trait"
+
+symbolImpl :: String
+symbolImpl = "Impl"
+
+symbolSelf :: String
+symbolSelf = "self"
+
+symbolSelfType :: String
+symbolSelfType = "Self"
+
+symbolCallMethod :: Char
+symbolCallMethod = '.'
+
+symbolRef :: Char
+symbolRef = '&'
+
+symbolCast :: String
+symbolCast = "Kast"

@@ -1,0 +1,75 @@
+Trait Printable {
+    print() -> String;
+}
+
+Trait Comparable {
+    compare(Self) -> Int;
+}
+
+Trait Arithmetic {
+    add(Self) -> Self;
+    multiply(Int) -> Self;
+}
+
+Strukt Point {
+    Int x;
+    Int y;
+}
+
+Impl Printable Point {
+    print(self) -> String {
+        Return "Point";
+    }
+}
+
+Impl Comparable Point {
+    compare(self, Point other) -> Int {
+        Int dist1 = (self{x} * self{x}) + (self{y} * self{y});
+        Int dist2 = (other{x} * other{x}) + (other{y} * other{y});
+        If (dist1 `>` dist2) {
+            Return 1;
+        } Else {
+            If (dist1 `<` dist2) {
+                Return -1;
+            } Else {
+                Return 0;
+            }
+        }
+    }
+}
+
+Impl Arithmetic Point {
+    add(self, Point other) -> Point {
+        Point result = {x = self{x} + other{x}, y = self{y} + other{y}};
+        Return result;
+    }
+    
+    multiply(self, Int factor) -> Point {
+        Point result = {x = self{x} * factor, y = self{y} * factor};
+        Return result;
+    }
+}
+
+Funk test_point_print(Point p) -> String {
+    Return p.print();
+}
+
+Funk test_point_compare(Point p1, Point p2) -> Int {
+    Return p1.compare(p2);
+}
+
+Funk test_point_add(Point p1, Point p2) -> Point {
+    Return p1.add(p2);
+}
+
+Funk test_point_multiply(Point p, Int n) -> Point {
+    Return p.multiply(n);
+}
+
+Funk get_result_x(Point p) -> Int {
+    Return p{x};
+}
+
+Funk get_result_y(Point p) -> Int {
+    Return p{y};
+}

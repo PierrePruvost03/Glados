@@ -1,0 +1,7 @@
+Funk fabs(Float a) -> Float {
+    If (a `<` 0) {
+        Return -1 * a;
+    } Else {
+        Return a;
+    }
+}

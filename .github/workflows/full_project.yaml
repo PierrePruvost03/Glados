@@ -1,0 +1,62 @@
+name: Full Project
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  STACK_ROOT: /tmp/stack-root
+
+jobs:
+  build_all_projects:
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: build all projects
+        run: make all
+      - name: verify all binaries exist
+        run: |
+          test -f LispInterpreter/glados-lisp
+          test -f Kong/glados-kong
+          echo "Both binaries exist!"
+
+  run_all_tests:
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: run all unit tests
+        run: make test
+      - name: run LISP functional tests
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get install python3-venv -y
+          cd LispInterpreter
+          bash functionnal_tests/install_requirements.sh
+          source .venv/bin/activate
+          python3 functionnal_tests/run.py
+      - name: run Kong functional tests
+        shell: bash
+        run: |
+          cd Kong
+          bash functionnal_tests/install_requirements.sh
+          source .venv/bin/activate
+          python3 functionnal_tests/run.py
+  
+  defense_ready:
+    needs: [build_all_projects, run_all_tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Project ready
+        run: |
+          echo "LISP Interpreter (Part 1) - Built and tested"
+          echo "Kong Compiler (Part 2) - Built and tested"
+          echo "All tests passing"

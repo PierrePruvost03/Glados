@@ -1,0 +1,5 @@
+Funk floor(Float a) -> Float {
+    Int b = Kast(Int, a);
+    a = Kast(Float, b);
+    Return a;
+}

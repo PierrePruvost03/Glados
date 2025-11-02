@@ -1,0 +1,6 @@
+Funk isDigit(Khar k) -> Bool {
+    If (k `>=` '0' `&&` k `<=` '9') {
+        Return True;
+    }
+    Return False;
+}

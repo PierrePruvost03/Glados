@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/add.kong",
+        "tests": {
+            "add1": {
+                "description" : "adding two ints (six and seven)",
+                "expected": "13",
+                "vars": {
+                    "1": "Int a = 6;",
+                    "2": "Int b = 7;"
+                },
+                "input": "add(a, b)"
+            },
+            "add2": {
+                "description" : "adding two floats (six point seven and seven point six)",
+                "expected": "14.3",
+                "vars": {
+                    "1": "Float a = 6.7;",
+                    "2": "Float b = 7.6;"
+                },
+                "input": "add(a, b)"
+            },
+            "add3": {
+                "description" : "adding an int and a float (six seven and six point seven)",
+                "expected": "73.7",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Float b = 6.7;"
+                },
+                "input": "add(a, b)"
+            },
+            "add4": {
+                "description": "adding two negative numbers",
+                "expected": "-15",
+                "vars": {
+                    "1": "Int a = -10;",
+                    "2": "Int b = -5;"
+                },
+                "input": "add(a, b)"
+            }
+        }
+    }
+]

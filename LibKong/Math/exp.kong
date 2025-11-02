@@ -1,0 +1,7 @@
+// Euler's number approximation is 2.718281828459
+Inklude powf (powf)
+
+Funk exp(Int n) -> Float {
+    Float e = 2.718281828459;
+    Return powf(e, n);
+}

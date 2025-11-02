@@ -1,65 +1,96 @@
-# GLaDOS
+# Kong
 
-Welcome to GLaDOS Part 1
+Welcome to Kong, a GLaDOS project
 
 ## About
 
-This is the first part of the GLaDOS, a lisp interpretter.
+This is the second part of the GLaDOS EPITECH project.
 
-To see [official lisp documentation](https://lisp-docs.github.io/cl-language-reference/chap-2/c-b-character-syntax)
-> [!NOTE]
-> Keep in mind that this is a minimalist lisp interpretter, all the supported features are listed [here](#supported-features)
+The first part consisted in the creation of a lisp interpretter.
+You can find it in the `ListInterpreter` folder.
 
-## How to build
+This second one sees us creating our own programming language, the Kong.
+You can find its source files in the `Kong` folder.
 
-`make`
+## How to install
 
-`./glados`
+WIP
 
 ## Supported features
 
+See the [Kong Wiki](#) for a full list of supported features and examples.
+
 ### Types
 
-- Integers -> `12` and `-12`
-- Booleans -> `#t` and `#f`*
-- Strings -> `"this is a string"`
-- Lists -> `(define string "This is a list conataining two symbols and a string")`
+#### Numbers
+
+- **Int**
+- **Khar** (character type)
+- **Float**
+- **Bool**
+
+#### Wrapper
+
+- **Vector** — e.g. `Int<i>` (Int vector of size *i*)
+- **Array** — e.g. `Int[3]` (Int array of size 3, only constant values)
+- **Tuples** — e.g. `|Int, Float|` (tuple of Int and Float)
+- **String** — alias for `Khar<>`
+
+#### Custom
+
+- **Strukt** — e.g. `Strukt Person { Int age; String name }`
+- **Typedefs** — e.g. `'Type NewType = Int;'`
 
 ### Keywords
 
-- `define` -> `(define var "value")`
-- `lambda` -> `(define function (lambda (x) x))`
-- `if` -> `(if (zero? 1) "1 is zero" "1 is not zero")`
+- Funk
+- Strukt
+- Type
+- Inklude
+- Konst
+- Kong
+- Strong
+- Int
+- Float
+- Bool
+- Khar
+- String
+- True
+- False
+- If
+- Elif
+- Else
+- For
+- In
+- Return
+- While
+- Trait
+- Impl
+- self
+- Self
+- Kast
 
-### Primitives
+### Primitives Infixes
 
-- `+` -> `(+ 2 3) ; 5`
-- `-` -> `(- 3 2) ; 1`
-- `*` -> `(* 2 3) ; 6`
-- `div` -> `(div 6 2) ; 3`
-- `eq?` -> `(eq? 6 2) ; #f`
-- `<` -> `(< 3 6) ; #t`
-- `>` -> `(> 3 6) ; #f`
-- `mod` -> `(mod 19 6) ; 1`
-- `zero?` -> `(zero? 1) ; #f`
+- **+**
+- **-**
+- **/**
+- **\***
+- **%**
+- **\`>\'**
+- **\`>=\'**
+- **\`<\'**
+- **\`<=\'**
+- **\`||\'**
+- **\`&&\'**
 
 ## Run tests
 
-### Unit tests
-
-`make tests_run`
+`make test`
 
 ### Functional tests
 
 `make functional_tests_run`
-
-## Commands
-
-while using the interpretter in **standard input** mode, you can type some commands:
-
-- `:help` -> show the list of the available commands
-- `:load <file>...` -> execute a file in the interpreter, loading his symbols
-- `:type [<symbol>...]` -> get the type of a symbol (or all of them if no specified)
 
 ## Contributors
 | Pierre Pruvost | Abel Daverio | Alexandre Guillaud | Sami Hamrouni | Paul Berlioz |

@@ -1,0 +1,6 @@
+Funk isLower(Khar k) -> Bool {
+    If ((k `>=` 'a') `&&` (k `<=` 'z')) {
+        Return True;
+    }
+    Return False;
+}

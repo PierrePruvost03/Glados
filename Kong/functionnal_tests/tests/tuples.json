@@ -1,0 +1,39 @@
+[
+    {
+        "script_file": "exemples/tuples.kong",
+        "tests": {
+            "tuples1": {
+                "description": "get first element of a tuple",
+                "expected": "42",
+                "vars": {
+                    "1": "|Int, Int| pair = |42, 100|;"
+                },
+                "input": "get_first(pair)"
+            },
+            "tuples2": {
+                "description": "get second element of mixed type tuple",
+                "expected": "3.14",
+                "vars": {
+                    "1": "|Int, Float| pair = |10, 3.14|;"
+                },
+                "input": "get_second(pair)"
+            },
+            "tuples3": {
+                "description": "swap tuple elements",
+                "expected": "[20,10]",
+                "vars": {
+                    "1": "|Int, Int| pair = |10, 20|;"
+                },
+                "input": "swap_tuple(pair)"
+            },
+            "tuples4": {
+                "description": "sum all elements in a triple",
+                "expected": "150",
+                "vars": {
+                    "1": "|Int, Int, Int| triple = |50, 60, 40|;"
+                },
+                "input": "sum_triple(triple)"
+            }
+        }
+    }
+]

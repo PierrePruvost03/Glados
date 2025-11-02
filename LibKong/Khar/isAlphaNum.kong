@@ -1,0 +1,9 @@
+Inklude isAlpha (isAlpha)
+Inklude isDigit (isDigit)
+
+Funk isAlphaNum(Khar k) -> Bool {
+    If (isAlpha(k) `||` isDigit(k)) {
+        Return True;
+    }
+    Return False;
+}

@@ -25,7 +25,11 @@ jobs:
       - name: Fetch tags with annotations
         run: git fetch --tags --force
       - name: Build project
-        run: make
+        run: make all
+      - name: Verify binaries exist
+        run: |
+          test -f Kong/glados-kong && echo "✅ Kong binary built"
+          test -f LispInterpreter/glados-lisp && echo "✅ Lisp binary built"
       - name: Extract tag name
         id: tag
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -48,7 +52,8 @@ jobs:
           name: "Glados ${{ steps.tag.outputs.tag }}"
           body: ${{ steps.release_notes.outputs.notes }}
           files: |
-            glados
+            Kong/glados-kong
+            LispInterpreter/glados-lisp
           draft: false
           prerelease: false
         env:

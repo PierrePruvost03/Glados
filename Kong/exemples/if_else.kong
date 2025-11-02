@@ -1,0 +1,87 @@
+Funk check_positive(Int n) -> String {
+    If (n `>` 0) {
+        Return "positive";
+    } Else {
+        Return "non-positive";
+    }
+}
+
+Funk check_sign(Int n) -> String {
+    If (n `>` 0) {
+        Return "positive";
+    } Else {
+        If (n `<` 0) {
+            Return "negative";
+        } Else {
+            Return "zero";
+        }
+    }
+}
+
+Funk grade_score(Int score) -> String {
+    If (score `>=` 90) {
+        Return "A";
+    } Else {
+        If (score `>=` 80) {
+            Return "B";
+        } Else {
+            If (score `>=` 70) {
+                Return "C";
+            } Else {
+                If (score `>=` 60) {
+                    Return "D";
+                } Else {
+                    Return "F";
+                }
+            }
+        }
+    }
+}
+
+Funk max_of_three(Int a, Int b, Int c) -> Int {
+    If (a `>=` b) {
+        If (a `>=` c) {
+            Return a;
+        } Else {
+            Return c;
+        }
+    } Else {
+        If (b `>=` c) {
+            Return b;
+        } Else {
+            Return c;
+        }
+    }
+}
+
+Funk is_even(Int n) -> Bool {
+    If ((n % 2) `==` 0) {
+        Return True;
+    } Else {
+        Return False;
+    }
+}
+
+Funk fizzbuzz(Int n) -> String {
+    If ((n % 15) `==` 0) {
+        Return "FizzBuzz";
+    } Else {
+        If ((n % 3) `==` 0) {
+            Return "Fizz";
+        } Else {
+            If ((n % 5) `==` 0) {
+                Return "Buzz";
+            } Else {
+                Return "Number";
+            }
+        }
+    }
+}
+
+Funk abs_value(Int n) -> Int {
+    If (n `<` 0) {
+        Return -1 * n;
+    } Else {
+        Return n;
+    }
+}

@@ -1,0 +1,7 @@
+Funk square(Int a) -> Int {
+    Return a * a;
+}
+
+Funk cube(Int a) -> Int {
+    Return a * a * a;
+}

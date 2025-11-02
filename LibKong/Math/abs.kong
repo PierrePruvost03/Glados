@@ -1,0 +1,7 @@
+Funk abs(Int a) -> Int {
+    If (a `<` 0) {
+        Return -1 * a;
+    } Else {
+        Return a;
+    }
+}

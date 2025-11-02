@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/float_ops.kong",
+        "tests": {
+            "float_ops1": {
+                "description": "adding 67.5 and 0.5",
+                "expected": "68.0",
+                "vars": {
+                    "1": "Float a = 67.5;",
+                    "2": "Float b = 0.5;"
+                },
+                "input": "addFloat(a, b)"
+            },
+            "float_ops2": {
+                "description": "adding 67.0 and 0.67",
+                "expected": "67.67",
+                "vars": {
+                    "1": "Float a = 67.0;",
+                    "2": "Float b = 0.67;"
+                },
+                "input": "addFloat(a, b)"
+            },
+            "float_ops3": {
+                "description": "multiplying 67.0 by 1.5",
+                "expected": "100.5",
+                "vars": {
+                    "1": "Float a = 67.0;",
+                    "2": "Float b = 1.5;"
+                },
+                "input": "multiplyFloat(a, b)"
+            },
+            "float_ops4": {
+                "description": "multiplying 6.7 by 10.0 to get 67",
+                "expected": "67.0",
+                "vars": {
+                    "1": "Float a = 6.7;",
+                    "2": "Float b = 10.0;"
+                },
+                "input": "multiplyFloat(a, b)"
+            }
+        }
+    }
+]

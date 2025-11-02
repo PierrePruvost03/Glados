@@ -1,0 +1,31 @@
+name: LISP Interpreter - Basic Checks
+
+on:
+  push:
+    paths:
+      - 'LispInterpreter/**'
+      - '.github/workflows/lisp_checks.yaml'
+  pull_request:
+    branches-ignore:
+      - main
+    paths:
+      - 'LispInterpreter/**'
+
+env:
+  STACK_ROOT: /tmp/stack-root
+
+jobs:
+  check_lisp_compilation:
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: build LISP interpreter
+        run: make lisp
+      - name: check LISP binary exists
+        run: test -f LispInterpreter/glados-lisp
+      - name: test LISP binary works
+        run: |
+          echo "(+ 1 2)" | LispInterpreter/glados-lisp
+          echo "LISP interpreter basic test passed"

@@ -1,0 +1,20 @@
+Strukt Point {
+    Int x;
+    Int y;
+}
+
+Funk sum_array_of_structs(Point[3] points) -> Int {
+    Return (points[0]){x} + (points[1]){x} + (points[2]){x};
+}
+
+Funk modify_tuple_in_array(|Int, Int|[2] arr) -> Int {
+    Return (arr[0])|0| + (arr[1])|1|;
+}
+
+Funk nested_struct_access(Point[2] arr) -> Int {
+    Return (arr[0]){x} + (arr[1]){y};
+}
+
+Funk vector_of_tuples(|Int, Int|<2> vec) -> Int {
+    Return (vec<0>)|0| + (vec<1>)|1|;
+}

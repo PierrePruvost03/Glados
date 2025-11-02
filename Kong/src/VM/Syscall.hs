@@ -1,0 +1,77 @@
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+module VM.Syscall (executeSyscall) where
+
+import DataStruct.Bytecode.Syscall (Syscall (..))
+import DataStruct.VM (VMState (..), Heap)
+import DataStruct.Bytecode.Value (Value(..))
+import DataStruct.Bytecode.Number (Number(..))
+import VM.Errors (ExecError (..))
+import VM.Utils (makeIntValue, createList)
+import Control.Exception (catch, throw, throwIO, IOException)
+import GHC.IO.FD (openFile, FD (..), release, writeRawBufferPtr, readRawBufferPtr)
+import qualified Data.Vector as V
+import qualified Data.Map as M
+import System.IO (IOMode (..))
+import Foreign.C.String
+import Foreign.Ptr (castPtr)
+import Foreign.Marshal.Alloc
+
+loadRefs :: Heap -> Value -> Value
+loadRefs h (VList v) = VList $ V.fromList $ map (loadRefs h) (V.toList v)
+loadRefs h (VStruct s) = VStruct $ M.fromList $ map (\(name, v) -> (name, loadRefs h v)) (M.toList s)
+loadRefs h r@(VRef add) = case h V.!? add of
+    Just v -> loadRefs h v
+    Nothing -> r
+loadRefs _ v = v
+
+executeSyscall :: Syscall -> VMState -> IO VMState
+-- Exit
+executeSyscall Exit (VMState {stack = x:_}) = throwIO $ ExitException $ makeIntValue x
+
+-- Print
+executeSyscall (Print n) s@(VMState {stack, ip, heap}) = case createList stack n of
+    (l, st) -> f l >> pure (s {stack = st, ip = ip + 1})
+    where
+        f [] = return ()
+        f (x:xs) = print (loadRefs heap x) >> f xs
+
+-- Open
+executeSyscall Open s@(VMState {stack = pathVal : xs, ip, heap}) =
+        case loadRefs heap pathVal of
+            VList file ->
+                catch
+                    (openFile (map toChar (V.toList file)) ReadWriteMode True >>= \((fd), _) -> pure (fromIntegral (fdFD fd)))
+                    (\(_ :: IOException) -> pure (-1))
+                >>= \fd -> pure (s{stack = VNumber (VInt fd) : xs, ip = ip + 1})
+            _ -> throw $ InvalidCharConversion
+        where
+            toChar (VNumber (VChar c)) = c
+            toChar _ = throw $ InvalidCharConversion
+
+-- Close
+executeSyscall Close s@(VMState {stack = fd : xs, ip}) =
+    release (FD (fromIntegral (makeIntValue fd)) 0) >> pure (s{stack = xs, ip = ip + 1})
+
+-- Write
+executeSyscall Write s@(VMState {stack = fd : v : xs, ip, heap}) =
+    catch
+        (withCString stringV $ \
+            ptr -> writeRawBufferPtr "" (FD (fromIntegral (makeIntValue fd)) 0) (castPtr ptr) 0 (fromIntegral (length stringV)))
+        (\(_ :: IOException) -> pure (-1)) >>=
+    \n -> pure (s{stack = VNumber (VInt (fromIntegral n)) : xs, ip = ip + 1})
+    where stringV = show (loadRefs heap v)
+
+-- Read
+executeSyscall Read s@(VMState {stack = fd : n : xs, ip}) =
+  catch
+    (allocaBytes len $ \ptr ->
+        readRawBufferPtr "" (FD (fromIntegral (makeIntValue fd)) 0) ptr 0 (fromIntegral len)
+        >>= \bytesRead -> peekCStringLen (castPtr ptr, bytesRead))
+    (\(_ :: IOException) -> pure "")
+  >>= \str ->
+      pure (s {stack = VList (V.fromList (map (\c -> VNumber (VChar c)) str)) : xs, ip = ip + 1})
+  where
+    len = (makeIntValue n)
+executeSyscall GetArgv s@(VMState {stack, args, ip}) = pure s{stack = args : stack, ip = ip + 1}
+executeSyscall _ _ = throwIO $ UnknowSyscall

@@ -1,0 +1,43 @@
+[
+    {
+        "script_file": "exemples/divide.kong",
+        "tests": {
+            "divide1": {
+                "description": "dividing 67 by 1",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 1;"
+                },
+                "input": "divide(a, b)"
+            },
+            "divide2": {
+                "description": "dividing 134 by 2 to get 67",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 134;",
+                    "2": "Int b = 2;"
+                },
+                "input": "divide(a, b)"
+            },
+            "divide3": {
+                "description": "dividing 670 by 10 to get 67",
+                "expected": "67",
+                "vars": {
+                    "1": "Int a = 670;",
+                    "2": "Int b = 10;"
+                },
+                "input": "divide(a, b)"
+            },
+            "divide4": {
+                "description": "dividing 67 by 67",
+                "expected": "1",
+                "vars": {
+                    "1": "Int a = 67;",
+                    "2": "Int b = 67;"
+                },
+                "input": "divide(a, b)"
+            }
+        }
+    }
+]
