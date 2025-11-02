@@ -1,0 +1,39 @@
+[
+    {
+        "script_file": "exemples/complex_types.kong",
+        "tests": {
+            "complex1": {
+                "description": "sum x coordinates from array of structs",
+                "expected": "30",
+                "vars": {
+                    "1": "Point[3] points = [{x=10, y=5}, {x=15, y=10}, {x=5, y=3}];"
+                },
+                "input": "sum_array_of_structs(points)"
+            },
+            "complex2": {
+                "description": "access tuple elements in array",
+                "expected": "40",
+                "vars": {
+                    "1": "|Int, Int|[2] arr = [|10, 20|, |25, 30|];"
+                },
+                "input": "modify_tuple_in_array(arr)"
+            },
+            "complex3": {
+                "description": "nested struct field access in array",
+                "expected": "50",
+                "vars": {
+                    "1": "Point[2] arr = [{x=20, y=15}, {x=10, y=30}];"
+                },
+                "input": "nested_struct_access(arr)"
+            },
+            "complex4": {
+                "description": "access tuples in vector",
+                "expected": "60",
+                "vars": {
+                    "1": "|Int, Int|<2> vec = <|15, 25|, |35, 45|>;"
+                },
+                "input": "vector_of_tuples(vec)"
+            }
+        }
+    }
+]

@@ -1,0 +1,15 @@
+Funk swap(Int &a, Int &b) -> Int {
+    Int temp = a;
+    a = b;
+    b = temp;
+    Return 0;
+}
+
+Funk increment_ref(Int &x) -> Int {
+    x = x + 1;
+    Return x;
+}
+
+Funk get_value(Int &ref) -> Int {
+    Return ref;
+}

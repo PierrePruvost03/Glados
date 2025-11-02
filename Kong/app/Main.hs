@@ -17,6 +17,7 @@ main = getArgs >>= handleArgs
 
 handleArgs :: [String] -> IO ()
 handleArgs [] = printUsage >> exitFailure
+handleArgs ("-h" : []) = printUsage >> exitFailure
 handleArgs ("--exec" : file : xs) = executeVM file xs >>= exitWith . toExitCode
 handleArgs files = loadAndValidateFiles execfiles >>= \result ->
     handleLoad result binary

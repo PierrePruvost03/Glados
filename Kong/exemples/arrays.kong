@@ -1,0 +1,17 @@
+Funk sum_array(Int[3] arr) -> Int {
+    Return arr[0] + arr[1] + arr[2];
+}
+
+Funk get_element(Int[5] arr, Int index) -> Int {
+    Return arr[index];
+}
+
+Funk modify_array(Int[2] arr) -> Int[2] {
+    arr[0] = arr[0] * 3;
+    arr[1] = arr[1] * 3;
+    Return arr;
+}
+
+Funk array_length(Float[4] arr) -> Int {
+    Return 4;
+}
