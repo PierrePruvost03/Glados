@@ -155,8 +155,6 @@ inferType expr env = case unwrap expr of
             | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
         t@(typeLc, (TArray inside _))
             | name == "len" -> Just (typeLc, TInt)
-            | name == "pop" -> Just inside
-            | name == "push" -> Just t
             | otherwise -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
         t -> getFunctionReturnType (typeAliases env) (typeToString (stripWrap t) <> ('$':name))
 
