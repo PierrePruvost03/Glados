@@ -8,6 +8,7 @@ module Compiler.BytecodeGen.Expr.Expr
   , compileLoop
   ) where
 
+import Data.Maybe (fromJust)
 import DataStruct.Ast
 import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.Bytecode.Op (builtinOps, stringToOp)
@@ -68,7 +69,7 @@ compileAssignmentExpr lhs val env lnCount = case unwrap lhs of
     AVarCall v ->
       validateKonstAssignment v env lnCount >>
       checkAssignmentType lnCount (M.lookup v (typeAliases env)) (inferType val env) >>
-      fmap (++ [PushEnv v, StoreRef]) (compileExprWithType val env (M.lookup v (typeAliases env)))
+      fmap (++ [PushEnv v, StoreRef, LoadRef]) (compileExprWithType val env (M.lookup v (typeAliases env)))
     _ -> Left $ InvalidArguments "Invalid left-hand side for assignment" lnCount
   -- arr[idx] = val, vec<idx> = val, tup|idx| = val
   AAccess acc -> case unwrap acc of
@@ -556,6 +557,22 @@ compileArrayMethod obj name args env lnCount = compileTraitMethod obj name args 
 compileTraitMethod :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
 compileTraitMethod obj name args env lnCount =
   compileFunctionCall (lc obj, AValue (lc obj, AVarCall name)) (obj : args) env lnCount
+    >>= \instrs -> Right (addLoadRefIfNeeded instrs (getFunctionReturnType (getTraitMethodName obj name env) env))
+
+getTraitMethodName :: AExpression -> String -> CompilerEnv -> String
+getTraitMethodName obj name env = typeToString (fromJust $ inferType obj env) ++ "$" ++ name
+
+addLoadRefIfNeeded :: [Instr] -> Maybe Type -> [Instr]
+addLoadRefIfNeeded instrs (Just returnType) | isRefTypeWrapped returnType = instrs ++ [LoadRef]
+addLoadRefIfNeeded instrs _ = instrs
+
+getFunctionReturnType :: String -> CompilerEnv -> Maybe Type
+getFunctionReturnType funcName env =
+  case M.lookup funcName (typeAliases env) of
+    Just t -> case unwrap t of
+      TFunc _ retType -> Just retType
+      _ -> Nothing
+    _ -> Nothing
 
 -- Compile builtin method call (push, pop, len)
 compileBuiltinMethodCall :: AExpression -> String -> [AExpression] -> CompilerEnv -> LineCount -> Either CompilerError [Instr]
