@@ -2,6 +2,8 @@
 
 Welcome to Kong source files
 
+![.](images/KongStrong.png)
+
 ## About
 
 These files are the working force of the project. If you are just a Kong user, **no need to pay attention to them**.
