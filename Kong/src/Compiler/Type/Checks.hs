@@ -13,6 +13,7 @@ module Compiler.Type.Checks
   , checkComparisonTypes
   , isNonComparableType
   , signOps
+  , singleOps
   ) where
 
 import DataStruct.Ast
@@ -101,6 +102,9 @@ isTemporaryValue expr = case unwrap expr of
   AAttribution _ _ -> False
   AMethodCall _ _ _ -> True
 
+singleOps :: [String]
+singleOps = ["!", "~"]
+
 signOps :: [String]
 signOps = ["+", "-"]
 
@@ -108,7 +112,7 @@ comparisonOps :: [String]
 comparisonOps = ["==", "!=", "<", ">", "<=", ">="]
 
 arithOps :: [String]
-arithOps = ["+", "-", "*", "/", "%"]
+arithOps = ["+", "-", "*", "/", "%", "^", "&", "|", "~", ">>", "<<"]
 
 logicalOps :: [String]
 logicalOps = ["&&", "||"]

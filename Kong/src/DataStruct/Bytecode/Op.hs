@@ -6,11 +6,12 @@ import Data.Binary
 data Op
   = Add | Sub | Mul | Div
   | Equal | Lt | Gt | Le | Ge | Ne
-  | And | Or | Not | Mod
+  | And | Or | Not | Mod | BNot | Xor
+  | BitwiseL | BitwiseR | BOr | BAnd
   deriving (Eq, Ord, Show)
 
 builtinOps :: [String]
-builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!=", "%", "&&", "||"]
+builtinOps = ["+", "-", "*", "/", "==", "<", ">", "<=", ">=", "!=", "%", "&&", "||", "&", "|", "^", ">>", "<<", "!", "~"]
 
 stringToOp :: String -> Op
 stringToOp = \case
@@ -28,6 +29,12 @@ stringToOp = \case
   "&&" -> And
   "||" -> Or
   "!" -> Not
+  "&" -> BAnd
+  "|" -> BOr
+  "^" -> Xor
+  "~" -> BNot
+  ">>" -> BitwiseR
+  "<<" -> BitwiseL
   op -> error $ "Unknown operator: " ++ op
 
 instance Binary Op where
@@ -46,6 +53,12 @@ instance Binary Op where
     put Or = put (11 :: Word8)
     put Not = put (12 :: Word8)
     put Mod = put (13 :: Word8)
+    put BNot = put (13 :: Word8)
+    put Xor = put (14 :: Word8)
+    put BitwiseL = put (15 :: Word8)
+    put BitwiseR = put (16 :: Word8)
+    put BOr = put (17 :: Word8)
+    put BAnd = put (18 :: Word8)
     -- read
     get = (get :: Get Word8) >>= \case
         0 -> return Add
@@ -61,5 +74,10 @@ instance Binary Op where
         10 -> return And
         11 -> return Or
         12 -> return Not
-        13 -> return Mod
+        13 -> return BNot
+        14 -> return Xor
+        15 -> return BitwiseL
+        16 -> return BitwiseR
+        17 -> return BOr
+        18 -> return BAnd
         _ -> fail "Unknown operation"

@@ -8,7 +8,7 @@ import DataStruct.Bytecode.Number (Number(..))
 import DataStruct.VM (VMState(..))
 import VM.Errors (ExecError(..))
 import Control.Exception
-import VM.Utils (makeBoolValue)
+import VM.Utils (makeBoolValue, makeIntValue)
 
 compareTypes :: Number -> Number -> (Number, Number)
 compareTypes (VBool a) (VBool b) = (VBool a, VBool b)
@@ -118,6 +118,26 @@ modOp ((VInt a), (VInt b)) = VInt (a `mod` b)
 modOp ((VFloat a), (VFloat b)) = VFloat (a - b * fromIntegral (floor (a / b) :: Integer))
 modOp (v1, v2) = throw $ InvalidOpTypeError (VNumber v1) (VNumber v2)
 
+
+-- bNotOp :: Number -> Number
+-- bNotOp a = complement a
+
+-- xorOp :: (Number, Number) -> Number
+-- xorOp (a, b) = a `xor` b
+
+-- bitwiseLOp :: (Number, Number) -> Number
+-- bitwiseLOp (a, b) = shiftL a (makeIntValue b)
+
+-- BitwiseROp :: (Number, Number) -> Number
+-- bitwiseROp (a, b) = shiftR a (makeIntValue b)
+
+-- bOrOp :: (Number, Number) -> Number
+-- bOrOp (a, b) = a .|. b
+
+-- bAndOp :: (Number, Number) -> Number
+-- bAndOp (a, b) =
+
+
 applyOp :: VMState -> Op -> VMState
 applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Add =
      s {stack = VNumber (addOp $ compareTypes a b) : xs}
@@ -147,5 +167,17 @@ applyOp s@(VMState {stack = (VNumber a: xs)}) Not =
      s {stack = VNumber (notOp a) : xs}
 applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Mod =
      s {stack = VNumber (modOp $ compareTypes a b) : xs}
+-- applyOp (VMState {stack = VNumber a: xs}) BNot =
+--      s {stack = VNumber (bNotOp a) : xs}
+-- applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) Xor =
+--      s {stack = VNumber (xorOp $ compareTypes a b) : xs}
+-- applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) BitwiseL =
+--      s {stack = VNumber (bitwiseLOp $ compareTypes a b) : xs}
+-- applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) BitwiseR =
+--      s {stack = VNumber (bitwiseROp $ compareTypes a b) : xs}
+-- applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) BOr =
+--      s {stack = VNumber (bOrOp $ compareTypes a b) : xs}
+-- applyOp s@(VMState {stack = (VNumber a: VNumber b: xs)}) BAnd =
+--      s {stack = VNumber (bAndOp $ compareTypes a b) : xs}
 applyOp (VMState {stack = (v1: v2: _)}) _ = throw $ InvalidOpTypeError v1 v2
 applyOp _ _ = throw $ InvalidStackAccess

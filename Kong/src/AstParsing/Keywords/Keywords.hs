@@ -152,7 +152,7 @@ symbolFalse :: String
 symbolFalse = "False"
 
 allowedInfix :: String
-allowedInfix = "+-/:*^!%?&="
+allowedInfix = "+-/:*^!%?&=&"
 
 allowedOpAssignment :: String
 allowedOpAssignment = "+-*/^%"
