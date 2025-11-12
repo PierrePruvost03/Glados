@@ -9,7 +9,6 @@ import AstParsing.Skip
 import AstParsing.Utils
 import Control.Applicative
 import Data.Functor
-import Data.Maybe
 import DataStruct.Ast
 import Parser
 
@@ -336,17 +335,20 @@ parseValue =
          )
       <* skip
 
+getInfixExpr :: Maybe AExpression -> AExpression -> AExpression -> AExpressionRaw
+getInfixExpr Nothing s e = ACall s [e]
+getInfixExpr (Just e1) s e2 = AInfixArg e1 $ Just (s, e2)
+
 parseInfix :: Parser AExpression
 parseInfix =
   wrap $
     skip
-      *> ( (\e1 n e2 -> ACall n (catMaybes [e1, Just e2]))
+      *> (getInfixExpr
              <$> optional parseBasicExpression
              <* skip
              <*> wrap (AValue <$> wrap (AVarCall <$> infixSymbol))
              <* skip
-             <*> parseExpression
-         )
+             <*> parseExpression)
   where
     infixSymbol = parseBetween symbolInfix <|> ((: []) <$> parseAnyChar allowedInfix)
 

@@ -97,8 +97,12 @@ data AstAccessRaw
 
 type AExpression = Wrapper AExpressionRaw
 
+-- AExpression : i++ * 4;
+-- i++3;
+
 data AExpressionRaw
-    = AValue AstValue
+    = AInfixArg AExpression (Maybe (AExpression, AExpression))
+    | AValue AstValue
     | AAccess AstAccess
     | AAttribution
         { variable :: String,
